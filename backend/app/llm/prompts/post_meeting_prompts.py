@@ -1,0 +1,1 @@
+POST_MEETING_PROMPT = "Create executive summary with actions, owners, deadlines, citations."

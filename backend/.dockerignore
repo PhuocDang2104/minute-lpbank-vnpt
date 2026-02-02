@@ -1,0 +1,15 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.*
+.vscode
+.idea
+node_modules
+tests/
+docs/
+data/
+*.md

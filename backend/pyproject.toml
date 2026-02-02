@@ -1,0 +1,16 @@
+[project]
+name = "vnpt_ai_hackathon_backend"
+version = "0.1.0"
+description = "MeetMate backend scaffold"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "pydantic",
+    "langchain",
+    "langgraph",
+    "httpx",
+    "passlib[bcrypt]",
+]

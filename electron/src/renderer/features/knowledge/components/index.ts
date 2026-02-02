@@ -1,0 +1,2 @@
+export { KnowledgeHubChat } from './KnowledgeHubChat'
+

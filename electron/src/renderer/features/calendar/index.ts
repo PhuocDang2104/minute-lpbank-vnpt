@@ -1,0 +1,1 @@
+export const calendarSource = () => ({ provider: 'Graph', synced: true })

@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="vi" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="x-ua-compatible" content="ie=edge" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no" />
+  <title>Meeting Minutes – MeetMate Demo</title>
+  <!--[if mso]>
+  <xml>
+    <o:OfficeDocumentSettings>
+      <o:AllowPNG/>
+      <o:PixelsPerInch>96</o:PixelsPerInch>
+    </o:OfficeDocumentSettings>
+  </xml>
+  <![endif]-->
+
+  <style>
+    /* Basic resets */
+    html, body { margin:0 !important; padding:0 !important; height:100% !important; width:100% !important; }
+    * { -ms-text-size-adjust:100%; -webkit-text-size-adjust:100%; }
+    table, td { mso-table-lspace:0pt !important; mso-table-rspace:0pt !important; border-collapse:collapse !important; border-spacing:0 !important; }
+    img { -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; display:block; }
+    a { text-decoration:none; }
+    .preheader { display:none !important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden; mso-hide:all; }
+    .container { max-width:640px; margin:0 auto; }
+    .card { border:1px solid #E6E8EC; border-radius:16px; background:#FFFFFF; }
+    .muted { color:#667085; }
+    .text { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; }
+    .h1 { font-size:24px; line-height:32px; font-weight:800; letter-spacing:-0.02em; }
+    .h2 { font-size:16px; line-height:24px; font-weight:800; }
+    .p  { font-size:14px; line-height:22px; font-weight:400; }
+    .small { font-size:12px; line-height:18px; }
+    .pill { display:inline-block; padding:6px 10px; border:1px solid #E6E8EC; border-radius:999px; font-size:12px; line-height:18px; }
+    .divider { height:1px; background:#EEF0F3; }
+    .btn { display:inline-block; background:#111827; color:#FFFFFF !important; padding:12px 16px; border-radius:12px; font-size:14px; font-weight:700; }
+    .btn-secondary { display:inline-block; background:#FFFFFF; color:#111827 !important; padding:12px 16px; border-radius:12px; font-size:14px; font-weight:700; border:1px solid #E6E8EC; }
+    .grid-2 { width:100%; }
+    .grid-2 td { vertical-align:top; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; line-height:18px; font-weight:700; background:#F3F4F6; color:#111827; }
+    .ok { background:#ECFDF3; color:#027A48; }
+    .warn { background:#FFFAEB; color:#B54708; }
+    .info { background:#EFF8FF; color:#175CD3; }
+
+    /* Mobile */
+    @media screen and (max-width: 680px) {
+      .container { width:100% !important; }
+      .px { padding-left:16px !important; padding-right:16px !important; }
+      .stack { display:block !important; width:100% !important; }
+      .h1 { font-size:22px !important; line-height:30px !important; }
+    }
+
+    /* Dark mode (best-effort; not all clients support) */
+    @media (prefers-color-scheme: dark) {
+      body { background:#0B1220 !important; }
+      .card { background:#0F172A !important; border-color:#22304A !important; }
+      .divider { background:#22304A !important; }
+      .muted { color:#A3AED0 !important; }
+      .text, .h1, .h2, .p, .small { color:#E5E7EB !important; }
+      .pill { border-color:#22304A !important; }
+      .btn-secondary { background:#0F172A !important; color:#E5E7EB !important; border-color:#22304A !important; }
+      .badge { background:#111C33 !important; color:#E5E7EB !important; }
+      .ok { background:#0B2E22 !important; color:#6CE9A6 !important; }
+      .warn { background:#2D1B0A !important; color:#FEC84B !important; }
+      .info { background:#0B1F3A !important; color:#84CAFF !important; }
+    }
+  </style>
+</head>
+
+<body style="background:#F7F8FA; margin:0; padding:0;">
+  <!-- Preheader -->
+  <div class="preheader">
+    Biên bản cuộc họp demo MeetMate đã sẵn sàng: mục tiêu, nội dung chính, quyết định, follow-ups và tài liệu liên quan.
+  </div>
+
+  <table role="presentation" width="100%" style="background:#F7F8FA;" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center" style="padding:24px 12px;">
+        <table role="presentation" class="container" width="640" cellpadding="0" cellspacing="0">
+          <!-- Brand header -->
+          <tr>
+            <td class="px" style="padding:8px 24px 16px 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="left" class="text" style="font-size:14px; font-weight:800; color:#111827;">
+                    MeetMate
+                    <span style="font-weight:600; color:#667085;">• Post-Meeting Delivery</span>
+                  </td>
+                  <td align="right" class="text" style="font-size:12px; color:#667085;">
+                    Ref: <span class="mono">{{meeting_ref}}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Hero card -->
+          <tr>
+            <td class="px" style="padding:0 24px 16px 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card">
+                <tr>
+                  <td style="padding:20px 20px 8px 20px;" class="text">
+                    <div class="pill muted">Meeting Minutes</div>
+                    <div style="height:10px;"></div>
+                    <div class="h1" style="color:#111827;">
+                      Meeting Minutes – MeetMate Demo
+                    </div>
+                    <div style="height:8px;"></div>
+                    <div class="p muted">
+                      Cảm ơn anh/chị đã tham dự buổi demo. Biên bản dưới đây được chuẩn hóa theo cấu trúc doanh nghiệp, sẵn sàng chia sẻ và truy vết.
+                    </div>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:0 20px 16px 20px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="stack" style="padding-top:8px;" align="left">
+                          <a href="{{minutes_url}}" class="btn text">Mở biên bản đầy đủ</a>
+                          <span style="display:inline-block; width:10px;"></span>
+                          <a href="{{recording_url}}" class="btn-secondary text">Xem recording</a>
+                        </td>
+                        <td class="stack" style="padding-top:8px;" align="right">
+                          <span class="badge info">Delivered in {{delivery_seconds}}s</span>
+                          <span style="display:inline-block; width:8px;"></span>
+                          <span class="badge ok">Traceable</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td><div class="divider"></div></td>
+                </tr>
+
+                <!-- Meeting metadata -->
+                <tr>
+                  <td style="padding:16px 20px;" class="text">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="grid-2">
+                      <tr>
+                        <td width="50%" class="stack" style="padding-right:8px;">
+                          <div class="small muted">Meeting</div>
+                          <div class="p" style="margin:0; font-weight:700; color:#111827;">{{meeting_title}}</div>
+                          <div class="small muted">{{meeting_datetime}} • {{meeting_location}}</div>
+                        </td>
+                        <td width="50%" class="stack" style="padding-left:8px;">
+                          <div class="small muted">Participants</div>
+                          <div class="p" style="margin:0; font-weight:700; color:#111827;">{{participants_count}} attendees</div>
+                          <div class="small muted">Organizer: {{organizer_name}}</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Minutes blocks -->
+          <tr>
+            <td class="px" style="padding:0 24px 16px 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card">
+                <tr>
+                  <td style="padding:18px 20px 10px 20px;" class="text">
+                    <div class="h2" style="color:#111827;">1) Mục tiêu cuộc họp</div>
+                    <div class="p muted" style="margin:8px 0 0 0;">
+                      {{objective}}
+                    </div>
+                  </td>
+                </tr>
+
+                <tr><td style="padding:0 20px;"><div class="divider"></div></td></tr>
+
+                <tr>
+                  <td style="padding:14px 20px 10px 20px;" class="text">
+                    <div class="h2" style="color:#111827;">2) Nội dung chính</div>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
+                      <tr>
+                        <td class="p" style="padding:10px 12px; border:1px solid #EEF0F3; border-radius:12px;">
+                          <div class="muted small">Key points</div>
+                          <div style="height:6px;"></div>
+                          <div class="p" style="margin:0;">
+                            {{key_points_html}}
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                    <div class="small muted" style="margin-top:8px;">
+                      Tham chiếu nhanh: <span class="mono">{{highlight_refs}}</span>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr><td style="padding:0 20px;"><div class="divider"></div></td></tr>
+
+                <tr>
+                  <td style="padding:14px 20px 10px 20px;" class="text">
+                    <div class="h2" style="color:#111827;">3) Quyết định đã chốt</div>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;">
+                      <tr>
+                        <td style="padding:0;">
+                          <!-- Decisions table -->
+                          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #EEF0F3; border-radius:12px; overflow:hidden;">
+                            <tr style="background:#F9FAFB;">
+                              <td class="small text" style="padding:10px 12px; font-weight:800; color:#111827;">Decision</td>
+                              <td class="small text" style="padding:10px 12px; font-weight:800; color:#111827;">Owner</td>
+                              <td class="small text" style="padding:10px 12px; font-weight:800; color:#111827;">Time</td>
+                            </tr>
+                            {{decisions_rows_html}}
+                          </table>
+                          <div class="small muted" style="margin-top:8px;">
+                            Mỗi quyết định có thể truy vết về đúng đoạn ghi âm và transcript.
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr><td style="padding:0 20px;"><div class="divider"></div></td></tr>
+
+                <tr>
+                  <td style="padding:14px 20px 10px 20px;" class="text">
+                    <div class="h2" style="color:#111827;">4) Follow-ups & rủi ro cần theo dõi</div>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;">
+                      <tr>
+                        <td class="p" style="padding:10px 12px; border:1px solid #EEF0F3; border-radius:12px;">
+                          <div class="muted small">Risks / Follow-ups</div>
+                          <div style="height:6px;"></div>
+                          <div class="p" style="margin:0;">
+                            {{followups_html}}
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <div style="height:10px;"></div>
+
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="stack" style="padding-top:6px;">
+                          <span class="badge warn">Pending items: {{pending_count}}</span>
+                          <span style="display:inline-block; width:8px;"></span>
+                          <span class="badge info">Next review: {{next_review_date}}</span>
+                        </td>
+                        <td class="stack" style="padding-top:6px;" align="right">
+                          <a href="{{minutes_url}}" class="btn text">Xem chi tiết & truy vết</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+
+          <!-- Attachments / Project context -->
+          <tr>
+            <td class="px" style="padding:0 24px 16px 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card">
+                <tr>
+                  <td style="padding:16px 20px;" class="text">
+                    <div class="h2" style="color:#111827;">Tài liệu liên quan</div>
+                    <div class="p muted" style="margin:8px 0 0 0;">
+                      {{attachments_note}}
+                    </div>
+
+                    <div style="height:10px;"></div>
+
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #EEF0F3; border-radius:12px;">
+                      {{attachments_rows_html}}
+                    </table>
+
+                    <div class="small muted" style="margin-top:8px;">
+                      Project context: <span class="mono">{{project_name}}</span> • Knowledge base updated: {{kb_updated_at}}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Proof line: the punch -->
+          <tr>
+            <td class="px" style="padding:0 24px 16px 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card">
+                <tr>
+                  <td style="padding:16px 20px;" class="text">
+                    <div class="h2" style="color:#111827;">Điểm nhấn</div>
+                    <div class="p muted" style="margin:8px 0 0 0;">
+                      Cuộc họp không kết thúc khi mọi người rời phòng. Cuộc họp kết thúc khi kết quả được gửi đúng người, đúng lúc và có thể truy vết.
+                    </div>
+                    <div style="height:12px;"></div>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="stack" align="left" style="padding-top:6px;">
+                          <a href="{{minutes_url}}" class="btn text">Mở biên bản</a>
+                          <span style="display:inline-block; width:10px;"></span>
+                          <a href="{{transcript_url}}" class="btn-secondary text">Mở transcript</a>
+                        </td>
+                        <td class="stack" align="right" style="padding-top:6px;">
+                          <div class="small muted">Powered by MeetMate • Savina</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td class="px" style="padding:0 24px 24px 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td class="text small muted" style="padding:8px 0 12px 0;">
+                    Liên hệ đội ngũ:
+                    <ul style="padding-left:16px;margin:6px 0 0 0;line-height:1.5;">
+                      <li><a href="https://www.linkedin.com/in/qu%C3%A2n-ho%C3%A0ng-936356334/" style="color:#3b82f6;">Quân Hoàng (LinkedIn)</a></li>
+                      <li><a href="https://www.linkedin.com/in/dangnhuphuoc?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app" style="color:#3b82f6;">Đặng Như Phước (LinkedIn)</a></li>
+                      <li><a href="https://www.linkedin.com/in/truongminhdat?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app" style="color:#3b82f6;">Trương Minh Đạt (LinkedIn)</a></li>
+                      <li><a href="https://ahtportfolio.vercel.app" style="color:#3b82f6;">An Hoài Thái (Portfolio)</a></li>
+                    </ul>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text small muted" style="padding:8px 0;">
+                    Bạn nhận email này vì đã tham dự buổi demo và để lại thông tin nhận biên bản.
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text small muted" style="padding:0;">
+                    Nếu bạn không mở được nút, dùng link trực tiếp:
+                    <span class="mono">{{minutes_url}}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text small muted" style="padding:12px 0 0 0;">
+                    © {{year}} MeetMate. All rights reserved.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

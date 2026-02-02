@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: meetmate-api
+    runtime: python
+    repo: https://github.com/PhuocDang2104/vnpt_ai_hackathon_meetmate
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"
+

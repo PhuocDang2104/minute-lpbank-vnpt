@@ -1,0 +1,1 @@
+PRE_MEETING_PROMPT = "Generate agenda and pre-read pack based on meeting metadata and prior docs."

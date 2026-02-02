@@ -1,0 +1,43 @@
+version: "3.9"
+services:
+  postgres:
+    build: ./postgres
+    container_name: vnpt_meetmate_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: meetmate
+      POSTGRES_PASSWORD: meetmate
+      POSTGRES_DB: meetmate
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meetmate"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: vnpt_meetmate_backend
+    restart: unless-stopped
+    environment:
+      ENV: development
+      DATABASE_URL: postgresql+psycopg2://meetmate:meetmate@postgres:5432/meetmate
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      PYTHONPATH: /app/backend
+    volumes:
+      - ../backend:/app/backend
+      - ../infra/env:/app/infra/env:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+volumes:
+  postgres_data:
