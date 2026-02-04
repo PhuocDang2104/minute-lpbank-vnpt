@@ -2,25 +2,39 @@
 
 # **MINUTE | Idea Proposal**
 
-**Web app \- Meetings \+ Workflow/Educational Assistant  | Gemini 3 API | RAG-first Q\&A**
+**Web app – Meetings \+ Workflow/Educational Assistant | Gemini 3 API | Multimodal Companion Agent | LightRAG (tiered) | Tool-calling có human-in-the-loop**
 
 ## **1\. Product Summary – Tổng quan**
 
-**MINUTE** là giải pháp **AI Assistant** cho cá nhân và đội nhóm trong môi trường làm việc/học tập trên các nền tảng trực tuyến (từ meeting đến các buổi học online hoặc record offline). Tích hợp **Gemini Pro 3 API** để **recap trực tiếp** và **generate summary** cho session meeting/studying sau khi kết thúc. Người dùng có thể **tùy biến và tải record lên** nhằm phục vụ **hỗ trợ, hỏi đáp, take notes,**… theo nhu cầu, định hướng và ngành nghề cá nhân.
+**MINUTE** là giải pháp **AI Assistant** cho cá nhân và đội nhóm trong môi trường làm việc/học tập trên các nền tảng trực tuyến (từ meeting đến các buổi học online hoặc record offline). Tích hợp **Gemini 3 API** để:
+
+* **Recap realtime** theo mốc thời gian trong phiên  
+* **Generate summary \+ notes \+ Action/Quiz** sau khi kết thúc  
+* **Hỏi đáp theo ngữ cảnh** dựa trên transcript/summary \+ tài liệu người dùng cung cấp
+
+**Điểm khác biệt (Multimodal Companion Agent):** Không chỉ nghe (ASR) mà còn **“thấy và hiểu” video đang stream** (hoặc frame tại thời điểm tương ứng trong record). MINUTE hoạt động như **agent đồng hành thông minh**: vừa nghe, vừa quan sát slide/màn hình/biểu đồ/đoạn code/bảng viết tay… để hiểu **điều gì đang xảy ra** và đồng hành cùng người dùng trong cuộc họp/buổi học.
 
 ### **Inspiration**
 
 * NotebookLM (Q\&A \+ grounded theo tài liệu)  
-* Meetmate / trợ lý họp dạng sidebar (hỏi đáp và tổng hợp nhanh)  
-* Fathom/Otter (transcript & meeting summary tự động)
+* Code IDE với agent dạng sidebar (hỏi đáp, tổng hợp và tải tài liệu nhanh)  
+* Fathom/Otter (transcript & meeting summary tự động)  
+* Multimodal live companion (nghe \+ nhìn theo timeline)
 
 ### **What it does**
 
-* **Recap realtime** trong phiên (theo mốc thời gian)  
-* **Summary sau phiên**: key takeaways \+ notes quan trọng  
-* **Hỏi đáp theo ngữ cảnh** dựa trên nội dung session/summary  
-* **Upload record** để xử lý offline tương tự như họp/học trực tuyến  
-* **Cá nhân hóa** theo nhu cầu: phong cách ghi chú, lĩnh vực, mục tiêu học tập/công việc
+**Realtime (Trong phiên / live)**
+
+* **ASR realtime → transcript** liên tục  
+* **Video understanding song song**: hiểu nội dung hình ảnh theo thời gian (slide đang chiếu, màn hình share, sơ đồ, code, công thức, bảng, biểu cảm/nhấn mạnh của người nói nếu có)  
+* **Recap mỗi 2 phút** (gắn timestamp)  
+* **Chat Q\&A trực tiếp** dựa trên context **audio \+ video \+ tài liệu upload**
+
+**Post-session (Sau phiên / upload record)**
+
+* Upload video/audio record → tạo **timeline understanding** (transcript \+ sự kiện hình ảnh theo mốc thời gian)  
+* **Summary sau phiên**: key takeaways \+ notes quan trọng (grounded)  
+* Hỏi đáp theo ngữ cảnh dựa trên: transcript \+ summary \+ video highlight (những đoạn slide/đồ thị/đoạn code quan trọng)
 
 ---
 
@@ -30,13 +44,15 @@
 
 Chia làm **2 loại**: **Meetings** và **Study**
 
-* **Sau kết thúc / Upload record** → tạo **summary \+ note quan trọng**  
-* **Hỏi đáp** → LLM reasoning dựa trên **summary đã tóm tắt**
+* **Generate:** Summary \+ Important notes \+ Timeline highlights (các cut quan trọng theo timestamp, kèm frame/ảnh minh họa nếu có)  
+* **Q\&A:** LLM reasoning dựa trên summary \+ transcript \+ video context
 
 ### **2.2 In-Meeting (Trong session realtime)**
 
-* ASR → transcript real time → recap mỗi 2 phút  
-* Chatbot hỏi đáp trực tiếp. Có rag trên tài liệu được tải lên
+* **Pipeline:** ASR → transcript realtime  
+* **Pipeline song song:** Video stream → frame sampling theo thời gian → visual understanding  
+* Recap định kỳ (mỗi 2 phút) dạng “What happened \+ what’s shown”  
+* Companion Agent sidebar: hỏi đáp trực tiếp theo đúng thời điểm đang diễn ra và có thể tải tài liệu trực tiếp lên chat để hỏi đáp
 
 ---
 
