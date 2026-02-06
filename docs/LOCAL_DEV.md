@@ -59,7 +59,7 @@ curl http://localhost:8000/
 
 # Kiểm tra frontend
 # Mở http://localhost:5173 trong browser
-```
+```xc
 
 ---
 
