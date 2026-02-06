@@ -2,21 +2,25 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertCircle,
-  Calendar,
+  BookOpen,
   ChevronDown,
   FileText,
   FolderOpen,
   MoreVertical,
   RefreshCw,
   Search,
+  Users,
 } from 'lucide-react'
-import { meetings as mockMeetings, formatDate, formatTime, getInitials } from '../../../store/mockData'
+import { meetings as mockMeetings, formatDate } from '../../../store/mockData'
 import { meetingsApi } from '../../../lib/api/meetings'
 import { projectsApi } from '../../../lib/api/projects'
 import { USE_API } from '../../../config/env'
 import type { Meeting, MeetingPhase } from '../../../shared/dto/meeting'
-import { MEETING_TYPE_LABELS } from '../../../shared/dto/meeting'
 import type { Project } from '../../../shared/dto/project'
+
+const getSessionTypeLabel = (meeting: Meeting) => (
+  meeting.meeting_type === 'study_session' ? 'Course' : 'Meeting'
+)
 
 const Meetings = () => {
   const [projects, setProjects] = useState<Project[]>([])
@@ -128,8 +132,7 @@ const Meetings = () => {
     return meetings.filter(meeting => (
       meeting.title?.toLowerCase().includes(normalizedSearch)
       || meeting.description?.toLowerCase().includes(normalizedSearch)
-      || meeting.location?.toLowerCase().includes(normalizedSearch)
-      || MEETING_TYPE_LABELS[meeting.meeting_type]?.toLowerCase().includes(normalizedSearch)
+      || getSessionTypeLabel(meeting).toLowerCase().includes(normalizedSearch)
     ))
   }, [meetings, normalizedSearch])
 
@@ -162,7 +165,7 @@ const Meetings = () => {
       <header className="drive-welcome">
         <h1>Workspace</h1>
         <p>
-          Các cuộc họp được tổ chức theo thư mục dự án, còn phiên lẻ hiển thị như Suggested files.
+          Các cuộc họp được tổ chức theo thư mục dự án, còn phiên lẻ hiển thị như Sessions.
         </p>
       </header>
 
@@ -185,7 +188,7 @@ const Meetings = () => {
           <section className="drive-section">
             <div className="drive-section__title">
               <ChevronDown size={16} />
-              Suggested folders
+              Projects
             </div>
 
             {filteredProjects.length === 0 ? (
@@ -217,7 +220,7 @@ const Meetings = () => {
           <section className="drive-section">
             <div className="drive-section__title">
               <ChevronDown size={16} />
-              Suggested files
+              Sessions
             </div>
 
             {standaloneMeetings.length === 0 ? (
@@ -232,9 +235,8 @@ const Meetings = () => {
               <div className="drive-table">
                 <div className="drive-table__header">
                   <div>Name</div>
-                  <div>Reason suggested</div>
-                  <div>Owner</div>
-                  <div>Location</div>
+                  <div>Type</div>
+                  <div>Ngày tạo</div>
                 </div>
                 {standaloneMeetings.map(meeting => (
                   <DriveSuggestedRow key={meeting.id} meeting={meeting} />
@@ -252,38 +254,23 @@ const DriveSuggestedRow = ({ meeting }: { meeting: Meeting }) => {
   const createdDate = meeting.created_at
     ? new Date(meeting.created_at)
     : (meeting.start_time ? new Date(meeting.start_time) : new Date())
-  const start = meeting.start_time ? new Date(meeting.start_time) : null
-  const end = meeting.end_time ? new Date(meeting.end_time) : null
-  const timeLabel = start && end ? `${formatTime(start)} - ${formatTime(end)}` : ''
-
-  const ownerName = meeting.organizer?.display_name || meeting.organizer?.full_name || 'me'
-  const initials = getInitials(ownerName)
-  const reason = meeting.phase === 'in' ? 'Đang diễn ra' : `Gần đây • ${formatDate(createdDate)}`
+  const isCourse = meeting.meeting_type === 'study_session'
+  const typeLabel = getSessionTypeLabel(meeting)
+  const createdLabel = formatDate(createdDate)
+  const Icon = isCourse ? BookOpen : Users
 
   return (
     <Link to={`/app/meetings/${meeting.id}/detail`} className="drive-table__row">
       <div className="drive-table__cell drive-table__name">
-        <div className="drive-file-icon">
-          <FileText size={16} />
+        <div className={`drive-file-icon ${isCourse ? 'drive-file-icon--course' : 'drive-file-icon--meeting'}`}>
+          <Icon size={16} />
         </div>
         <div>
           <div className="drive-file-title">{meeting.title}</div>
-          <div className="drive-file-meta">
-            {MEETING_TYPE_LABELS[meeting.meeting_type] || meeting.meeting_type}
-            {timeLabel ? ` • ${timeLabel}` : ''}
-          </div>
         </div>
       </div>
-      <div className="drive-table__cell">{reason}</div>
-      <div className="drive-table__cell">
-        <div className="drive-owner">
-          <span className="drive-owner__avatar">{initials}</span>
-          {ownerName}
-        </div>
-      </div>
-      <div className="drive-table__cell">
-        <span className="drive-location">Phiên lẻ</span>
-      </div>
+      <div className="drive-table__cell">{typeLabel}</div>
+      <div className="drive-table__cell">{createdLabel}</div>
     </Link>
   )
 }

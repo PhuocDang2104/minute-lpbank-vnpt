@@ -125,7 +125,7 @@ const Sidebar = () => {
                   <Plus size={20} />
                 </span>
                 <span className="sidebar__nav-label">
-                  Cuộc họp mới
+                  Tạo mới
                 </span>
               </button>
             </li>
@@ -193,7 +193,7 @@ const Sidebar = () => {
               <FolderPlus size={18} />
             </div>
             <div className="create-menu__content">
-              <div className="create-menu__title">New project</div>
+              <div className="create-menu__title">Dự án mới</div>
               <div className="create-menu__desc">Tạo folder dự án mới</div>
             </div>
           </button>
@@ -202,7 +202,7 @@ const Sidebar = () => {
               <Calendar size={18} />
             </div>
             <div className="create-menu__content">
-              <div className="create-menu__title">New session</div>
+              <div className="create-menu__title">Phiên mới</div>
               <div className="create-menu__desc">Tạo phiên làm việc mới</div>
             </div>
           </button>

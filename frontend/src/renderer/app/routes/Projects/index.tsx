@@ -6,7 +6,6 @@ import {
   RefreshCw,
   Search,
   FileText,
-  Users,
   Calendar,
   Sparkles,
 } from 'lucide-react'
@@ -64,7 +63,7 @@ const Projects = () => {
           id: `mock-${idx}`,
           name,
           code: `PR-${idx + 1}`,
-          description: `Kh?ng gian d? ?n ${name}`,
+          description: `Không gian dự án ${name}`,
           meeting_count: mockMeetings.filter(m => m.project === name).length,
           document_count: Math.max(1, idx % 3),
           member_count: 4 + (idx % 5),
@@ -113,9 +112,9 @@ const Projects = () => {
   }
 
   const heroStats = useMemo(() => ([
-    { label: 'D? ?n', value: totalProjects },
-    { label: 'Phi?n', value: totalMeetings },
-    { label: 'T?i li?u', value: totalDocuments },
+    { label: 'Dự án', value: totalProjects },
+    { label: 'Phiên', value: totalMeetings },
+    { label: 'Tài liệu', value: totalDocuments },
   ]), [totalProjects, totalMeetings, totalDocuments])
 
   return (
@@ -127,7 +126,7 @@ const Projects = () => {
             Workspace
           </div>
           <h1>Dự án</h1>
-          <p>T?o kh?ng gian l?m vi?c theo d?ng d? ?n, t? ch?c phi?n h?p v? qu?n l? t?i li?u t?p trung.</p>
+          <p>Tạo không gian làm việc theo dòng dự án, tổ chức phiên họp và quản lý tài liệu tập trung.</p>
           <div className="projects-hero__actions">
             <button className="btn btn--primary" onClick={() => setShowCreateModal(true)}>
               <Plus size={16} />
@@ -172,7 +171,7 @@ const Projects = () => {
       {isLoading && (
         <div className="projects-loading">
           <div className="spinner" style={{ width: 32, height: 32 }}></div>
-          <p>?ang t?i d? ?n...</p>
+          <p>Đang tải dự án...</p>
         </div>
       )}
 
@@ -183,7 +182,7 @@ const Projects = () => {
               <div className="project-card__icon">
                 <FolderOpen size={20} />
               </div>
-              <span>Phi?n l?</span>
+              <span>Phiên lẻ</span>
             </div>
             <div className="project-card__body">
               <h3>Phiên làm việc độc lập</h3>
@@ -195,7 +194,7 @@ const Projects = () => {
                 </span>
               </div>
               <button className="btn btn--secondary" onClick={() => navigate('/app/meetings')}>
-                Xem danh s?ch
+                Xem danh sách
               </button>
             </div>
           </div>
@@ -226,10 +225,6 @@ const Projects = () => {
                     <span>
                       <FileText size={14} />
                       {project.document_count ?? 0} tài liệu
-                    </span>
-                    <span>
-                      <Users size={14} />
-                      {project.member_count ?? 0} thành viên
                     </span>
                   </div>
                   <div className="project-card__cta">Mở dự án</div>

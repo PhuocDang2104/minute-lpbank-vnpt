@@ -6,7 +6,6 @@ import {
   FileText,
   FolderOpen,
   Plus,
-  Users,
   Edit3,
   Upload,
   AlertCircle,
@@ -20,6 +19,7 @@ import { UploadDocumentModal } from '../../../components/UploadDocumentModal'
 import type { Project } from '../../../shared/dto/project'
 import type { Meeting } from '../../../shared/dto/meeting'
 import { useChatContext } from '../../../contexts/ChatContext'
+import CreateMeetingForm from '../../../features/meetings/components/CreateMeetingForm'
 
 type TabKey = 'overview' | 'meetings' | 'documents'
 
@@ -36,7 +36,7 @@ const ProjectDetail = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
   const [showEditModal, setShowEditModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
-  const [isCreatingMeeting, setIsCreatingMeeting] = useState(false)
+  const [showCreateMeetingModal, setShowCreateMeetingModal] = useState(false)
 
   const [editForm, setEditForm] = useState({
     name: '',
@@ -51,7 +51,7 @@ const ProjectDetail = () => {
         scope: 'project',
         projectId: project.id,
         title: project.name,
-        subtitle: project.code ? `M? d? ?n: ${project.code}` : undefined,
+        subtitle: project.code ? `Mã dự án: ${project.code}` : undefined,
       })
     }
   }, [project, setOverride])
@@ -94,29 +94,12 @@ const ProjectDetail = () => {
   const stats = useMemo(() => ({
     meetings: project?.meeting_count ?? meetings.length,
     documents: project?.document_count ?? documents.length,
-    members: project?.member_count ?? 0,
   }), [project, meetings, documents])
 
-  const handleCreateMeeting = async () => {
-    if (!project) return
-    setIsCreatingMeeting(true)
-    try {
-      const now = new Date()
-      const title = `Project Sync - ${project.name} - ${now.toLocaleDateString('vi-VN')}`
-      const response = await meetingsApi.create({
-        title,
-        meeting_type: 'project_meeting',
-        project_id: project.id,
-        start_time: now.toISOString(),
-        end_time: new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
-      })
-      navigate(`/app/meetings/${response.id}/detail`)
-    } catch (err) {
-      console.error('Failed to create meeting:', err)
-      setError('Không thể tạo meeting mới cho dự án.')
-    } finally {
-      setIsCreatingMeeting(false)
-    }
+  const handleCreateMeetingSuccess = (meetingId: string) => {
+    setShowCreateMeetingModal(false)
+    loadProject()
+    navigate(`/app/meetings/${meetingId}/detail`)
   }
 
   const handleSaveProject = async () => {
@@ -140,7 +123,7 @@ const ProjectDetail = () => {
     return (
       <div className="project-detail__loading">
         <div className="spinner" style={{ width: 32, height: 32 }}></div>
-        <p>?ang t?i d? ?n...</p>
+        <p>Đang tải dự án...</p>
       </div>
     )
   }
@@ -166,7 +149,7 @@ const ProjectDetail = () => {
         <div className="project-detail__info">
           <div className="project-detail__eyebrow">
             <FolderOpen size={14} />
-            {project.code || 'D? ?n'}
+            {project.code || 'Dự án'}
           </div>
           <h1>{project.name}</h1>
           <p>{project.description || 'Chưa có mô tả. Bạn có thể cập nhật thêm.'}</p>
@@ -180,9 +163,9 @@ const ProjectDetail = () => {
             <Edit3 size={16} />
             Chỉnh sửa
           </button>
-          <button className="btn btn--primary" onClick={handleCreateMeeting} disabled={isCreatingMeeting}>
+          <button className="btn btn--primary" onClick={() => setShowCreateMeetingModal(true)}>
             <Plus size={16} />
-            {isCreatingMeeting ? 'Đang tạo...' : 'Tạo meeting'}
+            Tạo phiên
           </button>
         </div>
       </header>
@@ -192,7 +175,7 @@ const ProjectDetail = () => {
           <Calendar size={16} />
           <div>
             <span>{stats.meetings}</span>
-            <small>Phi?n h?p</small>
+            <small>Phiên họp</small>
           </div>
         </div>
         <div className="project-stat">
@@ -202,13 +185,6 @@ const ProjectDetail = () => {
             <small>Tài liệu</small>
           </div>
         </div>
-        <div className="project-stat">
-          <Users size={16} />
-          <div>
-            <span>{stats.members}</span>
-            <small>Thành viên</small>
-          </div>
-        </div>
       </section>
 
       <div className="project-tabs">
@@ -216,7 +192,7 @@ const ProjectDetail = () => {
           Tổng quan
         </button>
         <button className={activeTab === 'meetings' ? 'active' : ''} onClick={() => setActiveTab('meetings')}>
-          Phi?n h?p
+          Phiên họp
         </button>
         <button className={activeTab === 'documents' ? 'active' : ''} onClick={() => setActiveTab('documents')}>
           Tài liệu
@@ -232,7 +208,7 @@ const ProjectDetail = () => {
           <div className="project-overview__card">
             <h3>Phiên họp gần đây</h3>
             {meetings.length === 0 ? (
-              <div className="project-empty">Chưa có phiên nào. Tạo meeting đầu tiên cho dự án.</div>
+              <div className="project-empty">Chưa có phiên nào. Tạo phiên đầu tiên cho dự án.</div>
             ) : (
               <div className="project-list">
                 {meetings.slice(0, 4).map(meeting => (
@@ -278,13 +254,13 @@ const ProjectDetail = () => {
         <div className="project-panel">
           <div className="project-panel__header">
             <h3>Danh sách phiên họp</h3>
-            <button className="btn btn--secondary" onClick={handleCreateMeeting}>
+            <button className="btn btn--secondary" onClick={() => setShowCreateMeetingModal(true)}>
               <Plus size={14} />
-              Tạo meeting
+              Tạo phiên
             </button>
           </div>
           {meetings.length === 0 ? (
-            <div className="project-empty">Chưa có meeting nào.</div>
+            <div className="project-empty">Chưa có phiên nào.</div>
           ) : (
             <div className="project-table">
               {meetings.map(meeting => (
@@ -400,6 +376,19 @@ const ProjectDetail = () => {
         }}
         projectId={project.id}
       />
+
+      <Modal
+        isOpen={showCreateMeetingModal}
+        onClose={() => setShowCreateMeetingModal(false)}
+        title="Tạo phiên làm việc mới"
+        size="lg"
+      >
+        <CreateMeetingForm
+          onSuccess={handleCreateMeetingSuccess}
+          onCancel={() => setShowCreateMeetingModal(false)}
+          projectId={project.id}
+        />
+      </Modal>
     </div>
   )
 }
