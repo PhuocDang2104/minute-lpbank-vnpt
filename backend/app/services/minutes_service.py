@@ -157,6 +157,64 @@ def _load_topic_tracker(db: Session, meeting_id: str) -> List[Dict[str, Any]]:
     return topics
 
 
+def _load_visual_highlights(db: Session, meeting_id: str, limit: int = 12) -> List[str]:
+    highlights: List[str] = []
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT timestamp, event_type, description, ocr_text
+                FROM visual_event
+                WHERE meeting_id = :meeting_id
+                ORDER BY timestamp ASC
+                LIMIT :limit
+                """
+            ),
+            {"meeting_id": meeting_id, "limit": limit},
+        ).fetchall()
+        for r in rows:
+            t = float(r[0] or 0.0)
+            evt = (r[1] or "visual").strip()
+            desc = (r[2] or "").strip()
+            ocr = (r[3] or "").strip()
+            text_part = desc or ocr
+            if text_part:
+                highlights.append(f"[{_fmt_seconds(t)} | {evt}] {text_part[:220]}")
+    except Exception as exc:
+        logger.warning("Failed loading visual_event highlights for %s: %s", meeting_id, exc)
+        db.rollback()
+
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT timestamp, object_label, ocr_text, confidence
+                FROM visual_object_event
+                WHERE meeting_id = :meeting_id
+                ORDER BY timestamp ASC
+                LIMIT :limit
+                """
+            ),
+            {"meeting_id": meeting_id, "limit": max(4, limit // 2)},
+        ).fetchall()
+        for r in rows:
+            t = float(r[0] or 0.0)
+            label = (r[1] or "").strip()
+            ocr = (r[2] or "").strip()
+            conf = r[3]
+            if not (label or ocr):
+                continue
+            conf_text = ""
+            if conf is not None:
+                conf_text = f" (conf={float(conf):.2f})"
+            highlights.append(f"[{_fmt_seconds(t)} | object]{conf_text} {(label + ' ' + ocr).strip()[:220]}")
+    except Exception:
+        # visual_object_event may not exist on old DBs; ignore silently
+        pass
+
+    return highlights
+
+
 def _safe_json_list(value: Any) -> List[Dict[str, Any]]:
     if isinstance(value, list):
         return [item for item in value if isinstance(item, dict)]
@@ -681,6 +739,8 @@ async def generate_minutes_with_ai(
             db.rollback()
             topic_tracker = []
 
+    visual_highlights = _load_visual_highlights(db, meeting_id)
+
     transcript_for_llm = transcript or ""
     if transcript_for_llm and len(transcript_for_llm) > MAX_DIRECT_TRANSCRIPT_CHARS:
         llm_fallback_transcript = transcript_for_llm[:MAX_DIRECT_TRANSCRIPT_CHARS]
@@ -697,6 +757,7 @@ async def generate_minutes_with_ai(
         "decisions": decisions,
         "risks": risks,
         "documents": related_docs,
+        "visual_context": visual_highlights,
         "study_pack": None,
         "topic_tracker": topic_tracker,
         "session_type": session_type,
@@ -886,6 +947,7 @@ async def generate_minutes_with_ai(
         context_payload["risk_items"] = risk_rows
         context_payload["next_steps"] = next_steps
         context_payload["topic_tracker"] = topic_tracker
+        context_payload["visual_context"] = visual_highlights
         context_payload["ai_filters"] = ai_filters
         context_payload["study_pack"] = study_pack
         context_payload["prompt_strategy"] = prompt_strategy
