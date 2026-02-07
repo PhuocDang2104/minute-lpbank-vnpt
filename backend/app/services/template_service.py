@@ -30,10 +30,23 @@ DEFAULT_TEMPLATE_STRUCTURE = {
 
 
 def _minutes_template_table_exists(db: Session) -> bool:
-    result = db.execute(
-        text("SELECT to_regclass('public.minutes_template')")
-    ).scalar()
-    return bool(result)
+    try:
+        result = db.execute(
+            text("SELECT to_regclass('public.minutes_template')")
+        ).scalar()
+        return bool(result)
+    except Exception:
+        # Transaction may be aborted by an earlier failed query in the same request.
+        # Clear it so downstream logic can continue with fallback behavior.
+        db.rollback()
+        try:
+            result = db.execute(
+                text("SELECT to_regclass('public.minutes_template')")
+            ).scalar()
+            return bool(result)
+        except Exception:
+            db.rollback()
+            return False
 
 
 def _default_template() -> MinutesTemplateResponse:
