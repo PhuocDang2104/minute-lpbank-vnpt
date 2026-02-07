@@ -2,7 +2,7 @@
 Knowledge Service - Document management and search for Knowledge Hub
 """
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any
 from uuid import UUID, uuid4
 import logging
 from pathlib import Path
@@ -769,6 +769,183 @@ def _build_vector_filters(request: KnowledgeSearchRequest):
     return " AND ".join(filters), params
 
 
+def _table_exists(db: Session, table_name: str) -> bool:
+    try:
+        result = db.execute(
+            text("SELECT to_regclass(:table_name)"),
+            {"table_name": f"public.{table_name}"},
+        ).scalar()
+        return bool(result)
+    except Exception:
+        return False
+
+
+def _transcript_time_exprs(db: Session) -> tuple[str, str]:
+    cols = set()
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'transcript_chunk'
+                """
+            )
+        ).fetchall()
+        cols = {r[0] for r in rows}
+    except Exception:
+        cols = set()
+
+    if "start_time" in cols and "time_start" in cols:
+        start_expr = "COALESCE(start_time, time_start, 0.0)"
+    elif "start_time" in cols:
+        start_expr = "COALESCE(start_time, 0.0)"
+    elif "time_start" in cols:
+        start_expr = "COALESCE(time_start, 0.0)"
+    else:
+        start_expr = "0.0"
+
+    if "end_time" in cols and "time_end" in cols:
+        end_expr = "COALESCE(end_time, time_end, 0.0)"
+    elif "end_time" in cols:
+        end_expr = "COALESCE(end_time, 0.0)"
+    elif "time_end" in cols:
+        end_expr = "COALESCE(time_end, 0.0)"
+    else:
+        end_expr = "0.0"
+
+    return start_expr, end_expr
+
+
+def _load_transcript_context(
+    db: Session,
+    meeting_id: str,
+    query_text: str,
+    *,
+    limit: int = 8,
+) -> List[dict[str, Any]]:
+    if not _table_exists(db, "transcript_chunk"):
+        return []
+    start_expr, end_expr = _transcript_time_exprs(db)
+    like_query = f"%{(query_text or '').strip()}%"
+    rows = db.execute(
+        text(
+            f"""
+            SELECT
+                chunk_index,
+                speaker,
+                text,
+                {start_expr} AS start_t,
+                {end_expr} AS end_t
+            FROM transcript_chunk
+            WHERE meeting_id = :meeting_id
+            ORDER BY
+                CASE WHEN text ILIKE :like_q THEN 0 ELSE 1 END,
+                chunk_index DESC
+            LIMIT :limit
+            """
+        ),
+        {"meeting_id": meeting_id, "like_q": like_query, "limit": limit},
+    ).fetchall()
+    out: List[dict[str, Any]] = []
+    for r in rows:
+        snippet = _sanitize_text(r[2] or "")[:700]
+        if not snippet:
+            continue
+        out.append(
+            {
+                "doc_id": f"transcript-{r[0]}",
+                "title": f"Transcript chunk #{r[0]}",
+                "distance": 0.35 if query_text and query_text.lower() in snippet.lower() else 0.55,
+                "text": f"[{r[1] or 'Unknown'} | {float(r[3] or 0):.1f}-{float(r[4] or 0):.1f}s] {snippet}",
+            }
+        )
+    return out
+
+
+def _load_visual_context(
+    db: Session,
+    meeting_id: str,
+    query_text: str,
+    *,
+    limit: int = 6,
+) -> List[dict[str, Any]]:
+    entries: List[dict[str, Any]] = []
+
+    if _table_exists(db, "visual_event"):
+        like_query = f"%{(query_text or '').strip()}%"
+        rows = db.execute(
+            text(
+                """
+                SELECT
+                    id::text,
+                    timestamp,
+                    event_type,
+                    description,
+                    ocr_text
+                FROM visual_event
+                WHERE meeting_id = :meeting_id
+                ORDER BY
+                    CASE WHEN (COALESCE(description, '') || ' ' || COALESCE(ocr_text, '')) ILIKE :like_q THEN 0 ELSE 1 END,
+                    timestamp DESC
+                LIMIT :limit
+                """
+            ),
+            {"meeting_id": meeting_id, "like_q": like_query, "limit": limit},
+        ).fetchall()
+        for r in rows:
+            combined = _sanitize_text(f"{r[3] or ''} {r[4] or ''}")[:700]
+            if not combined:
+                continue
+            entries.append(
+                {
+                    "doc_id": f"visual-{r[0]}",
+                    "title": f"Visual event ({r[2] or 'unknown'})",
+                    "distance": 0.40 if query_text and query_text.lower() in combined.lower() else 0.62,
+                    "text": f"[t={float(r[1] or 0):.1f}s] {combined}",
+                }
+            )
+
+    if _table_exists(db, "visual_object_event"):
+        like_query = f"%{(query_text or '').strip()}%"
+        rows = db.execute(
+            text(
+                """
+                SELECT
+                    id::text,
+                    timestamp,
+                    object_label,
+                    ocr_text,
+                    confidence
+                FROM visual_object_event
+                WHERE meeting_id = :meeting_id
+                ORDER BY
+                    CASE WHEN (COALESCE(object_label, '') || ' ' || COALESCE(ocr_text, '')) ILIKE :like_q THEN 0 ELSE 1 END,
+                    timestamp DESC
+                LIMIT :limit
+                """
+            ),
+            {"meeting_id": meeting_id, "like_q": like_query, "limit": limit},
+        ).fetchall()
+        for r in rows:
+            snippet = _sanitize_text(f"Object={r[2] or ''}. {r[3] or ''}")[:700]
+            if not snippet:
+                continue
+            conf = ""
+            if r[4] is not None:
+                conf = f" (conf={float(r[4]):.2f})"
+            entries.append(
+                {
+                    "doc_id": f"visual-object-{r[0]}",
+                    "title": "Visual object",
+                    "distance": 0.45 if query_text and query_text.lower() in snippet.lower() else 0.66,
+                    "text": f"[t={float(r[1] or 0):.1f}s]{conf} {snippet}",
+                }
+            )
+
+    return entries[:limit]
+
+
 async def _vector_search_documents(
     db: Session,
     request: KnowledgeSearchRequest,
@@ -903,7 +1080,7 @@ async def query_knowledge_ai(
     db: Session,
     request: KnowledgeQueryRequest,
 ) -> KnowledgeQueryResponse:
-    """RAG query using pgvector + LLM"""
+    """RAG query using session docs + transcript + visual context."""
     # Smalltalk/noise handling
     if _is_smalltalk_or_noise(request.query):
         answer = "Xin chào! Bạn muốn hỏi gì về tài liệu/policy? Hãy mô tả rõ hơn nhé."
@@ -919,6 +1096,7 @@ async def query_knowledge_ai(
     relevant_docs: List[KnowledgeDocument] = []
     citations: List[str] = []
     best_score = None
+    meeting_id_str = str(request.meeting_id) if request.meeting_id else None
 
     if is_jina_available():
         try:
@@ -1026,11 +1204,40 @@ async def query_knowledge_ai(
         except Exception as exc:
             logger.warning("RAG text fallback failed: %s", exc)
 
+    # Add transcript + visual context from this meeting session.
+    if meeting_id_str:
+        try:
+            transcript_chunks = _load_transcript_context(
+                db,
+                meeting_id_str,
+                request.query,
+                limit=max(4, request.limit),
+            )
+            visual_chunks = _load_visual_context(
+                db,
+                meeting_id_str,
+                request.query,
+                limit=max(3, request.limit // 2 + 1),
+            )
+            for ch in transcript_chunks + visual_chunks:
+                chunks.append(ch)
+                title = ch.get("title")
+                if title:
+                    citations.append(str(title))
+        except Exception as exc:
+            logger.warning("Failed to load transcript/visual context for RAG: %s", exc)
+
     # Build context
     context_parts = []
+    seen_ctx = set()
     for ch in chunks[: top_k_chunks]:
-        context_parts.append(f"[{ch['title']} | score={ch['distance']:.3f}] {ch['text']}")
+        ctx_line = f"[{ch['title']} | score={ch['distance']:.3f}] {ch['text']}"
+        if ctx_line in seen_ctx:
+            continue
+        seen_ctx.add(ctx_line)
+        context_parts.append(ctx_line)
     context = "\n".join(context_parts) if context_parts else "Không có ngữ cảnh liên quan."
+    citations = list(dict.fromkeys(citations))
 
     # If no context at all, avoid repeating 'Không đủ dữ liệu', give gentle ask for clarification
     if not context_parts:
@@ -1044,9 +1251,9 @@ async def query_knowledge_ai(
                     )
                 )
                 prompt = f"""Câu hỏi: {request.query}
-Hiện chưa tìm thấy tài liệu phù hợp trong hệ thống.
+Hiện chưa tìm thấy tài liệu, transcript hoặc visual context phù hợp trong session.
 Hãy:
-- Nói rõ chưa có tài liệu khớp và đề nghị người dùng mô tả thêm.
+- Nói rõ chưa có ngữ cảnh khớp và đề nghị người dùng mô tả thêm.
 - Sau đó đưa ra gợi ý chung (mang tính kiến thức nền, có thể không chính xác tuyệt đối)."""
                 answer = await chat.chat(prompt)
                 return KnowledgeQueryResponse(
@@ -1058,7 +1265,7 @@ Hãy:
             except Exception as exc:
                 logger.error("LLM generic fallback failed: %s", exc)
         return KnowledgeQueryResponse(
-            answer="Mình chưa thấy tài liệu liên quan. Bạn mô tả rõ hơn chủ đề/tên tài liệu nhé? Nếu cần, mình có thể gợi ý chung.",
+            answer="Mình chưa thấy ngữ cảnh liên quan trong session (docs/transcript/visual). Bạn mô tả rõ hơn chủ đề nhé.",
             relevant_documents=[],
             confidence=0.3,
             citations=[],
@@ -1070,7 +1277,7 @@ Hãy:
             chat = GeminiChat(
                 system_prompt=(
                     "Bạn là MINUTE RAG Assistant. Trả lời ngắn gọn bằng tiếng Việt. "
-                    "Chỉ dùng thông tin trong Context. Nếu thiếu thông tin, nói rõ."
+                    "Chỉ dùng thông tin trong Context (docs, transcript, visual). Nếu thiếu thông tin, nói rõ."
                 )
             )
             prompt = f"""Câu hỏi: {request.query}
@@ -1080,7 +1287,7 @@ Context (top chunks):
 
 Yêu cầu:
 - Trả lời ngắn gọn, không markdown.
-- Nếu dùng thông tin, nêu rõ tên tài liệu trong ngoặc [].
+- Nếu dùng thông tin, nêu rõ nguồn trong ngoặc [] (có thể là tài liệu, transcript chunk, visual event).
 - Nếu không đủ thông tin, trả lời rằng không đủ dữ liệu."""
             answer = await chat.chat(prompt)
             confidence = 0.90 if relevant_docs else 0.60
@@ -1099,7 +1306,7 @@ Yêu cầu:
     if relevant_docs:
         answer = f"Tìm thấy {len(relevant_docs)} tài liệu liên quan: {', '.join([d.title for d in relevant_docs[:3]])}"
     else:
-        answer = "Không tìm thấy thông tin liên quan trong knowledge base."
+        answer = "Không tìm thấy thông tin liên quan trong session knowledge base."
 
     return KnowledgeQueryResponse(
         answer=answer,
