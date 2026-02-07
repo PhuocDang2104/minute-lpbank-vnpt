@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.schemas.user import User, UserList, DepartmentList
+from app.schemas.llm_settings import LlmSettings, LlmSettingsUpdate
 from app.services import user_service
 from app.db.session import get_db
 
@@ -44,3 +45,23 @@ def list_departments(db: Session = Depends(get_db)):
 def get_user(user_id: str, db: Session = Depends(get_db)):
     """Get a user by ID"""
     return user_service.get_user(db, user_id)
+
+
+@router.get('/{user_id}/llm-settings', response_model=LlmSettings)
+def get_llm_settings(user_id: str, db: Session = Depends(get_db)):
+    settings = user_service.get_llm_settings(db, user_id)
+    if not settings:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return settings
+
+
+@router.put('/{user_id}/llm-settings', response_model=LlmSettings)
+def update_llm_settings(
+    user_id: str,
+    payload: LlmSettingsUpdate,
+    db: Session = Depends(get_db),
+):
+    settings = user_service.update_llm_settings(db, user_id, payload)
+    if not settings:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return settings

@@ -1,7 +1,13 @@
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict, Any
+import json
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.schemas.user import User, UserList, Department
+from app.schemas.llm_settings import LlmSettings, LlmSettingsUpdate
+from app.core.config import get_settings
+from app.utils.crypto import encrypt_secret, decrypt_secret
+
+settings = get_settings()
 
 
 def get_user_stub() -> User:
@@ -163,3 +169,104 @@ def list_departments(db: Session) -> Tuple[List[Department], int]:
     ]
     
     return departments, len(departments)
+
+
+def _normalize_llm_settings(raw_llm: Dict[str, Any]) -> LlmSettings:
+    provider = raw_llm.get("provider") or "gemini"
+    if provider not in ("gemini", "groq"):
+        provider = "gemini"
+    default_model = settings.gemini_model if provider == "gemini" else settings.groq_model
+    model = raw_llm.get("model") or default_model
+    api_key_encrypted = raw_llm.get("api_key") or ""
+    api_key_last4 = raw_llm.get("api_key_last4")
+    api_key_set = bool(api_key_encrypted)
+    if api_key_set and not api_key_last4:
+        plain = decrypt_secret(api_key_encrypted)
+        if plain:
+            api_key_last4 = plain[-4:]
+    return LlmSettings(
+        provider=provider,
+        model=model,
+        api_key_set=api_key_set,
+        api_key_last4=api_key_last4,
+    )
+
+
+def get_llm_settings(db: Session, user_id: str) -> Optional[LlmSettings]:
+    query = text("SELECT preferences FROM user_account WHERE id = :user_id")
+    result = db.execute(query, {"user_id": user_id})
+    row = result.fetchone()
+    if not row:
+        return None
+    prefs = row[0] or {}
+    if not isinstance(prefs, dict):
+        prefs = {}
+    llm = prefs.get("llm") or {}
+    if not isinstance(llm, dict):
+        llm = {}
+    return _normalize_llm_settings(llm)
+
+
+def update_llm_settings(
+    db: Session, user_id: str, payload: LlmSettingsUpdate
+) -> Optional[LlmSettings]:
+    query = text("SELECT preferences FROM user_account WHERE id = :user_id")
+    result = db.execute(query, {"user_id": user_id})
+    row = result.fetchone()
+    if not row:
+        return None
+    prefs = row[0] or {}
+    if not isinstance(prefs, dict):
+        prefs = {}
+    llm = prefs.get("llm") or {}
+    if not isinstance(llm, dict):
+        llm = {}
+    llm["provider"] = payload.provider
+    llm["model"] = payload.model
+    if payload.clear_api_key:
+        llm.pop("api_key", None)
+        llm.pop("api_key_last4", None)
+    elif payload.api_key is not None:
+        llm["api_key"] = encrypt_secret(payload.api_key)
+        llm["api_key_last4"] = payload.api_key[-4:]
+    prefs["llm"] = llm
+    update_query = text(
+        """
+        UPDATE user_account
+        SET preferences = :preferences::jsonb, updated_at = now()
+        WHERE id = :user_id
+        RETURNING id::text
+        """
+    )
+    result = db.execute(
+        update_query,
+        {"preferences": json.dumps(prefs), "user_id": user_id},
+    )
+    row = result.fetchone()
+    if not row:
+        db.rollback()
+        return None
+    db.commit()
+    return _normalize_llm_settings(llm)
+
+
+def get_user_llm_override(db: Session, user_id: str) -> Optional[Dict[str, str]]:
+    query = text("SELECT preferences FROM user_account WHERE id = :user_id")
+    result = db.execute(query, {"user_id": user_id})
+    row = result.fetchone()
+    if not row:
+        return None
+    prefs = row[0] or {}
+    if not isinstance(prefs, dict):
+        return None
+    llm = prefs.get("llm") or {}
+    if not isinstance(llm, dict):
+        return None
+    provider = llm.get("provider") or ""
+    model = llm.get("model") or ""
+    api_key = decrypt_secret(llm.get("api_key") or "")
+    if not (provider and model and api_key):
+        return None
+    if provider not in ("gemini", "groq"):
+        return None
+    return {"provider": provider, "model": model, "api_key": api_key}

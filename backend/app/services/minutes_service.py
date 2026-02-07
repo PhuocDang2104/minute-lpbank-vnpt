@@ -449,7 +449,7 @@ async def generate_minutes_with_ai(
     
     # Get meeting info
     meeting_query = text("""
-        SELECT title, meeting_type, description, start_time, end_time
+        SELECT title, meeting_type, description, start_time, end_time, organizer_id
         FROM meeting WHERE id = :meeting_id
     """)
     meeting_result = db.execute(meeting_query, {'meeting_id': meeting_id})
@@ -463,6 +463,7 @@ async def generate_minutes_with_ai(
     meeting_desc = meeting_row[2]
     start_time = meeting_row[3]
     end_time = meeting_row[4]
+    organizer_id = meeting_row[5]
     
     # Get transcript
     transcript = ""
@@ -544,11 +545,28 @@ async def generate_minutes_with_ai(
 
     summary_result = {"summary": "", "key_points": []}
     minutes_content = ""
-    assistant = MeetingAIAssistant(meeting_id, {
-        'title': meeting_title,
-        'type': meeting_type,
-        'description': meeting_desc
-    })
+
+    llm_config = None
+    if organizer_id:
+        try:
+            from app.services import user_service
+            from app.llm.gemini_client import LLMConfig
+            override = user_service.get_user_llm_override(db, str(organizer_id))
+            if override:
+                llm_config = LLMConfig(**override)
+        except Exception as exc:
+            logger.warning("Failed to load LLM settings for organizer %s: %s", organizer_id, exc)
+            db.rollback()
+
+    assistant = MeetingAIAssistant(
+        meeting_id,
+        {
+            'title': meeting_title,
+            'type': meeting_type,
+            'description': meeting_desc
+        },
+        llm_config=llm_config,
+    )
 
     # Windowed transcript summarization for long meetings
     transcript_for_llm = transcript or ""
