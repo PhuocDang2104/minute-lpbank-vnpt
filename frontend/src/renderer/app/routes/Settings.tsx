@@ -6,11 +6,16 @@ import {
   Save,
   Loader2,
   Check,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { currentUser } from '../../store/mockData'
 import { getStoredUser } from '../../lib/api/auth'
+import { usersApi } from '../../lib/api/users'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { languageNames, languageFlags, type Language } from '../../i18n'
+import type { LlmProvider } from '../../shared/dto/user'
 
 type NoteStyle = 'Ngắn gọn' | 'Cân bằng' | 'Chi tiết'
 type ToneStyle =
@@ -21,9 +26,7 @@ type ToneStyle =
   | 'Socratic (hỏi gợi mở)'
 type ThemeMode = 'system' | 'light' | 'dark'
 type RecapInterval = 'off' | '2m' | '5m'
-type ModelDefault = 'gemini-default' | 'gemini-1.5-pro' | 'gemini-1.5-flash'
-
-type ApiKeyStatus = 'idle' | 'testing' | 'valid' | 'invalid'
+type LlmModelOption = { value: string; label: string }
 
 interface UserSettings {
   personalization: {
@@ -38,8 +41,6 @@ interface UserSettings {
   system: {
     theme: ThemeMode
     recapInterval: RecapInterval
-    defaultModel: ModelDefault
-    apiKey: string
     aiEnabled: boolean
     ai: {
       autoSummary: boolean
@@ -64,8 +65,6 @@ const defaultSettings: UserSettings = {
   system: {
     theme: 'system',
     recapInterval: '2m',
-    defaultModel: 'gemini-default',
-    apiKey: '',
     aiEnabled: true,
     ai: {
       autoSummary: true,
@@ -77,6 +76,35 @@ const defaultSettings: UserSettings = {
   },
 }
 
+interface LlmSettingsState {
+  provider: LlmProvider
+  model: string
+  apiKeyInput: string
+  apiKeySet: boolean
+  apiKeyLast4?: string | null
+}
+
+const MODEL_OPTIONS: Record<LlmProvider, LlmModelOption[]> = {
+  gemini: [
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+    { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B' },
+  ],
+  groq: [
+    { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
+    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
+    { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B 32K' },
+  ],
+}
+
+const defaultLlmSettings: LlmSettingsState = {
+  provider: 'gemini',
+  model: MODEL_OPTIONS.gemini[0].value,
+  apiKeyInput: '',
+  apiKeySet: false,
+  apiKeyLast4: null,
+}
+
 const Settings = () => {
   const activeUser = getStoredUser() || currentUser
   const SETTINGS_KEY = `minute_settings_${activeUser.id}`
@@ -85,7 +113,11 @@ const Settings = () => {
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
-  const [apiKeyStatus, setApiKeyStatus] = useState<ApiKeyStatus>('idle')
+  const [llmSettings, setLlmSettings] = useState<LlmSettingsState>(defaultLlmSettings)
+  const [llmLoading, setLlmLoading] = useState(false)
+  const [llmError, setLlmError] = useState<string | null>(null)
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [clearApiKey, setClearApiKey] = useState(false)
   const { language, setLanguage } = useLanguage()
 
   useEffect(() => {
@@ -108,12 +140,53 @@ const Settings = () => {
             },
           },
         }
+        const systemSanitized = merged.system as Record<string, unknown>
+        if ('apiKey' in systemSanitized) {
+          delete systemSanitized.apiKey
+        }
+        if ('defaultModel' in systemSanitized) {
+          delete systemSanitized.defaultModel
+        }
         setSettings(merged)
       }
     } catch (err) {
       console.error('Failed to load settings:', err)
     }
   }, [])
+
+  useEffect(() => {
+    let active = true
+    const loadLlmSettings = async () => {
+      setLlmLoading(true)
+      setLlmError(null)
+      try {
+        const response = await usersApi.getLlmSettings(activeUser.id)
+        if (!active) return
+        const provider = response.provider || 'gemini'
+        const modelOptions = MODEL_OPTIONS[provider as LlmProvider] || MODEL_OPTIONS.gemini
+        const model = response.model || modelOptions[0]?.value || ''
+        setLlmSettings({
+          provider: provider as LlmProvider,
+          model,
+          apiKeyInput: '',
+          apiKeySet: response.api_key_set,
+          apiKeyLast4: response.api_key_last4 || null,
+        })
+      } catch (err) {
+        if (!active) return
+        console.error('Failed to load LLM settings:', err)
+        setLlmError('Không thể tải cấu hình LLM. Hãy thử lại.')
+      } finally {
+        if (active) {
+          setLlmLoading(false)
+        }
+      }
+    }
+    loadLlmSettings()
+    return () => {
+      active = false
+    }
+  }, [activeUser.id])
 
   const markDirty = () => setIsDirty(true)
 
@@ -153,15 +226,78 @@ const Settings = () => {
     markDirty()
   }
 
+  const updateLlm = <K extends keyof LlmSettingsState>(
+    key: K,
+    value: LlmSettingsState[K]
+  ) => {
+    setLlmSettings(prev => ({
+      ...prev,
+      [key]: value,
+    }))
+    markDirty()
+  }
+
   const handleSave = async () => {
     setIsSaving(true)
     setSaveMessage(null)
     try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+      const sanitizedSettings = {
+        ...settings,
+        system: { ...settings.system },
+      } as Record<string, unknown>
+      const systemRecord = sanitizedSettings.system as Record<string, unknown>
+      if ('apiKey' in systemRecord) {
+        delete systemRecord.apiKey
+      }
+      if ('defaultModel' in systemRecord) {
+        delete systemRecord.defaultModel
+      }
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(sanitizedSettings))
+      let llmSaved = true
+      if (llmLoading) {
+        llmSaved = false
+        setLlmError('LLM đang tải, vui lòng thử lại.')
+      } else {
+        try {
+          const payload: {
+            provider: LlmProvider
+            model: string
+            api_key?: string
+            clear_api_key?: boolean
+          } = {
+            provider: llmSettings.provider,
+            model: llmSettings.model,
+          }
+          const trimmedKey = llmSettings.apiKeyInput.trim()
+          if (clearApiKey) {
+            payload.clear_api_key = true
+          } else if (trimmedKey) {
+            payload.api_key = trimmedKey
+          }
+          const result = await usersApi.updateLlmSettings(activeUser.id, payload)
+          setLlmSettings(prev => ({
+            ...prev,
+            apiKeyInput: '',
+            apiKeySet: result.api_key_set,
+            apiKeyLast4: result.api_key_last4 || null,
+          }))
+          setClearApiKey(false)
+          setLlmError(null)
+        } catch (err) {
+          console.error('Failed to save LLM settings:', err)
+          llmSaved = false
+          setLlmError('Không thể lưu cấu hình LLM. Vui lòng thử lại.')
+        }
+      }
+
       await new Promise(resolve => setTimeout(resolve, 400))
-      setSaveMessage('Đã lưu thành công!')
+      if (llmSaved) {
+        setSaveMessage('Đã lưu thành công!')
+        setIsDirty(false)
+      } else {
+        setSaveMessage('Đã lưu cấu hình cơ bản, LLM chưa lưu.')
+      }
       setTimeout(() => setSaveMessage(null), 3000)
-      setIsDirty(false)
     } catch (err) {
       console.error('Failed to save settings:', err)
       setSaveMessage('Lỗi khi lưu. Vui lòng thử lại.')
@@ -170,28 +306,21 @@ const Settings = () => {
     }
   }
 
-  const handleTestKey = async () => {
-    setApiKeyStatus('testing')
-    await new Promise(resolve => setTimeout(resolve, 600))
-    const hasKey = settings.system.apiKey.trim().length > 0
-    setApiKeyStatus(hasKey ? 'valid' : 'invalid')
-  }
-
   const apiKeyBadge = (() => {
-    const hasKey = settings.system.apiKey.trim().length > 0
-    if (!hasKey) {
-      return { label: 'Chưa thiết lập', color: 'var(--text-muted)', bg: 'var(--bg-surface)' }
+    if (llmLoading) {
+      return { label: 'Đang tải...', color: 'var(--text-muted)', bg: 'var(--bg-surface)' }
     }
-    if (apiKeyStatus === 'testing') {
-      return { label: 'Đang kiểm tra...', color: 'var(--text-primary)', bg: 'var(--bg-surface-hover)' }
+    if (llmSettings.apiKeyInput.trim().length > 0) {
+      return { label: 'Sẽ cập nhật khi lưu', color: 'var(--text-primary)', bg: 'var(--bg-surface-hover)' }
     }
-    if (apiKeyStatus === 'valid') {
-      return { label: 'Hợp lệ', color: 'var(--success)', bg: 'var(--success-subtle)' }
+    if (clearApiKey) {
+      return { label: 'Sẽ xoá khi lưu', color: 'var(--error)', bg: 'var(--error-subtle)' }
     }
-    if (apiKeyStatus === 'invalid') {
-      return { label: 'Không hợp lệ', color: 'var(--error)', bg: 'var(--error-subtle)' }
+    if (llmSettings.apiKeySet) {
+      const suffix = llmSettings.apiKeyLast4 ? `•••• ${llmSettings.apiKeyLast4}` : 'Đã lưu'
+      return { label: suffix, color: 'var(--success)', bg: 'var(--success-subtle)' }
     }
-    return { label: 'Chưa kiểm tra', color: 'var(--text-muted)', bg: 'var(--bg-surface)' }
+    return { label: 'Chưa thiết lập', color: 'var(--text-muted)', bg: 'var(--bg-surface)' }
   })()
 
   const inputStyle = {
@@ -412,17 +541,33 @@ const Settings = () => {
               </div>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 'var(--space-xs)', display: 'block' }}>
-                  Model mặc định
+                  Cấu hình model
                 </label>
-                <select
-                  value={settings.system.defaultModel}
-                  onChange={e => updateSystem('defaultModel', e.target.value as ModelDefault)}
-                  style={selectStyle}
-                >
-                  <option value="gemini-default">Gemini (Default)</option>
-                  <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                  <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                </select>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select
+                    value={llmSettings.provider}
+                    onChange={e => {
+                      const nextProvider = e.target.value as LlmProvider
+                      const options = MODEL_OPTIONS[nextProvider] || MODEL_OPTIONS.gemini
+                      const nextModel = options.find(item => item.value === llmSettings.model)?.value || options[0]?.value || ''
+                      updateLlm('provider', nextProvider)
+                      updateLlm('model', nextModel)
+                    }}
+                    style={{ ...selectStyle, flex: 1 }}
+                  >
+                    <option value="gemini">Google Gemini</option>
+                    <option value="groq">Groq</option>
+                  </select>
+                  <select
+                    value={llmSettings.model}
+                    onChange={e => updateLlm('model', e.target.value)}
+                    style={{ ...selectStyle, flex: 1 }}
+                  >
+                    {(MODEL_OPTIONS[llmSettings.provider] || []).map(item => (
+                      <option key={item.value} value={item.value}>{item.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 'var(--space-xs)', display: 'block' }}>
@@ -430,22 +575,32 @@ const Settings = () => {
                 </label>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <input
-                    type="password"
-                    placeholder="Nhập API key"
-                    value={settings.system.apiKey}
+                    type={showApiKey ? 'text' : 'password'}
+                    placeholder="Nhập API key (không lưu trên trình duyệt)"
+                    value={llmSettings.apiKeyInput}
                     onChange={e => {
-                      updateSystem('apiKey', e.target.value)
-                      setApiKeyStatus('idle')
+                      updateLlm('apiKeyInput', e.target.value)
+                      setClearApiKey(false)
                     }}
                     style={{ ...inputStyle, flex: 1 }}
                   />
                   <button
                     type="button"
                     className="btn btn--secondary btn--sm"
-                    onClick={handleTestKey}
-                    disabled={!settings.system.apiKey.trim() || apiKeyStatus === 'testing'}
+                    onClick={() => setShowApiKey(prev => !prev)}
                   >
-                    {apiKeyStatus === 'testing' ? 'Đang test...' : 'Test key'}
+                    {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm"
+                    onClick={() => {
+                      setClearApiKey(true)
+                      updateLlm('apiKeyInput', '')
+                    }}
+                    disabled={!llmSettings.apiKeySet}
+                  >
+                    Xoá key
                   </button>
                   <span
                     style={{
@@ -461,6 +616,15 @@ const Settings = () => {
                     {apiKeyBadge.label}
                   </span>
                 </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <KeyRound size={12} />
+                  API key được mã hoá và chỉ lưu trên server. Không lưu vào localStorage.
+                </div>
+                {llmError && (
+                  <div style={{ fontSize: 11, color: 'var(--error)', marginTop: 6 }}>
+                    {llmError}
+                  </div>
+                )}
               </div>
 
               <div style={{ marginTop: 'var(--space-sm)' }}>

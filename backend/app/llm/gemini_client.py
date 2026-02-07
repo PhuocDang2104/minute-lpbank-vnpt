@@ -1,11 +1,19 @@
 import asyncio
 import json
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 
 from groq import Groq
 from app.core.config import get_settings
 
 settings = get_settings()
+
+
+@dataclass
+class LLMConfig:
+    provider: str
+    model: str
+    api_key: str
 
 try:
     # New Gemini SDK (google-genai)
@@ -42,17 +50,31 @@ def configure_genai() -> bool:
     return False
 
 
-def get_groq_client():
+def get_groq_client(api_key_override: Optional[str] = None):
     """Return Groq client."""
-    if not settings.groq_api_key:
+    api_key = api_key_override or settings.groq_api_key
+    if not api_key:
         return None
-    return Groq(api_key=settings.groq_api_key)
+    return Groq(api_key=api_key)
 
 
-def _select_provider() -> str:
-    if settings.gemini_api_key and (genai_client or genai_legacy):
+def _select_provider(
+    provider_override: Optional[str] = None,
+    *,
+    gemini_api_key: Optional[str] = None,
+    groq_api_key: Optional[str] = None,
+) -> str:
+    if provider_override == "gemini":
+        if (gemini_api_key or settings.gemini_api_key) and (genai_client or genai_legacy):
+            return "gemini"
+        return "mock"
+    if provider_override == "groq":
+        if groq_api_key or settings.groq_api_key:
+            return "groq"
+        return "mock"
+    if (gemini_api_key or settings.gemini_api_key) and (genai_client or genai_legacy):
         return "gemini"
-    if settings.groq_api_key:
+    if groq_api_key or settings.groq_api_key:
         return "groq"
     return "mock"
 
@@ -98,12 +120,14 @@ def _gemini_generate(
     model_name: str,
     temperature: float,
     max_tokens: int,
+    api_key: Optional[str] = None,
 ) -> str:
-    if not settings.gemini_api_key:
+    api_key = api_key or settings.gemini_api_key
+    if not api_key:
         return ""
     try:
         if genai_client and genai_types:
-            client = genai_client.Client(api_key=settings.gemini_api_key)
+            client = genai_client.Client(api_key=api_key)
             try:
                 config = genai_types.GenerateContentConfig(
                     temperature=temperature,
@@ -125,7 +149,7 @@ def _gemini_generate(
                 )
                 return (getattr(response, "text", None) or "").strip()
         if genai_legacy:
-            genai_legacy.configure(api_key=settings.gemini_api_key)
+            genai_legacy.configure(api_key=api_key)
             model = genai_legacy.GenerativeModel(
                 model_name=model_name,
                 system_instruction=system_prompt or None,
@@ -150,8 +174,9 @@ def _groq_generate(
     model_name: str,
     temperature: float,
     max_tokens: int,
+    api_key: Optional[str] = None,
 ) -> str:
-    client = get_groq_client()
+    client = get_groq_client(api_key)
     if not client:
         return ""
     try:
@@ -177,8 +202,9 @@ def _groq_chat(
     model_name: str,
     temperature: float,
     max_tokens: int,
+    api_key: Optional[str] = None,
 ) -> str:
-    client = get_groq_client()
+    client = get_groq_client(api_key)
     if not client:
         return ""
     resp = client.chat.completions.create(
@@ -197,40 +223,65 @@ def call_llm_sync(
     model_name: Optional[str] = None,
     temperature: Optional[float] = None,
     max_tokens: Optional[int] = None,
+    llm_config: Optional[LLMConfig] = None,
 ) -> str:
     """Sync LLM call used by low-latency / sync code paths."""
-    provider = _select_provider()
+    provider_override = llm_config.provider if llm_config else None
+    gemini_key = llm_config.api_key if llm_config and llm_config.provider == "gemini" else None
+    groq_key = llm_config.api_key if llm_config and llm_config.provider == "groq" else None
+    provider = _select_provider(provider_override, gemini_api_key=gemini_key, groq_api_key=groq_key)
     temperature = settings.ai_temperature if temperature is None else temperature
     max_tokens = settings.ai_max_tokens if max_tokens is None else max_tokens
     if provider == "gemini":
+        candidate_model = llm_config.model if llm_config else ""
         return _gemini_generate(
             prompt,
             system_prompt=system_prompt,
-            model_name=model_name or settings.gemini_model,
+            model_name=model_name or candidate_model or settings.gemini_model,
             temperature=temperature,
             max_tokens=max_tokens,
+            api_key=gemini_key,
         )
     if provider == "groq":
+        candidate_model = llm_config.model if llm_config else ""
         return _groq_generate(
             prompt,
             system_prompt=system_prompt,
-            model_name=model_name or settings.groq_model,
+            model_name=model_name or candidate_model or settings.groq_model,
             temperature=temperature,
             max_tokens=max_tokens,
+            api_key=groq_key,
         )
     return ""
 
 class GeminiChat:
     """Chat wrapper supporting Google Gemini and Groq."""
     
-    def __init__(self, system_prompt: Optional[str] = None, mock_response: Optional[str] = None):
+    def __init__(
+        self,
+        system_prompt: Optional[str] = None,
+        mock_response: Optional[str] = None,
+        llm_config: Optional[LLMConfig] = None,
+    ):
         self.system_prompt = system_prompt or self._default_system_prompt()
         self.mock_response = mock_response or "AI đang ở chế độ mock (chưa cấu hình API Key)."
         self.history: List[Dict[str, str]] = []
         
-        # Determine provider
-        self.provider = _select_provider()
-        self.model_name = settings.gemini_model if self.provider == "gemini" else settings.groq_model
+        provider_override = llm_config.provider if llm_config else None
+        gemini_key = llm_config.api_key if llm_config and llm_config.provider == "gemini" else None
+        groq_key = llm_config.api_key if llm_config and llm_config.provider == "groq" else None
+        self.provider = _select_provider(provider_override, gemini_api_key=gemini_key, groq_api_key=groq_key)
+        if self.provider == "gemini":
+            candidate_model = llm_config.model if llm_config and llm_config.provider == "gemini" else ""
+            self.model_name = candidate_model or settings.gemini_model
+            self.api_key = gemini_key
+        elif self.provider == "groq":
+            candidate_model = llm_config.model if llm_config and llm_config.provider == "groq" else ""
+            self.model_name = candidate_model or settings.groq_model
+            self.api_key = groq_key
+        else:
+            self.model_name = None
+            self.api_key = None
     
     def _default_system_prompt(self) -> str:
         return """Bạn là MINUTE AI Assistant — trợ lý thông minh cho meetings & study sessions.
@@ -267,6 +318,7 @@ Nguyên tắc bắt buộc:
                     model_name=self.model_name or settings.gemini_model,
                     temperature=settings.ai_temperature,
                     max_tokens=settings.ai_max_tokens,
+                    api_key=self.api_key,
                 )
                 return self._clean_markdown(response_text)
             elif self.provider == "groq":
@@ -287,6 +339,7 @@ Nguyên tắc bắt buộc:
                     model_name=self.model_name or settings.groq_model,
                     temperature=settings.ai_temperature,
                     max_tokens=settings.ai_max_tokens,
+                    api_key=self.api_key,
                 )
                 self.history.append({"user": full_prompt, "assistant": assistant_message})
                 return self._clean_markdown(assistant_message)
@@ -307,10 +360,15 @@ Nguyên tắc bắt buộc:
 class MeetingAIAssistant:
     """AI Assistant specifically for meeting context"""
     
-    def __init__(self, meeting_id: str, meeting_context: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        meeting_id: str,
+        meeting_context: Optional[Dict[str, Any]] = None,
+        llm_config: Optional[LLMConfig] = None,
+    ):
         self.meeting_id = meeting_id
         self.meeting_context = meeting_context or {}
-        self.chat = GeminiChat()
+        self.chat = GeminiChat(llm_config=llm_config)
     
     def _build_context(self) -> str:
         """Build context string from meeting data"""

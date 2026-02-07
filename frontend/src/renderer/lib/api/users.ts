@@ -1,5 +1,12 @@
 import api from '../apiClient';
-import type { User, UserListResponse, DepartmentListResponse, Department } from '../../shared/dto/user';
+import type {
+  User,
+  UserListResponse,
+  DepartmentListResponse,
+  Department,
+  LlmSettings,
+  LlmSettingsUpdate,
+} from '../../shared/dto/user';
 
 const ENDPOINT = '/users';
 
@@ -14,6 +21,14 @@ export const usersApi = {
 
   get: async (id: string): Promise<User> => {
     return api.get<User>(`${ENDPOINT}/${id}`);
+  },
+
+  getLlmSettings: async (id: string): Promise<LlmSettings> => {
+    return api.get<LlmSettings>(`${ENDPOINT}/${id}/llm-settings`);
+  },
+
+  updateLlmSettings: async (id: string, payload: LlmSettingsUpdate): Promise<LlmSettings> => {
+    return api.put<LlmSettings>(`${ENDPOINT}/${id}/llm-settings`, payload);
   },
 
   getDepartments: async (): Promise<DepartmentListResponse> => {

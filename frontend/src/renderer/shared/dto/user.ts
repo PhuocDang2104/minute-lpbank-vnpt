@@ -32,6 +32,22 @@ export interface DepartmentListResponse {
   total: number;
 }
 
+export type LlmProvider = 'gemini' | 'groq';
+
+export interface LlmSettings {
+  provider: LlmProvider;
+  model: string;
+  api_key_set: boolean;
+  api_key_last4?: string | null;
+}
+
+export interface LlmSettingsUpdate {
+  provider: LlmProvider;
+  model: string;
+  api_key?: string;
+  clear_api_key?: boolean;
+}
+
 // Helper function to get initials
 export function getInitials(name: string): string {
   return name
@@ -49,4 +65,3 @@ export const ROLE_LABELS: Record<User['role'], string> = {
   chair: 'Chủ trì',
   user: 'Thành viên',
 };
-
