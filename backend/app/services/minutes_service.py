@@ -284,7 +284,7 @@ def _load_visual_highlights(db: Session, meeting_id: str, limit: int = 12) -> Li
             highlights.append(f"[{_fmt_seconds(t)} | object]{conf_text} {(label + ' ' + ocr).strip()[:220]}")
     except Exception:
         # visual_object_event may not exist on old DBs; ignore silently
-        pass
+        db.rollback()
 
     return highlights
 
