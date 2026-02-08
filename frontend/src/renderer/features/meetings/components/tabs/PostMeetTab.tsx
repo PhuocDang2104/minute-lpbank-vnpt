@@ -128,17 +128,17 @@ export const PostMeetTabV2 = ({ meeting }: PostMeetTabV2Props) => {
         <div className="notion-editor__header-actions">
           {minutes && (
             <>
-              <ActionButton icon={<Copy size={16} />} label="Copy" onClick={() => {
+              <ActionButton icon={<Copy size={16} />} label="Sao chép" onClick={() => {
                 navigator.clipboard.writeText(minutes.minutes_markdown || '');
-                alert('Đã copy biên bản!');
+                alert('Đã sao chép biên bản!');
               }} />
-              <ActionButton icon={<Download size={16} />} label="Export" onClick={() => {
+              <ActionButton icon={<Download size={16} />} label="Xuất file" onClick={() => {
                 // TODO: Implement export
-                alert('Export PDF/DOCX coming soon!');
+                alert('Sắp hỗ trợ xuất PDF/DOCX!');
               }} />
               <ActionButton icon={<Mail size={16} />} label="Gửi" onClick={() => {
                 // TODO: Implement email
-                alert('Email distribution coming soon!');
+                alert('Sắp hỗ trợ gửi email phân phối!');
               }} />
             </>
           )}
@@ -213,7 +213,7 @@ export const PostMeetTabV2 = ({ meeting }: PostMeetTabV2Props) => {
           {/* Highlights */}
           {minutes.highlights && (
             <EditableBlock
-              title="Highlights"
+              title="Điểm nổi bật"
               icon="✨"
               content={JSON.stringify(minutes.highlights, null, 2)}
               onSave={async (content) => {
@@ -222,10 +222,10 @@ export const PostMeetTabV2 = ({ meeting }: PostMeetTabV2Props) => {
                   await minutesApi.update(minutes.id, { highlights: parsed });
                   setMinutes({ ...minutes, highlights: parsed });
                 } catch (err) {
-                  alert('Invalid JSON format');
+                  alert('Định dạng JSON không hợp lệ');
                 }
               }}
-              placeholder="Key moments and quotes..."
+              placeholder="Các khoảnh khắc và trích dẫn nổi bật..."
             />
           )}
         </div>
@@ -244,7 +244,7 @@ const EmptyState = ({ onGenerate, isGenerating }: { onGenerate: () => void; isGe
       <h3 className="notion-empty-state__title">Tạo biên bản với AI</h3>
       <p className="notion-empty-state__description">
         AI sẽ phân tích transcript và tạo biên bản đầy đủ bao gồm:
-        <br />Tóm tắt • Action Items • Decisions • Risks • Highlights
+        <br />Tóm tắt • Việc cần làm • Quyết định • Rủi ro • Điểm nổi bật
       </p>
       <button className="btn btn--primary btn--lg" onClick={onGenerate} disabled={isGenerating}>
         <Sparkles size={18} style={{ marginRight: 8 }} />
@@ -357,9 +357,9 @@ const EditableBlock = ({ title, icon, content, onSave, placeholder, isMarkdown, 
               className="notion-icon-btn"
               onClick={() => {
                 navigator.clipboard.writeText(content);
-                alert('Đã copy!');
+                alert('Đã sao chép!');
               }}
-              title="Copy"
+              title="Sao chép"
             >
               <Copy size={14} />
             </button>
@@ -532,7 +532,7 @@ const ActionItemsBlockV2 = ({ meetingId }: ActionItemsBlockV2Props) => {
             {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           </button>
           <span className="notion-block__icon">✅</span>
-          <span className="notion-block__title-text">Action Items</span>
+          <span className="notion-block__title-text">Việc cần làm</span>
           <span className="notion-block__count">{items.length}</span>
         </div>
 
@@ -570,7 +570,7 @@ const ActionItemsBlockV2 = ({ meetingId }: ActionItemsBlockV2Props) => {
                 <div className="notion-add-item">
                   <input
                     className="notion-input"
-                    placeholder="Tiêu đề action item..."
+                    placeholder="Tiêu đề việc cần làm..."
                     value={newItem.title}
                     onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
                     autoFocus
@@ -593,9 +593,9 @@ const ActionItemsBlockV2 = ({ meetingId }: ActionItemsBlockV2Props) => {
                       value={newItem.priority}
                       onChange={(e) => setNewItem({ ...newItem, priority: e.target.value as any })}
                     >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
+                      <option value="low">Thấp</option>
+                      <option value="medium">Trung bình</option>
+                      <option value="high">Cao</option>
                     </select>
                   </div>
                   <div className="notion-add-item__actions">
@@ -611,7 +611,7 @@ const ActionItemsBlockV2 = ({ meetingId }: ActionItemsBlockV2Props) => {
 
               {items.length === 0 && !isAdding && (
                 <div className="notion-empty-hint" onClick={() => setIsAdding(true)}>
-                  Click để thêm action item...
+                  Nhấn để thêm việc cần làm...
                 </div>
               )}
             </>
@@ -624,6 +624,12 @@ const ActionItemsBlockV2 = ({ meetingId }: ActionItemsBlockV2Props) => {
 
 // ==================== Checklist Item ====================
 const NotionChecklistItem = ({ item, onToggle }: { item: ActionItem; onToggle: () => void }) => {
+  const priorityLabel: Record<string, string> = {
+    low: 'Thấp',
+    medium: 'Trung bình',
+    high: 'Cao',
+    critical: 'Khẩn cấp',
+  };
   const isCompleted = item.status === 'completed';
   const isOverdue = item.due_date && new Date(item.due_date) < new Date() && !isCompleted;
 
@@ -647,7 +653,7 @@ const NotionChecklistItem = ({ item, onToggle }: { item: ActionItem; onToggle: (
           )}
 
           {item.priority && item.priority !== 'medium' && (
-            <span className={`notion-tag notion-tag--${item.priority}`}>{item.priority.toUpperCase()}</span>
+            <span className={`notion-tag notion-tag--${item.priority}`}>{priorityLabel[item.priority] || item.priority}</span>
           )}
         </div>
       </div>
@@ -685,7 +691,7 @@ const DecisionsBlockV2 = ({ meetingId }: { meetingId: string }) => {
             {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           </button>
           <span className="notion-block__icon">💡</span>
-          <span className="notion-block__title-text">Decisions</span>
+          <span className="notion-block__title-text">Quyết định</span>
           <span className="notion-block__count">{items.length}</span>
         </div>
       </div>
@@ -709,7 +715,7 @@ const DecisionsBlockV2 = ({ meetingId }: { meetingId: string }) => {
                       <div className="notion-list-item__subtitle">Lý do: {item.rationale}</div>
                     )}
                     {item.impact && (
-                      <div className="notion-list-item__subtitle">Impact: {item.impact}</div>
+                      <div className="notion-list-item__subtitle">Tác động: {item.impact}</div>
                     )}
                   </div>
                 </div>
@@ -759,7 +765,7 @@ const RisksBlockV2 = ({ meetingId }: { meetingId: string }) => {
             {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           </button>
           <span className="notion-block__icon">⚠️</span>
-          <span className="notion-block__title-text">Risks</span>
+          <span className="notion-block__title-text">Rủi ro</span>
           <span className="notion-block__count">{items.length}</span>
         </div>
       </div>

@@ -1161,19 +1161,19 @@ def format_minutes(
         return text_val or "-"
 
     lines: List[str] = []
-    lines.append(f"# Minutes: {meeting_title}")
+    lines.append(f"# Biên bản: {meeting_title}")
     lines.append("")
-    lines.append(f"**Meeting Type:** {meeting_type or 'N/A'}")
-    lines.append(f"**Session Mode:** {session_type.title()}")
-    lines.append(f"**Time:** {_fmt_dt(start_time)} - {_fmt_dt(end_time)}")
+    lines.append(f"**Loại cuộc họp:** {meeting_type or 'N/A'}")
+    lines.append(f"**Chế độ phiên:** {session_type.title()}")
+    lines.append(f"**Thời gian:** {_fmt_dt(start_time)} - {_fmt_dt(end_time)}")
     lines.append("")
 
-    lines.append("## Executive Summary")
-    lines.append(summary or "No summary available.")
+    lines.append("## Tóm tắt điều hành")
+    lines.append(summary or "Chưa có tóm tắt.")
     lines.append("")
 
     if key_points:
-        lines.append("## Key Points")
+        lines.append("## Các điểm chính")
         for point in key_points:
             lines.append(f"- {point}")
         lines.append("")
@@ -1187,8 +1187,8 @@ def format_minutes(
 
     if session_type == "meeting":
         if decision_rows:
-            lines.append("## Decision Table")
-            lines.append("| Decision | Rationale | Status | Confirmed By |")
+            lines.append("## Bảng quyết định")
+            lines.append("| Quyết định | Lý do | Trạng thái | Người xác nhận |")
             lines.append("| --- | --- | --- | --- |")
             for row in decision_rows:
                 lines.append(
@@ -1205,14 +1205,14 @@ def format_minutes(
                 )
             lines.append("")
         elif decisions:
-            lines.append("## Decisions")
+            lines.append("## Quyết định")
             for idx, item in enumerate(decisions, start=1):
                 lines.append(f"{idx}. {item}")
             lines.append("")
 
         if action_rows:
-            lines.append("## Action Table")
-            lines.append("| Owner | Deadline | Priority | Status | Action |")
+            lines.append("## Bảng hành động")
+            lines.append("| Người phụ trách | Hạn chót | Mức ưu tiên | Trạng thái | Hành động |")
             lines.append("| --- | --- | --- | --- | --- |")
             for row in action_rows:
                 lines.append(
@@ -1230,14 +1230,14 @@ def format_minutes(
                 )
             lines.append("")
         elif actions:
-            lines.append("## Action Items")
+            lines.append("## Hành động cần làm")
             for idx, item in enumerate(actions, start=1):
                 lines.append(f"{idx}. {item}")
             lines.append("")
 
         if risk_rows:
-            lines.append("## Risk Table")
-            lines.append("| Risk | Severity | Mitigation | Owner | Status |")
+            lines.append("## Bảng rủi ro")
+            lines.append("| Rủi ro | Mức độ | Giảm thiểu | Người phụ trách | Trạng thái |")
             lines.append("| --- | --- | --- | --- | --- |")
             for row in risk_rows:
                 lines.append(
@@ -1255,20 +1255,20 @@ def format_minutes(
                 )
             lines.append("")
         elif risks:
-            lines.append("## Risks")
+            lines.append("## Rủi ro")
             for item in risks:
                 lines.append(f"- {item}")
             lines.append("")
 
         if include_ai_filters and ai_filters:
-            lines.append("## AI Filters")
+            lines.append("## Bộ lọc AI")
             for flt in ai_filters:
                 lines.append(f"- {flt}")
             lines.append("")
 
     if include_topic_tracker and topic_tracker:
-        lines.append("## Topic Tracker")
-        lines.append("| Topic | Start | End | Duration (s) |")
+        lines.append("## Theo dõi chủ đề")
+        lines.append("| Chủ đề | Bắt đầu | Kết thúc | Thời lượng (giây) |")
         lines.append("| --- | --- | --- | --- |")
         for row in topic_tracker:
             lines.append(
@@ -1286,7 +1286,7 @@ def format_minutes(
         lines.append("")
 
     if next_steps:
-        lines.append("## Next Steps")
+        lines.append("## Bước tiếp theo")
         for idx, step in enumerate(next_steps, start=1):
             lines.append(f"{idx}. {step}")
         lines.append("")

@@ -86,7 +86,7 @@ interface VideoSuggestion {
 const DEFAULT_VIDEO_SUGGESTIONS: VideoSuggestion[] = [
   {
     id: 'yt-01',
-    title: 'AI Fundamentals: Building Your First Meeting Summary',
+    title: 'Nền tảng AI: Cách tạo biên bản cuộc họp đầu tiên',
     channel: 'Minute Labs',
     duration: '28:12',
     url: 'https://www.youtube.com/watch?v=3U8n4VgZ2gk',
@@ -94,7 +94,7 @@ const DEFAULT_VIDEO_SUGGESTIONS: VideoSuggestion[] = [
   },
   {
     id: 'yt-02',
-    title: 'Product Sync Workshop: From Notes to Action Items',
+    title: 'Workshop đồng bộ sản phẩm: Từ ghi chú đến danh sách việc cần làm',
     channel: 'Team Rituals',
     duration: '42:05',
     url: 'https://www.youtube.com/watch?v=Y3A6gQ9c2BM',
@@ -102,7 +102,7 @@ const DEFAULT_VIDEO_SUGGESTIONS: VideoSuggestion[] = [
   },
   {
     id: 'yt-03',
-    title: 'Leadership Update: Structuring Weekly Executive Recaps',
+    title: 'Cập nhật lãnh đạo: Cấu trúc recap điều hành hằng tuần',
     channel: 'Workflows Academy',
     duration: '35:47',
     url: 'https://www.youtube.com/watch?v=V7L8eF7JX2c',
@@ -468,14 +468,14 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
           </div>
           <div>
             <div className="fireflies-upload-card__title">Tài liệu phiên</div>
-            <div className="fireflies-upload-card__subtitle">Upload những tài liệu liên quan đến session này.</div>
+            <div className="fireflies-upload-card__subtitle">Tải lên tài liệu liên quan đến phiên này.</div>
           </div>
         </div>
         <button
           className="btn btn--secondary btn--sm"
           onClick={() => setShowUploadModal(true)}
           disabled={!safeMeetingId}
-          title={!safeMeetingId ? 'Session ID không hợp lệ' : undefined}
+          title={!safeMeetingId ? 'ID phiên không hợp lệ' : undefined}
         >
           Tải tài liệu
         </button>
@@ -483,16 +483,16 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
 
       <div className="fireflies-filter-section" style={{ marginBottom: 12 }}>
         <div className="fireflies-filter-section__header">
-          <h4 style={{ margin: 0 }}>Session Documents ({documents.length})</h4>
+          <h4 style={{ margin: 0 }}>Tài liệu phiên ({documents.length})</h4>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
           {docsLoading ? (
             <div className="fireflies-empty">
-              <p>Loading documents...</p>
+              <p>Đang tải tài liệu...</p>
             </div>
           ) : documents.length === 0 ? (
             <div className="fireflies-empty">
-              <p>Chưa có tài liệu trong session</p>
+              <p>Chưa có tài liệu trong phiên</p>
             </div>
           ) : (
             documents.slice(0, 6).map((doc) => (
@@ -513,7 +513,7 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
                     {doc.title}
                   </div>
                   <div style={{ fontSize: 11, opacity: 0.7 }}>
-                    {(doc.file_type || 'file').toUpperCase()} • {doc.source || 'Uploaded'}
+                    {(doc.file_type || 'file').toUpperCase()} • {doc.source || 'Đã tải lên'}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -548,7 +548,7 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
         </div>
         <input
           className="fireflies-search__input"
-          placeholder="Smart Search"
+          placeholder="Tìm kiếm thông minh"
           value={filters.searchQuery}
           onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value })}
         />
@@ -556,13 +556,13 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
 
       {/* AI Filters Section */}
       <FilterSection
-        title="AI FILTERS"
+        title="BỘ LỌC AI"
         isExpanded={expandedSections.filters}
         onToggle={() => toggleSection('filters')}
       >
         <FilterChip
           icon={<MessageCircle size={14} />}
-          label="Questions"
+          label="Câu hỏi"
           count={questionsCount}
           color="#f59e0b"
           active={filters.questions}
@@ -570,7 +570,7 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
         />
         <FilterChip
           icon={<Calendar size={14} />}
-          label="Dates & Times"
+          label="Ngày & mốc thời gian"
           count={datesCount}
           color="#8b5cf6"
           active={filters.dates}
@@ -578,7 +578,7 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
         />
         <FilterChip
           icon={<TrendingUp size={14} />}
-          label="Metrics"
+          label="Chỉ số"
           count={metricsCount}
           color="#3b82f6"
           active={filters.metrics}
@@ -586,7 +586,7 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
         />
         <FilterChip
           icon={<CheckSquare size={14} />}
-          label="Tasks"
+          label="Công việc"
           count={actionItems.length}
           color="#10b981"
           active={filters.tasks}
@@ -596,13 +596,13 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
 
       {/* Topic Trackers Section */}
       <FilterSection
-        title="TOPIC TRACKERS"
+        title="THEO DÕI CHỦ ĐỀ"
         isExpanded={expandedSections.topics}
         onToggle={() => toggleSection('topics')}
       >
-        <TopicChip label="Growth Team" count={7} />
-        <TopicChip label="Marketing Team" count={5} />
-        <TopicChip label="Product" count={3} />
+        <TopicChip label="Nhóm tăng trưởng" count={7} />
+        <TopicChip label="Nhóm marketing" count={5} />
+        <TopicChip label="Sản phẩm" count={3} />
       </FilterSection>
 
       <UploadDocumentModal
@@ -692,8 +692,26 @@ const CenterPanel = ({
   const handleExportPDF = () => {
     if (!minutes) return;
 
-    const formatDate = (d: string | undefined) => d ? new Date(d).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+    const formatDate = (d: string | undefined) => d ? new Date(d).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Chưa có';
     const formatTime = (d: string | undefined) => d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+    const priorityLabel = (value: string | undefined) => {
+      const labels: Record<string, string> = {
+        low: 'Thấp',
+        medium: 'Trung bình',
+        high: 'Cao',
+        critical: 'Khẩn cấp',
+      };
+      return labels[(value || '').toLowerCase()] || value || '';
+    };
+    const severityLabel = (value: string | undefined) => {
+      const labels: Record<string, string> = {
+        low: 'Thấp',
+        medium: 'Trung bình',
+        high: 'Cao',
+        critical: 'Nghiêm trọng',
+      };
+      return labels[(value || '').toLowerCase()] || value || '';
+    };
 
     // Parse minutes_markdown for action_items, decisions, risks if available
     let actionItems: any[] = [];
@@ -829,7 +847,7 @@ const CenterPanel = ({
           <div class="item-meta">
             <span>👤 ${a.owner || 'Chưa phân công'}</span>
             ${a.deadline ? `<span>${a.deadline}</span>` : ''}
-            ${a.priority ? `<span class="badge ${a.priority}">${a.priority.toUpperCase()}</span>` : ''}
+            ${a.priority ? `<span class="badge ${a.priority}">${priorityLabel(a.priority)}</span>` : ''}
             ${a.created_by ? `<span>Yêu cầu bởi: ${a.created_by}</span>` : ''}
           </div>
         </div>
@@ -867,7 +885,7 @@ const CenterPanel = ({
         <div class="item-card risk ${r.severity}">
           <div class="item-desc">${r.description}</div>
           <div class="item-meta">
-            <span class="badge ${r.severity}">${(r.severity || 'medium').toUpperCase()}</span>
+            <span class="badge ${r.severity}">${severityLabel(r.severity || 'medium')}</span>
             ${r.mitigation ? `<span>${r.mitigation}</span>` : ''}
             ${r.raised_by ? `<span>Nêu bởi: ${r.raised_by}</span>` : ''}
           </div>
@@ -1110,22 +1128,22 @@ const CenterPanel = ({
       <div className="fireflies-center-header">
         <div className="fireflies-center-title">
           <Sparkles size={20} style={{ color: '#8b5cf6' }} />
-          <span>AI Generated Content</span>
+          <span>Nội dung AI tạo</span>
         </div>
 
         <div className="fireflies-center-actions">
           {minutes && (
             <>
-              <button className="fireflies-icon-btn" onClick={startEdit} title="Edit">
+              <button className="fireflies-icon-btn" onClick={startEdit} title="Chỉnh sửa">
                 <Edit3 size={16} />
               </button>
               <button
                 className="fireflies-icon-btn"
                 onClick={() => {
                   navigator.clipboard.writeText(minutes.executive_summary || '');
-                  alert('Đã copy!');
+                  alert('Đã sao chép!');
                 }}
-                title="Copy"
+                title="Sao chép"
               >
                 <Copy size={16} />
               </button>
@@ -1145,7 +1163,7 @@ const CenterPanel = ({
             style={{ marginLeft: 8 }}
           >
             <Sparkles size={14} style={{ marginRight: 4 }} />
-            {isGenerating ? 'Generating...' : minutes ? 'Regenerate' : 'Generate'}
+            {isGenerating ? 'Đang tạo...' : minutes ? 'Tạo lại' : 'Tạo biên bản'}
           </button>
         </div>
       </div>
@@ -1169,7 +1187,7 @@ const CenterPanel = ({
             <div style={{ marginTop: 24, padding: '0 24px' }}>
               <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <CheckSquare size={18} color="#10b981" />
-                Action Items
+                Việc cần làm
               </h3>
               <ActionItemsContent items={actionItems} />
             </div>
@@ -1212,7 +1230,7 @@ const CenterPanel = ({
                     <input type="checkbox" checked={p.email ? selectedParticipants.includes(p.email) : false} onChange={() => p.email && toggleParticipant(p.email)} disabled={!p.email} style={{ width: '16px', height: '16px', accentColor: '#6366f1' }} />
                     <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 600, fontSize: '13px' }}>{(p.display_name || p.email || '?').charAt(0).toUpperCase()}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 500, fontSize: '13px' }}>{p.display_name || p.email || 'Unknown'}</div>
+                      <div style={{ fontWeight: 500, fontSize: '13px' }}>{p.display_name || p.email || 'Không rõ'}</div>
                       {p.email && <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{p.email}</div>}
                     </div>
                     {!p.email && <span style={{ color: '#ef4444', fontSize: '11px' }}>Không có email</span>}
@@ -1353,10 +1371,10 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
           className="fireflies-right-title"
           onClick={handleTitleClick}
           style={{ cursor: 'pointer' }}
-          title="Shift+Click để thêm transcript thủ công"
+          title="Shift+Click để thêm bản chép lời thủ công"
         >
           <span></span>
-          Transcript
+          Bản chép lời
         </h3>
 
         <div className="fireflies-search fireflies-search--sm">
@@ -1365,7 +1383,7 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
           </div>
           <input
             className="fireflies-search__input"
-            placeholder="Search across the transcript"
+            placeholder="Tìm trong bản chép lời"
             value={searchInTranscript}
             onChange={(e) => setSearchInTranscript(e.target.value)}
           />
@@ -1390,7 +1408,7 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
                     <div className="fireflies-speaker-avatar">
                       {chunk.speaker ? chunk.speaker.charAt(0).toUpperCase() : '?'}
                     </div>
-                    <span className="fireflies-speaker-name">{chunk.speaker || 'Unknown'}</span>
+                    <span className="fireflies-speaker-name">{chunk.speaker || 'Không rõ'}</span>
                   </div>
                   <span className="fireflies-timestamp">{formatTime(chunk.start_time)}</span>
                 </div>
@@ -1477,7 +1495,7 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
                   onClick={handleBulkAdd}
                   disabled={!bulkInput.trim()}
                 >
-                  Thêm Transcript
+                  Thêm bản chép lời
                 </button>
               </div>
             </div>
@@ -1535,10 +1553,10 @@ const VideoSection = ({
       <div className={`fireflies-video-section ${minimal ? 'fireflies-video-section--minimal' : ''}`}>
         {showHeader && (
           <div className="fireflies-video-header">
-            <div className="fireflies-video-title">
-              <Video size={18} />
-              <span>Video Recording</span>
-            </div>
+          <div className="fireflies-video-title">
+            <Video size={18} />
+              <span>Bản ghi video</span>
+          </div>
             <button
               className="fireflies-video-delete-btn"
               onClick={onDelete}
@@ -1556,7 +1574,7 @@ const VideoSection = ({
             className="fireflies-video-element"
             style={{ width: '100%', maxHeight: '400px', borderRadius: 'var(--radius-md)' }}
           >
-            Your browser does not support the video tag.
+            Trình duyệt của bạn không hỗ trợ phát video.
           </video>
         </div>
       </div>
@@ -1570,7 +1588,7 @@ const VideoSection = ({
         <div className="fireflies-video-header">
           <div className="fireflies-video-title">
             <Video size={18} />
-            <span>Video Recording</span>
+            <span>Bản ghi video</span>
           </div>
         </div>
       )}
@@ -1685,7 +1703,7 @@ const SuggestedVideoCarousel = ({
 
   return (
     <div className="fireflies-suggest">
-      <div className="fireflies-suggest-header">Gợi ý video bài giảng</div>
+      <div className="fireflies-suggest-header">Video gợi ý</div>
       <div className="fireflies-suggest-carousel">
         {suggestions.map((item) => (
           <div key={item.id} className="fireflies-suggest-card">
@@ -1701,7 +1719,7 @@ const SuggestedVideoCarousel = ({
                 onClick={() => onDownload(item)}
               >
                 <Download size={14} />
-                Download
+                Tải xuống
               </button>
               <button
                 type="button"
@@ -1709,7 +1727,7 @@ const SuggestedVideoCarousel = ({
                 onClick={() => onPick(item)}
               >
                 <Play size={14} />
-                Choose this record
+                Chọn video này
               </button>
             </div>
           </div>
@@ -1849,7 +1867,7 @@ const SummaryContent = ({
       {/* Keywords */}
       {keywords.length > 0 && (
         <div className="fireflies-keywords">
-          <span className="fireflies-keywords__title">Keywords:</span>
+          <span className="fireflies-keywords__title">Từ khóa:</span>
           {keywords.map((kw, i) => (
             <span key={i} className="fireflies-keyword">
               "{kw}"
@@ -1871,11 +1889,11 @@ const SummaryContent = ({
           <div className="fireflies-edit-actions">
             <button className="btn btn--sm btn--ghost" onClick={onCancel}>
               <X size={14} style={{ marginRight: 4 }} />
-              Cancel
+              Hủy
             </button>
             <button className="btn btn--sm btn--primary" onClick={onSave}>
               <Check size={14} style={{ marginRight: 4 }} />
-              Save
+              Lưu
             </button>
           </div>
         </div>
@@ -1889,10 +1907,16 @@ const SummaryContent = ({
 };
 
 const ActionItemsContent = ({ items }: { items: ActionItem[] }) => {
+  const priorityLabel: Record<string, string> = {
+    low: 'Thấp',
+    medium: 'Trung bình',
+    high: 'Cao',
+    critical: 'Khẩn cấp',
+  };
   return (
     <div className="fireflies-actions-list">
       {items.length === 0 ? (
-        <div className="fireflies-empty">Không có action items</div>
+        <div className="fireflies-empty">Không có việc cần làm</div>
       ) : (
         items.map((item, i) => (
           <div key={item.id} className="fireflies-action-item">
@@ -1913,7 +1937,7 @@ const ActionItemsContent = ({ items }: { items: ActionItem[] }) => {
                   </span>
                 )}
                 <span className={`fireflies-priority fireflies-priority--${item.priority}`}>
-                  {item.priority}
+                  {priorityLabel[item.priority || ''] || item.priority}
                 </span>
               </div>
             </div>
@@ -1925,19 +1949,25 @@ const ActionItemsContent = ({ items }: { items: ActionItem[] }) => {
 };
 
 const DecisionsContent = ({ items, risks }: { items: DecisionItem[]; risks: RiskItem[] }) => {
+  const severityLabel: Record<string, string> = {
+    low: 'Thấp',
+    medium: 'Trung bình',
+    high: 'Cao',
+    critical: 'Nghiêm trọng',
+  };
   return (
     <div className="fireflies-decisions-list">
       {/* Decisions */}
       {items.length > 0 && (
         <div className="fireflies-decisions-group">
-          <h4 className="fireflies-group-title">💡 Key Decisions</h4>
+          <h4 className="fireflies-group-title">💡 Quyết định chính</h4>
           {items.map((item, i) => (
             <div key={item.id} className="fireflies-decision-item">
               <div className="fireflies-decision-number">{i + 1}</div>
               <div className="fireflies-decision-content">
                 <div className="fireflies-decision-title">{item.title}</div>
-                {item.rationale && <div className="fireflies-decision-subtitle">Rationale: {item.rationale}</div>}
-                {item.impact && <div className="fireflies-decision-subtitle">Impact: {item.impact}</div>}
+                {item.rationale && <div className="fireflies-decision-subtitle">Lý do: {item.rationale}</div>}
+                {item.impact && <div className="fireflies-decision-subtitle">Tác động: {item.impact}</div>}
               </div>
             </div>
           ))}
@@ -1947,15 +1977,15 @@ const DecisionsContent = ({ items, risks }: { items: DecisionItem[]; risks: Risk
       {/* Risks */}
       {risks.length > 0 && (
         <div className="fireflies-decisions-group" style={{ marginTop: 24 }}>
-          <h4 className="fireflies-group-title">⚠️ Identified Risks</h4>
+          <h4 className="fireflies-group-title">⚠️ Rủi ro đã nhận diện</h4>
           {risks.map((item) => (
             <div key={item.id} className="fireflies-risk-item">
               <div className={`fireflies-risk-badge fireflies-risk-badge--${item.severity}`}>
-                {item.severity}
+                {severityLabel[item.severity || ''] || item.severity}
               </div>
               <div className="fireflies-risk-content">
                 <div className="fireflies-risk-title">{item.title}</div>
-                {item.mitigation && <div className="fireflies-risk-subtitle">Mitigation: {item.mitigation}</div>}
+                {item.mitigation && <div className="fireflies-risk-subtitle">Giảm thiểu: {item.mitigation}</div>}
               </div>
             </div>
           ))}
@@ -1963,7 +1993,7 @@ const DecisionsContent = ({ items, risks }: { items: DecisionItem[]; risks: Risk
       )}
 
       {items.length === 0 && risks.length === 0 && (
-        <div className="fireflies-empty">Không có decisions hoặc risks</div>
+        <div className="fireflies-empty">Không có quyết định hoặc rủi ro</div>
       )}
     </div>
   );
@@ -1975,17 +2005,17 @@ const EmptyAIContent = ({ onGenerate, isGenerating }: { onGenerate: () => void; 
       <div className="fireflies-empty-ai__icon">
         <Sparkles size={64} strokeWidth={1} />
       </div>
-      <h3 className="fireflies-empty-ai__title">Generate Meeting Summary with AI</h3>
+      <h3 className="fireflies-empty-ai__title">Tạo biên bản cuộc họp với AI</h3>
       <p className="fireflies-empty-ai__description">
-        AI will analyze the transcript and generate:
-        <br />• Executive summary
-        <br />• Action items with owners
-        <br />• Key decisions and impacts
-        <br />• Identified risks
+        AI sẽ phân tích bản chép lời và tạo:
+        <br />• Tóm tắt điều hành
+        <br />• Việc cần làm và người phụ trách
+        <br />• Quyết định chính và tác động
+        <br />• Rủi ro đã nhận diện
       </p>
       <button className="btn btn--primary btn--lg" onClick={onGenerate} disabled={isGenerating}>
         <Sparkles size={18} style={{ marginRight: 8 }} />
-        {isGenerating ? 'Generating AI Summary...' : 'Generate with AI'}
+        {isGenerating ? 'Đang tạo biên bản...' : 'Tạo với AI'}
       </button>
     </div>
   );

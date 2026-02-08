@@ -24,6 +24,35 @@ interface Chapter {
   level: number;
 }
 
+const PRIORITY_LABEL: Record<string, string> = {
+  low: 'Thấp',
+  medium: 'Trung bình',
+  high: 'Cao',
+  critical: 'Khẩn cấp',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  proposed: 'Đề xuất',
+  confirmed: 'Đã xác nhận',
+  in_progress: 'Đang làm',
+  completed: 'Hoàn thành',
+  cancelled: 'Đã hủy',
+  mitigated: 'Đã giảm thiểu',
+};
+
+const SEVERITY_LABEL: Record<string, string> = {
+  low: 'Thấp',
+  medium: 'Trung bình',
+  high: 'Cao',
+  critical: 'Nghiêm trọng',
+};
+
+const CLIP_TYPE_LABEL: Record<string, string> = {
+  decision: 'quyết định',
+  action: 'hành động',
+  risk: 'rủi ro',
+};
+
 export const PostMeetTab = ({ meeting }: PostMeetTabProps) => {
   return (
     <div className="postmeet-tab">
@@ -316,7 +345,7 @@ const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
       <div className="summary-main">
         <div className="summary-header">
           <div className="summary-header__left">
-            <h3>Biên bản cuộc họp (AI Generated)</h3>
+            <h3>Biên bản cuộc họp (AI tạo)</h3>
             {!showChapters && chapters.length > 0 && (
               <button className="btn btn--ghost btn--sm" onClick={() => setShowChapters(true)}>Mục lục</button>
             )}
@@ -343,7 +372,7 @@ const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
               <>
                 <button className="btn btn--secondary btn--sm" onClick={handleStartEdit}>Chỉnh sửa</button>
                 <button className="btn btn--secondary btn--sm" onClick={handleCopySummary}>
-                  {copied ? 'Đã copy' : 'Copy'}
+                  {copied ? 'Đã sao chép' : 'Sao chép'}
                 </button>
                 <button className="btn btn--ghost btn--sm" onClick={() => setHideSensitive((prev) => !prev)}>
                   {hideSensitive ? 'Hiện đầy đủ' : 'Ẩn nhạy cảm'}
@@ -374,7 +403,7 @@ const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
             <div className="generating-state">
               <div className="generating-dots"><span></span><span></span><span></span></div>
               <h4>AI đang tạo biên bản...</h4>
-              <p>Đang phân tích transcript, action items, decisions và risks</p>
+              <p>Đang phân tích bản chép lời, việc cần làm, quyết định và rủi ro</p>
             </div>
           ) : isEditing ? (
             <div className="edit-mode">
@@ -413,7 +442,7 @@ const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
           ) : (
             <div className="empty-minutes">
               <h4>Chưa có biên bản</h4>
-              <p>Nhấn "AI tạo biên bản" để Minute AI tự động tạo biên bản dựa trên nội dung cuộc họp</p>
+              <p>Nhấn "AI tạo biên bản" để Minute AI tự động tổng hợp theo nội dung cuộc họp</p>
               <button className="btn btn--accent" onClick={handleGenerateMinutes} disabled={isGenerating}>
                 AI tạo biên bản ngay
               </button>
@@ -480,7 +509,7 @@ const StatsSection = ({ meetingId }: { meetingId: string }) => {
       <div className="stat-card stat-card--accent">
         <div className="stat-card__content">
           <span className="stat-card__value">{stats.actions}</span>
-          <span className="stat-card__label">Action Items</span>
+          <span className="stat-card__label">Việc cần làm</span>
         </div>
       </div>
       <div className="stat-card stat-card--success">
@@ -523,21 +552,21 @@ const ActionItemsSection = ({ meetingId }: { meetingId: string }) => {
       setActions(result.items || []);
     } catch (err) {
       console.error('Failed to load actions:', err);
-      setError('Không thể tải action items');
+      setError('Không thể tải việc cần làm');
     } finally {
       setIsLoading(false);
     }
   };
 
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'TBD';
+    if (!dateStr) return 'Chưa có';
     return new Date(dateStr).toLocaleDateString('vi-VN');
   };
 
   return (
     <div className="card">
       <div className="card__header">
-        <h3>Action Items</h3>
+        <h3>Việc cần làm</h3>
         <button
           className="btn btn--ghost btn--icon btn--sm"
           style={{ padding: '6px', width: '32px', height: '32px' }}
@@ -554,7 +583,7 @@ const ActionItemsSection = ({ meetingId }: { meetingId: string }) => {
           <div className="error-message">{error}</div>
         ) : actions.length === 0 ? (
           <div className="empty-state-mini">
-            <p>Chưa có action items</p>
+            <p>Chưa có việc cần làm</p>
           </div>
         ) : (
           <div className="action-list">
@@ -567,7 +596,7 @@ const ActionItemsSection = ({ meetingId }: { meetingId: string }) => {
                   <div className="action-text">{action.description}</div>
                   <div className="action-meta">
                     <span className={`badge badge--${action.priority === 'critical' ? 'error' : action.priority === 'high' ? 'warning' : 'neutral'}`}>
-                      {action.priority}
+                      {PRIORITY_LABEL[action.priority || ''] || action.priority}
                     </span>
                     {action.owner_name && (
                       <span className="action-meta-item">
@@ -582,7 +611,7 @@ const ActionItemsSection = ({ meetingId }: { meetingId: string }) => {
                   </div>
                 </div>
                 <span className={`badge badge--${action.status === 'completed' ? 'success' : action.status === 'confirmed' ? 'info' : 'neutral'}`}>
-                  {action.status}
+                  {STATUS_LABEL[action.status || ''] || action.status}
                 </span>
               </div>
             ))}
@@ -717,17 +746,17 @@ const RisksSection = ({ meetingId }: { meetingId: string }) => {
                 <div className="risk-header">
                   <span className="risk-id">R-{String(index + 1).padStart(3, '0')}</span>
                   <span className={`badge badge--${risk.severity === 'critical' || risk.severity === 'high' ? 'error' : 'warning'}`}>
-                    {risk.severity}
+                    {SEVERITY_LABEL[risk.severity || ''] || risk.severity}
                   </span>
                 </div>
                 <div className="risk-text">{risk.description}</div>
                 {risk.mitigation && (
                   <div className="risk-mitigation">
-                    <strong>Mitigation:</strong> {risk.mitigation}
+                    <strong>Giảm thiểu:</strong> {risk.mitigation}
                   </div>
                 )}
                 <span className={`badge badge--${risk.status === 'mitigated' ? 'success' : 'info'}`}>
-                  {risk.status}
+                  {STATUS_LABEL[risk.status || ''] || risk.status}
                 </span>
               </div>
             ))}
@@ -745,8 +774,8 @@ const HighlightsSection = ({ meeting }: { meeting: MeetingWithParticipants }) =>
   const mockHighlights = [
     { id: 1, title: 'Quyết định kiến trúc microservices', startTime: '05:23', endTime: '08:45', type: 'decision' },
     { id: 2, title: 'Phân công code review module auth', startTime: '12:10', endTime: '14:30', type: 'action' },
-    { id: 3, title: 'Thảo luận về vendor delay risk', startTime: '18:45', endTime: '22:15', type: 'risk' },
-    { id: 4, title: 'Phê duyệt budget cloud infrastructure', startTime: '28:00', endTime: '31:20', type: 'decision' },
+    { id: 3, title: 'Thảo luận về rủi ro chậm tiến độ từ nhà cung cấp', startTime: '18:45', endTime: '22:15', type: 'risk' },
+    { id: 4, title: 'Phê duyệt ngân sách hạ tầng cloud', startTime: '28:00', endTime: '31:20', type: 'decision' },
     { id: 5, title: 'Timeline hoàn thành UAT', startTime: '35:50', endTime: '38:10', type: 'action' },
   ];
 
@@ -755,8 +784,8 @@ const HighlightsSection = ({ meeting }: { meeting: MeetingWithParticipants }) =>
     { id: 2, title: 'Thảo luận kiến trúc hệ thống', startTime: '05:23', duration: '6:47' },
     { id: 3, title: 'Phân công công việc', startTime: '12:10', duration: '6:35' },
     { id: 4, title: 'Đánh giá rủi ro', startTime: '18:45', duration: '9:15' },
-    { id: 5, title: 'Budget & Resources', startTime: '28:00', duration: '7:50' },
-    { id: 6, title: 'Timeline & Next steps', startTime: '35:50', duration: '4:20' },
+    { id: 5, title: 'Ngân sách & nguồn lực', startTime: '28:00', duration: '7:50' },
+    { id: 6, title: 'Lộ trình & bước tiếp theo', startTime: '35:50', duration: '4:20' },
   ];
 
   return (
@@ -764,7 +793,7 @@ const HighlightsSection = ({ meeting }: { meeting: MeetingWithParticipants }) =>
       <div className="highlights-grid">
         <div className="card">
           <div className="card__header">
-            <h3>Highlights (Video)</h3>
+            <h3>Điểm nổi bật (Video)</h3>
           </div>
           <div className="card__body">
             <div className="video-preview">
@@ -777,7 +806,7 @@ const HighlightsSection = ({ meeting }: { meeting: MeetingWithParticipants }) =>
                 )}
               </div>
               <div className="video-preview__controls">
-                <button className="btn btn--ghost btn--sm">Play/Pause</button>
+                <button className="btn btn--ghost btn--sm">Phát/Tạm dừng</button>
                 <div className="video-preview__timeline">
                   <div className="video-preview__progress" style={{ width: '35%' }}></div>
                 </div>
@@ -786,7 +815,7 @@ const HighlightsSection = ({ meeting }: { meeting: MeetingWithParticipants }) =>
             </div>
 
             <div className="highlight-clips">
-              <h4>Candidate Clips ({mockHighlights.length})</h4>
+              <h4>Đoạn cắt gợi ý ({mockHighlights.length})</h4>
               <div className="highlight-clips__list">
                 {mockHighlights.map((clip) => (
                   <div
@@ -794,7 +823,7 @@ const HighlightsSection = ({ meeting }: { meeting: MeetingWithParticipants }) =>
                     className={`highlight-clip ${selectedClip === clip.id ? 'highlight-clip--active' : ''}`}
                     onClick={() => setSelectedClip(clip.id)}
                   >
-                    <div className="highlight-clip__thumbnail">{clip.type.toUpperCase()}</div>
+                    <div className="highlight-clip__thumbnail">{(CLIP_TYPE_LABEL[clip.type] || clip.type).toUpperCase()}</div>
                     <div className="highlight-clip__info">
                       <div className="highlight-clip__title">{clip.title}</div>
                       <div className="highlight-clip__time">
@@ -802,7 +831,7 @@ const HighlightsSection = ({ meeting }: { meeting: MeetingWithParticipants }) =>
                       </div>
                     </div>
                     <span className={`badge badge--${clip.type === 'decision' ? 'success' : clip.type === 'action' ? 'info' : 'warning'}`}>
-                      {clip.type}
+                      {CLIP_TYPE_LABEL[clip.type] || clip.type}
                     </span>
                   </div>
                 ))}
@@ -813,7 +842,7 @@ const HighlightsSection = ({ meeting }: { meeting: MeetingWithParticipants }) =>
 
         <div className="card">
           <div className="card__header">
-            <h3>Chapters</h3>
+            <h3>Chương nội dung</h3>
           </div>
           <div className="card__body">
             <div className="chapter-list">
@@ -915,7 +944,7 @@ const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => 
     <div className="tasks-sync-section">
       <div className="card">
         <div className="card__header">
-          <h3>Đồng bộ Tasks ra hệ thống ngoài</h3>
+          <h3>Đồng bộ tác vụ ra hệ thống ngoài</h3>
           <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
             <select
               className="form-select"
@@ -932,7 +961,7 @@ const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => 
               onClick={handleSync}
               disabled={isSyncing || selectedTasks.size === 0}
             >
-              {isSyncing ? 'Đang đồng bộ...' : `Sync ${selectedTasks.size} task`}
+              {isSyncing ? 'Đang đồng bộ...' : `Đồng bộ ${selectedTasks.size} tác vụ`}
             </button>
           </div>
         </div>
@@ -940,7 +969,7 @@ const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => 
 
       <div className="card">
         <div className="card__header">
-          <h3>Action Items ({actions.length}) {selectedTasks.size > 0 && <span className="badge badge--accent">{selectedTasks.size} đã chọn</span>}</h3>
+          <h3>Việc cần làm ({actions.length}) {selectedTasks.size > 0 && <span className="badge badge--accent">{selectedTasks.size} đã chọn</span>}</h3>
           <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
             <button className="btn btn--ghost btn--sm" onClick={selectAll}>Chọn tất cả</button>
             <button className="btn btn--ghost btn--sm" onClick={deselectAll}>Bỏ chọn</button>
@@ -958,7 +987,7 @@ const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => 
             <div className="section-loading">Đang tải...</div>
           ) : actions.length === 0 ? (
             <div className="empty-state-mini">
-              <p>Chưa có action items</p>
+              <p>Chưa có việc cần làm</p>
             </div>
           ) : (
             <div className="tasks-list">
@@ -985,7 +1014,7 @@ const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => 
                           <input
                             type="text"
                             className="form-input form-input--sm"
-                            placeholder="Owner"
+                            placeholder="Người phụ trách"
                             value={editForm.owner}
                             onChange={(e) => setEditForm({ ...editForm, owner: e.target.value })}
                           />
@@ -1000,10 +1029,10 @@ const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => 
                             value={editForm.priority}
                             onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
                           >
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="critical">Critical</option>
+                            <option value="low">Thấp</option>
+                            <option value="medium">Trung bình</option>
+                            <option value="high">Cao</option>
+                            <option value="critical">Khẩn cấp</option>
                           </select>
                           <button className="btn btn--primary btn--sm" onClick={() => saveEditTask(action.id)}>Lưu</button>
                           <button className="btn btn--ghost btn--sm" onClick={() => setEditingTask(null)}>Hủy</button>
@@ -1011,7 +1040,7 @@ const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => 
                       ) : (
                         <div className="task-row__meta">
                           <span className={`badge badge--${action.priority === 'critical' || action.priority === 'high' ? 'error' : action.priority === 'medium' ? 'warning' : 'neutral'}`}>
-                            {action.priority}
+                            {PRIORITY_LABEL[action.priority || ''] || action.priority}
                           </span>
                           {action.owner_name && (
                             <span className="task-row__meta-item">
@@ -1029,7 +1058,7 @@ const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => 
 
                     <div className="task-row__actions">
                       {isSynced ? (
-                        <span className="badge badge--success">Đã sync</span>
+                        <span className="badge badge--success">Đã đồng bộ</span>
                       ) : (
                         <button
                           className="btn btn--ghost btn--icon btn--sm"
