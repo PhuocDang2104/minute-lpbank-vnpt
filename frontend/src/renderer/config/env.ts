@@ -13,7 +13,7 @@ const normalizeApiBase = (value: string): string => {
 const envApiUrl = normalizeApiBase(import.meta.env.VITE_API_URL || '');
 const fallbackApiUrl = isDevelopment
   ? 'http://localhost:8000'
-  : 'https://minute-backend.onrender.com';
+  : 'https://minute-api.onrender.com';
 
 export const API_URL = envApiUrl || fallbackApiUrl;
 
