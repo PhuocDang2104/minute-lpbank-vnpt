@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import type { MeetingWithParticipants } from '../../../../shared/dto/meeting';
 import { formatDuration } from '../../../../store/mockData';
-import { API_URL, USE_API } from '../../../../config/env';
+import { USE_API, WS_BASE_URL } from '../../../../config/env';
 import { sessionsApi } from '../../../../lib/api';
 
 type WsStatus = 'idle' | 'connecting' | 'connected' | 'error' | 'disabled';
@@ -219,13 +219,11 @@ export const InMeetTab = ({
   const timelineOriginMsRef = useRef<number | null>(null);
   const transcriptKeySetRef = useRef<Set<string>>(new Set());
   const hasRecordTranscriptRef = useRef(false);
-  const wsBase = useMemo(() => {
-    if (API_URL.startsWith('https://')) return API_URL.replace(/^https:/i, 'wss:').replace(/\/$/, '');
-    if (API_URL.startsWith('http://')) return API_URL.replace(/^http:/i, 'ws:').replace(/\/$/, '');
-    return API_URL.replace(/\/$/, '');
-  }, []);
   const sessionIdForStream = streamSessionId || meeting.id;
-  const feedEndpoint = useMemo(() => `${wsBase}/api/v1/ws/frontend/${sessionIdForStream}`, [wsBase, sessionIdForStream]);
+  const feedEndpoint = useMemo(
+    () => `${WS_BASE_URL.replace(/\/$/, '')}/api/v1/ws/frontend/${sessionIdForStream}`,
+    [sessionIdForStream],
+  );
 
   useEffect(() => {
     setFinalTranscript([]);
