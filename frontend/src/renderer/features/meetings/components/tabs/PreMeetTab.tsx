@@ -27,6 +27,7 @@ import {
   CheckSquare,
   Link as LinkIcon,
   Wand2,
+  Trash2,
 } from 'lucide-react';
 import type { MeetingWithParticipants } from '../../../../shared/dto/meeting';
 import { agendaApi, type AgendaItem, type AgendaItemCreate } from '../../../../lib/api/agenda';
@@ -1047,6 +1048,7 @@ const DocumentsPanel = ({ meetingId, projectId }: { meetingId: string; projectId
   const [availableDocs, setAvailableDocs] = useState<KnowledgeDocument[]>([]);
   const [isSelecting, setIsSelecting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   const isUuid = (value?: string) => !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
   const safeMeetingId = isUuid(meetingId) ? meetingId : undefined;
   const safeProjectId = isUuid(projectId) ? projectId : undefined;
@@ -1176,6 +1178,30 @@ const DocumentsPanel = ({ meetingId, projectId }: { meetingId: string; projectId
 
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteDocument = async (doc: KnowledgeDocument) => {
+    const ok = window.confirm(`Xóa tài liệu "${doc.title}"?`);
+    if (!ok) return;
+
+    setDeletingDocId(doc.id);
+    try {
+      await knowledgeApi.delete(doc.id);
+      setUploadNotification({
+        type: 'success',
+        message: `Đã xóa tài liệu "${doc.title}".`,
+      });
+      await loadDocuments();
+    } catch (err) {
+      console.error('Delete knowledge doc failed:', err);
+      setUploadNotification({
+        type: 'warning',
+        message: 'Xóa tài liệu thất bại, thử lại sau.',
+      });
+    } finally {
+      setDeletingDocId(null);
+      setTimeout(() => setUploadNotification(null), 4000);
+    }
   };
 
   const getFileIcon = (fileName: string) => {
@@ -1309,6 +1335,14 @@ const DocumentsPanel = ({ meetingId, projectId }: { meetingId: string; projectId
               <a href={doc.file_url || '#'} target="_blank" rel="noopener noreferrer" className="btn btn--ghost btn--icon btn--sm">
                 <ExternalLink size={12} />
               </a>
+              <button
+                className="btn btn--ghost btn--icon btn--sm"
+                title="Xóa tài liệu"
+                onClick={() => handleDeleteDocument(doc)}
+                disabled={deletingDocId === doc.id}
+              >
+                {deletingDocId === doc.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+              </button>
             </div>
           ))
         ) : !showUpload && (

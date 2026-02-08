@@ -399,6 +399,7 @@ const LeftPanel = ({ meetingId, projectId, filters, setFilters, actionItems, tra
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
 
   const isUuid = (value?: string) =>
     !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -439,6 +440,22 @@ const LeftPanel = ({ meetingId, projectId, filters, setFilters, actionItems, tra
       setDocuments([]);
     } finally {
       setDocsLoading(false);
+    }
+  };
+
+  const handleDeleteDocument = async (doc: KnowledgeDocument) => {
+    const ok = window.confirm(`Xóa tài liệu "${doc.title}"?`);
+    if (!ok) return;
+
+    setDeletingDocId(doc.id);
+    try {
+      await knowledgeApi.delete(doc.id);
+      await loadDocuments();
+    } catch (err) {
+      console.error('Delete session document failed:', err);
+      alert('Xóa tài liệu thất bại. Vui lòng thử lại.');
+    } finally {
+      setDeletingDocId(null);
     }
   };
 
@@ -495,27 +512,46 @@ const LeftPanel = ({ meetingId, projectId, filters, setFilters, actionItems, tra
             </div>
           ) : (
             documents.slice(0, 6).map((doc) => (
-              <a
+              <div
                 key={doc.id}
-                href={doc.file_url || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
                 style={{
-                  textDecoration: 'none',
-                  color: 'var(--text-primary)',
                   border: '1px solid var(--border-light)',
                   borderRadius: 10,
                   padding: '8px 10px',
-                  display: 'block',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  alignItems: 'center',
                 }}
               >
-                <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {doc.title}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {doc.title}
+                  </div>
+                  <div style={{ fontSize: 11, opacity: 0.7 }}>
+                    {(doc.file_type || 'file').toUpperCase()} • {doc.source || 'Uploaded'}
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, opacity: 0.7 }}>
-                  {(doc.file_type || 'file').toUpperCase()} • {doc.source || 'Uploaded'}
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <a
+                    href={doc.file_url || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn--ghost btn--icon btn--sm"
+                    title="Mở tài liệu"
+                  >
+                    <Search size={12} />
+                  </a>
+                  <button
+                    className="btn btn--ghost btn--icon btn--sm"
+                    title="Xóa tài liệu"
+                    disabled={deletingDocId === doc.id}
+                    onClick={() => handleDeleteDocument(doc)}
+                  >
+                    {deletingDocId === doc.id ? <Loader size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                  </button>
                 </div>
-              </a>
+              </div>
             ))
           )}
         </div>
