@@ -26,8 +26,17 @@ MAX_KEYFRAMES = int(os.getenv("MAX_KEYFRAMES", "60"))
 FALLBACK_FRAME_STEP_SEC = int(os.getenv("FALLBACK_FRAME_STEP_SEC", "5"))
 OCR_BIN = os.getenv("OCR_BIN", "tesseract")
 OCR_ENABLED = os.getenv("OCR_ENABLED", "true").strip().lower() in {"1", "true", "yes"}
-GEMINI_VISION_API_KEY = os.getenv("GEMINI_VISION_API_KEY", "")
-GEMINI_VISION_MODEL = os.getenv("GEMINI_VISION_MODEL", "gemini-1.5-flash")
+# Vision model config for frame captioning.
+# Preferred:
+# - LLM_VISION_PROVIDER (gemini)
+# - LLM_VISION_API_KEY
+# - LLM_VISION_MODEL
+# Backward-compatible aliases:
+# - GEMINI_VISION_API_KEY
+# - GEMINI_VISION_MODEL
+LLM_VISION_PROVIDER = os.getenv("LLM_VISION_PROVIDER", "gemini").strip().lower()
+LLM_VISION_API_KEY = os.getenv("LLM_VISION_API_KEY", os.getenv("GEMINI_VISION_API_KEY", ""))
+LLM_VISION_MODEL = os.getenv("LLM_VISION_MODEL", os.getenv("GEMINI_VISION_MODEL", "gemini-1.5-flash"))
 
 
 @app.get("/health")
@@ -154,13 +163,13 @@ def _run_ocr(image_path: Path) -> str:
 
 
 def _call_gemini_vision(image_path: Path, ocr_text: str) -> str:
-    if not GEMINI_VISION_API_KEY:
+    if not LLM_VISION_API_KEY:
         return ""
     try:
         image_b64 = base64.b64encode(image_path.read_bytes()).decode("utf-8")
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{GEMINI_VISION_MODEL}:generateContent?key={GEMINI_VISION_API_KEY}"
+            f"{LLM_VISION_MODEL}:generateContent?key={LLM_VISION_API_KEY}"
         )
         prompt = (
             "Analyze this meeting frame and return one concise sentence about what is shown. "
@@ -194,6 +203,14 @@ def _call_gemini_vision(image_path: Path, ocr_text: str) -> str:
         return " ".join(texts).strip()
     except (urlerror.URLError, TimeoutError, ValueError, KeyError):
         return ""
+
+
+def _call_vision_caption(image_path: Path, ocr_text: str) -> str:
+    # Current production path uses Gemini for visual captioning.
+    # Provider switch is explicit to avoid confusion with chat LLM model selection.
+    if LLM_VISION_PROVIDER == "gemini":
+        return _call_gemini_vision(image_path, ocr_text)
+    return ""
 
 
 def _infer_event_type(ocr_text: str, caption: str) -> str:
@@ -342,7 +359,7 @@ async def visual_ingest(
             frame_path = item["frame_path"]
             timestamp = float(item["timestamp"])
             ocr_text = _run_ocr(frame_path) if run_ocr else ""
-            caption = _call_gemini_vision(frame_path, ocr_text) if run_caption else ""
+            caption = _call_vision_caption(frame_path, ocr_text) if run_caption else ""
             event_type = _infer_event_type(ocr_text, caption)
 
             visual_events.append(
@@ -364,7 +381,9 @@ async def visual_ingest(
                 "scene_threshold": scene_threshold,
                 "max_keyframes": max_keyframes,
                 "run_ocr": run_ocr,
-                "run_caption": run_caption and bool(GEMINI_VISION_API_KEY),
+                "run_caption": run_caption and bool(LLM_VISION_API_KEY),
+                "vision_provider": LLM_VISION_PROVIDER,
+                "vision_model": LLM_VISION_MODEL,
             },
             "visual_events": visual_events,
             "visual_objects": visual_objects,

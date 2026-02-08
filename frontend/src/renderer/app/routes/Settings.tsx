@@ -91,6 +91,7 @@ const MODEL_OPTIONS: Record<LlmProvider, LlmModelOption[]> = {
     { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B' },
   ],
   groq: [
+    { value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B (Groq)' },
     { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
     { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
     { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B 32K' },

@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, AliasChoices
 from functools import lru_cache
 import os
 from pathlib import Path
@@ -54,7 +55,20 @@ class Settings(BaseSettings):
     gomeet_timeout_seconds: int = 15
     
     # AI Model settings
-    groq_model: str = 'llama-3.1-8b-instant'
+    # Groq chat model used by chatbot/LLM text generation.
+    # Backward-compatible aliases:
+    # - LLM_GROQ_CHAT_MODEL (preferred)
+    # - LLM_GROQ_MODEL (older)
+    # - GROQ_MODEL (legacy)
+    llm_groq_chat_model: str = Field(
+        default='meta-llama/llama-4-scout-17b-16e-instruct',
+        validation_alias=AliasChoices('LLM_GROQ_CHAT_MODEL', 'LLM_GROQ_MODEL', 'GROQ_MODEL'),
+    )
+    # Optional future-proof setting if vision inference is moved to Groq.
+    llm_groq_vision_model: str = Field(
+        default='meta-llama/llama-4-scout-17b-16e-instruct',
+        validation_alias=AliasChoices('LLM_GROQ_VISION_MODEL'),
+    )
     gemini_model: str = 'gemini-1.5-flash'
     ai_temperature: float = 0.7
     ai_max_tokens: int = 2048
@@ -106,6 +120,21 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
         if self.database_url and self.database_url.startswith('postgres://'):
             self.database_url = self.database_url.replace('postgres://', 'postgresql://', 1)
+
+    @property
+    def groq_model(self) -> str:
+        """
+        Backward-compat accessor.
+        Prefer using `llm_groq_chat_model` in new code.
+        """
+        return self.llm_groq_chat_model
+
+    @property
+    def llm_groq_model(self) -> str:
+        """
+        Backward-compat accessor for code migrated from `llm_groq_model`.
+        """
+        return self.llm_groq_chat_model
 
 
 @lru_cache()

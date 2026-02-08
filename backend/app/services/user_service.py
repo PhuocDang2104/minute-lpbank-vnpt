@@ -202,7 +202,7 @@ def _normalize_llm_settings(raw_llm: Dict[str, Any]) -> LlmSettings:
     provider = raw_llm.get("provider") or "gemini"
     if provider not in ("gemini", "groq"):
         provider = "gemini"
-    default_model = settings.gemini_model if provider == "gemini" else settings.groq_model
+    default_model = settings.gemini_model if provider == "gemini" else settings.llm_groq_chat_model
     model = raw_llm.get("model") or default_model
     api_key_encrypted = raw_llm.get("api_key") or ""
     api_key_last4 = raw_llm.get("api_key_last4")

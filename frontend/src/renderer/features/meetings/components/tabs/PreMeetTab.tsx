@@ -64,7 +64,7 @@ export const PreMeetTab = ({ meeting, onRefresh }: PreMeetTabProps) => {
         <div className="inmeet-column inmeet-column--side">
           <PrepStatusPanel meeting={meeting} />
           <ParticipantsPanel meeting={meeting} onRefresh={onRefresh} />
-          <DocumentsPanel meetingId={meeting.id} projectId={meeting.project_id} />
+          <DocumentsPanel meetingId={meeting.id} />
         </div>
       </div>
 
@@ -830,6 +830,9 @@ const PrepStatusPanel = ({ meeting }: { meeting: MeetingWithParticipants }) => {
   const participants = meeting.participants || [];
   const [agendaCount, setAgendaCount] = useState(0);
   const [docCount, setDocCount] = useState(0);
+  const isUuid = (value?: string) =>
+    !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  const safeMeetingId = isUuid(meeting.id) ? meeting.id : undefined;
 
   useEffect(() => {
     const loadCounts = async () => {
@@ -838,15 +841,10 @@ const PrepStatusPanel = ({ meeting }: { meeting: MeetingWithParticipants }) => {
         setAgendaCount(agenda.items.length);
       } catch { setAgendaCount(0); }
       try {
-        const [meetingDocs, projectDocs] = await Promise.all([
-          knowledgeApi.list({ limit: 100, meeting_id: meeting.id }),
-          meeting.project_id
-            ? knowledgeApi.list({ limit: 100, project_id: meeting.project_id })
-            : Promise.resolve({ documents: [], total: 0 }),
-        ]);
-        const unique = new Set<string>();
-        [...meetingDocs.documents, ...projectDocs.documents].forEach((doc) => unique.add(doc.id));
-        setDocCount(unique.size);
+        const meetingDocs = safeMeetingId
+          ? await knowledgeApi.list({ limit: 100, meeting_id: safeMeetingId })
+          : { documents: [], total: 0 };
+        setDocCount(meetingDocs.documents.length);
       } catch { setDocCount(0); }
     };
     loadCounts();
@@ -1036,7 +1034,7 @@ const ParticipantsPanel = ({ meeting, onRefresh }: { meeting: MeetingWithPartici
 // ============================================
 // DOCUMENTS PANEL - With drag & drop upload
 // ============================================
-const DocumentsPanel = ({ meetingId, projectId }: { meetingId: string; projectId?: string }) => {
+const DocumentsPanel = ({ meetingId }: { meetingId: string }) => {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
@@ -1051,11 +1049,10 @@ const DocumentsPanel = ({ meetingId, projectId }: { meetingId: string; projectId
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   const isUuid = (value?: string) => !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
   const safeMeetingId = isUuid(meetingId) ? meetingId : undefined;
-  const safeProjectId = isUuid(projectId) ? projectId : undefined;
 
   useEffect(() => {
     loadDocuments();
-  }, [meetingId, projectId]);
+  }, [meetingId]);
 
   const loadDocuments = async () => {
     setIsLoading(true);
@@ -1068,28 +1065,15 @@ const DocumentsPanel = ({ meetingId, projectId }: { meetingId: string; projectId
       }
     };
     try {
-      const [meetingResult, projectResult, allDocs] = await Promise.all([
-        safeMeetingId ? safeList({ limit: 50, meeting_id: safeMeetingId }) : Promise.resolve({ documents: [], total: 0 }),
-        safeProjectId ? safeList({ limit: 50, project_id: safeProjectId }) : Promise.resolve({ documents: [], total: 0 }),
-        safeList({ limit: 100 }),
-      ]);
-
-      const merged = new Map<string, KnowledgeDocument>();
-      [...meetingResult.documents, ...projectResult.documents].forEach((doc) => {
-        merged.set(doc.id, doc);
-      });
-
-      // Fallback: client-side filter from all docs for schema/runtime mismatch.
-      if (merged.size === 0) {
-        allDocs.documents.forEach((doc) => {
-          if (doc.meeting_id === meetingId || (projectId && doc.project_id === projectId) || (safeProjectId && doc.project_id === safeProjectId)) {
-            merged.set(doc.id, doc);
-          }
-        });
+      if (!safeMeetingId) {
+        setDocuments([]);
+        setAvailableDocs([]);
+        return;
       }
 
-      setDocuments(Array.from(merged.values()));
-      setAvailableDocs(allDocs.documents);
+      const meetingResult = await safeList({ limit: 100, meeting_id: safeMeetingId });
+      setDocuments(meetingResult.documents);
+      setAvailableDocs(meetingResult.documents);
     } catch (err) {
       console.error('Failed to load documents:', err);
     } finally {
@@ -1127,6 +1111,15 @@ const DocumentsPanel = ({ meetingId, projectId }: { meetingId: string; projectId
   const handleFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
+    if (!safeMeetingId) {
+      setUploadNotification({
+        type: 'warning',
+        message: 'Session ID không hợp lệ, không thể upload tài liệu.',
+      });
+      setTimeout(() => setUploadNotification(null), 4000);
+      return;
+    }
+
     // Validate file types
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain', 'text/markdown'];
     const validFiles = files.filter(f => allowedTypes.includes(f.type) || f.name.endsWith('.md') || f.name.endsWith('.txt'));
@@ -1152,7 +1145,6 @@ const DocumentsPanel = ({ meetingId, projectId }: { meetingId: string; projectId
             file_type: (file.name.split('.').pop() || 'pdf'),
             file_size: file.size,
             meeting_id: safeMeetingId,
-            project_id: safeProjectId,
           },
           file
         );
@@ -1404,7 +1396,6 @@ const DocumentsPanel = ({ meetingId, projectId }: { meetingId: string; projectId
                           try {
                             await knowledgeApi.update(doc.id, {
                               meeting_id: safeMeetingId,
-                              project_id: safeProjectId,
                             });
                             setShowSelect(false);
                             loadDocuments();

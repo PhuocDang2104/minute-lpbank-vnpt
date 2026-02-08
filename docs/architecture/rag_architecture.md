@@ -7,7 +7,9 @@ Tài liệu mô tả kiến trúc RAG hiện tại, luồng ingest → search �
 - **Metadata DB**: bảng `knowledge_document` (title, description, source, category, tags, file_url, meeting_id/project_id scope).
 - **Storage**: Supabase S3 (đã slugify key để tránh ký tự lạ).
 - **Embeddings**: Jina Inference API `jina-embeddings-v3` (task `text-matching`, dim 1024).
-- **LLM**: Groq (model `llama-3.3-70b-versatile` theo config).
+- **LLM**: Groq (model `meta-llama/llama-4-scout-17b-16e-instruct` theo config).
+  Env chat model: `LLM_GROQ_CHAT_MODEL` (alias cũ: `LLM_GROQ_MODEL`, `GROQ_MODEL`).
+  Env vision model (optional): `LLM_GROQ_VISION_MODEL`.
 - **Extractor**: `pdfplumber` cho PDF text-based (chưa OCR; file scan cần OCR bổ sung).
 
 ## Luồng ingest tài liệu

@@ -335,7 +335,6 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
       {!isEmptySession && (
         <LeftPanel
           meetingId={meeting.id}
-          projectId={meeting.project_id}
           filters={filters}
           setFilters={setFilters}
           actionItems={actionItems}
@@ -384,14 +383,13 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
 // ==================== Left Panel - Filters ====================
 interface LeftPanelProps {
   meetingId: string;
-  projectId?: string;
   filters: FilterState;
   setFilters: (filters: FilterState) => void;
   actionItems: ActionItem[];
   transcripts: TranscriptChunk[];
 }
 
-const LeftPanel = ({ meetingId, projectId, filters, setFilters, actionItems, transcripts }: LeftPanelProps) => {
+const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }: LeftPanelProps) => {
   const [expandedSections, setExpandedSections] = useState({
     filters: true,
     topics: true,
@@ -404,37 +402,16 @@ const LeftPanel = ({ meetingId, projectId, filters, setFilters, actionItems, tra
   const isUuid = (value?: string) =>
     !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
   const safeMeetingId = isUuid(meetingId) ? meetingId : undefined;
-  const safeProjectId = isUuid(projectId) ? projectId : undefined;
 
   const loadDocuments = async () => {
     setDocsLoading(true);
     try {
-      const [meetingDocs, projectDocs, allDocs] = await Promise.all([
-        safeMeetingId
-          ? knowledgeApi.list({ limit: 30, meeting_id: safeMeetingId })
-          : Promise.resolve({ documents: [], total: 0 }),
-        safeProjectId
-          ? knowledgeApi.list({ limit: 30, project_id: safeProjectId })
-          : Promise.resolve({ documents: [], total: 0 }),
-        knowledgeApi.list({ limit: 100 }),
-      ]);
-      const merged = new Map<string, KnowledgeDocument>();
-      [...meetingDocs.documents, ...projectDocs.documents].forEach((doc) => merged.set(doc.id, doc));
-      if (merged.size === 0) {
-        allDocs.documents.forEach((doc) => {
-          if (
-            doc.meeting_id === meetingId ||
-            (projectId && doc.project_id === projectId)
-          ) {
-            merged.set(doc.id, doc);
-          }
-        });
+      if (!safeMeetingId) {
+        setDocuments([]);
+        return;
       }
-      if (merged.size === 0 && (!safeMeetingId || !safeProjectId)) {
-        // Demo fallback when ids are not UUID and backend cannot bind scope.
-        allDocs.documents.slice(0, 6).forEach((doc) => merged.set(doc.id, doc));
-      }
-      setDocuments(Array.from(merged.values()));
+      const meetingDocs = await knowledgeApi.list({ limit: 100, meeting_id: safeMeetingId });
+      setDocuments(meetingDocs.documents);
     } catch (err) {
       console.error('Failed to load session documents:', err);
       setDocuments([]);
@@ -461,7 +438,7 @@ const LeftPanel = ({ meetingId, projectId, filters, setFilters, actionItems, tra
 
   useEffect(() => {
     loadDocuments();
-  }, [meetingId, projectId]);
+  }, [meetingId]);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections({ ...expandedSections, [section]: !expandedSections[section] });
@@ -492,7 +469,12 @@ const LeftPanel = ({ meetingId, projectId, filters, setFilters, actionItems, tra
             <div className="fireflies-upload-card__subtitle">Upload những tài liệu liên quan đến session này.</div>
           </div>
         </div>
-        <button className="btn btn--secondary btn--sm" onClick={() => setShowUploadModal(true)}>
+        <button
+          className="btn btn--secondary btn--sm"
+          onClick={() => setShowUploadModal(true)}
+          disabled={!safeMeetingId}
+          title={!safeMeetingId ? 'Session ID không hợp lệ' : undefined}
+        >
           Tải tài liệu
         </button>
       </div>
@@ -629,7 +611,6 @@ const LeftPanel = ({ meetingId, projectId, filters, setFilters, actionItems, tra
           loadDocuments();
         }}
         meetingId={safeMeetingId}
-        projectId={safeProjectId}
       />
     </div>
   );

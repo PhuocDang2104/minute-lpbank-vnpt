@@ -99,7 +99,7 @@ Request:
 - `scene_threshold` (optional, default `0.35`): float `(0,1)`
 - `max_keyframes` (optional, default `60`): int, max 200
 - `run_ocr` (optional, default `true`): bool
-- `run_caption` (optional, default `false`): bool (Gemini vision caption)
+- `run_caption` (optional, default `false`): bool (vision caption)
 
 Example:
 ```bash
@@ -200,8 +200,10 @@ Backend luu ket qua visual vao:
 - `FALLBACK_FRAME_STEP_SEC`
 - `OCR_BIN` (default `tesseract`)
 - `OCR_ENABLED`
-- `GEMINI_VISION_API_KEY` (optional)
-- `GEMINI_VISION_MODEL` (optional)
+- `LLM_VISION_PROVIDER` (optional, default `gemini`)
+- `LLM_VISION_API_KEY` (optional)
+- `LLM_VISION_MODEL` (optional)
+- Alias cu van ho tro: `GEMINI_VISION_API_KEY`, `GEMINI_VISION_MODEL`
 
 Runtime dependency quan trong:
 - `ffmpeg`
@@ -210,7 +212,7 @@ Runtime dependency quan trong:
 ## 7. Resource Guidance (Render free / MVP)
 
 De on dinh voi 512MB RAM, 0.1 CPU:
-- `run_caption=false` (de tat Gemini vision caption).
+- `run_caption=false` (de tat vision caption).
 - `max_keyframes` de `20-60`.
 - Khuyen nghi preprocess video 720p, duration ngan.
 - Khong chay dong thoi qua nhieu request inference.
@@ -246,3 +248,150 @@ Khuyen nghi client in-meeting:
 - `services/asr/app/main.py`
 - `services/asr/Dockerfile`
 - `backend/app/services/knowledge_service.py`
+
+## 11. Practical Test Runbook (copy-paste)
+
+Muc tieu:
+- Team in-meeting co the test end-to-end khong can doc code.
+- Xac nhan du lieu transcript + visual context duoc persist va dung duoc cho RAG/minutes.
+
+### 11.1 Chuan bi bien moi truong
+
+```bash
+export API_BASE="https://minute-api.onrender.com"
+export ASR_BASE="https://<your-asr-host>" # optional, chi dung neu test truc tiep ASR
+export MEETING_ID="<meeting_uuid>"
+export VIDEO_PATH="/absolute/path/to/test_meeting.mp4"
+```
+
+Luu y:
+- `MEETING_ID` phai ton tai trong bang `meeting`.
+- Video nen co slide change ro rang de de thay `visual_event_count > 0`.
+
+### 11.2 Health check nhanh
+
+```bash
+curl -sS "$API_BASE/health" | jq .
+curl -sS "$ASR_BASE/health" | jq .   # neu test ASR truc tiep
+```
+
+Expected:
+- API backend tra `ok/healthy`.
+- ASR tra `{ "ok": true }`.
+
+### 11.3 Upload video vao meeting
+
+```bash
+curl -sS -X POST "$API_BASE/api/v1/meetings/$MEETING_ID/upload-video" \
+  -F "video=@$VIDEO_PATH" \
+  -F "uploaded_by=00000000-0000-0000-0000-000000000001" | jq .
+```
+
+Expected:
+- HTTP `200`
+- JSON co `recording_id`, `recording_url`, `provider`, `file_size`.
+
+### 11.4 Trigger inference
+
+```bash
+curl -sS -X POST "$API_BASE/api/v1/meetings/$MEETING_ID/trigger-inference" | jq .
+```
+
+Expected:
+- `status = "completed"`
+- `transcript_count > 0`
+- `visual_event_count >= 0`
+- `visual_object_count >= 0`
+
+Neu video co slide/change frame:
+- `visual_event_count > 0` la ky vong chinh.
+
+### 11.5 Verify transcript + visual bang API
+
+Transcript:
+```bash
+curl -sS "$API_BASE/api/v1/transcripts/$MEETING_ID?limit=20" | jq '.total, .chunks[0]'
+```
+
+Minutes latest:
+```bash
+curl -sS "$API_BASE/api/v1/minutes/$MEETING_ID/latest" | jq .
+```
+
+Expected:
+- Transcript list co du lieu.
+- Minutes co the co/no tuy flow generate, nhung endpoint phai tra json hop le.
+
+### 11.6 Verify du lieu bang SQL (DB cloud)
+
+```sql
+SELECT COUNT(*) AS transcript_chunks
+FROM transcript_chunk
+WHERE meeting_id = '<meeting_id>';
+
+SELECT COUNT(*) AS visual_events
+FROM visual_event
+WHERE meeting_id = '<meeting_id>';
+
+SELECT COUNT(*) AS visual_objects
+FROM visual_object_event
+WHERE meeting_id = '<meeting_id>';
+```
+
+Expected:
+- `transcript_chunks > 0`
+- `visual_events >= 0`
+- `visual_objects >= 0`
+
+### 11.7 Verify tren UI
+
+Checklist:
+1. Mo meeting session tren frontend.
+2. Transcript panel co noi dung moi.
+3. Chat hoi ve noi dung vua noi trong video -> AI tra loi dung context.
+4. Neu co visual events: hoi ve slide/chart -> AI co citation/noi dung lien quan.
+
+### 11.8 Test matrix toi thieu
+
+1. Video ngan (1-3 phut), co slide change.
+2. Video ngan, khong slide (speaker cam).
+3. Video chi audio (man hinh it thay doi).
+4. Video co text tren slide (de OCR bat duoc).
+
+### 11.9 Failure playbook nhanh
+
+1. `upload-video` fail:
+- Check `MAX_VIDEO_FILE_SIZE_MB`.
+- Check storage env (Supabase S3/public URL).
+
+2. `trigger-inference` fail 500:
+- Check `ASR_URL` dung domain + SSL.
+- Check ASR logs (`/transcribe` hoac `/visual-ingest` fail stage nao).
+- Check DB schema da migrate du.
+
+3. `transcript_count > 0` nhung visual = 0:
+- Video it thay doi frame.
+- Thu giam `scene_threshold` (vd `0.25`) va tang `max_keyframes`.
+
+4. UI khong thay du lieu:
+- Hard refresh frontend.
+- Verify API response truoc (khong debug UI khi API dang rong).
+
+### 11.10 Optional: Test truc tiep ASR service
+
+Visual ingest:
+```bash
+curl -sS -X POST "$ASR_BASE/visual-ingest" \
+  -F "file=@$VIDEO_PATH" \
+  -F "meeting_id=$MEETING_ID" \
+  -F "scene_threshold=0.35" \
+  -F "max_keyframes=60" \
+  -F "run_ocr=true" \
+  -F "run_caption=false" | jq '.total_keyframes, .visual_events[0], .visual_objects[0]'
+```
+
+Transcribe:
+```bash
+curl -sS -X POST "$ASR_BASE/transcribe" \
+  -F "file=@$VIDEO_PATH" | jq '.text, .segments[0]'
+```

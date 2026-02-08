@@ -479,7 +479,10 @@ async def list_documents(
 ) -> KnowledgeDocumentList:
     """List all knowledge documents with optional filters"""
     try:
-        has_chunk_table = _table_exists(db, "knowledge_chunk")
+        chunk_cols = _get_table_columns(db, "knowledge_chunk")
+        has_chunk_table = bool(chunk_cols)
+        has_scope_meeting = "scope_meeting" in chunk_cols
+        has_scope_project = "scope_project" in chunk_cols
         conditions = ["1=1"]
         params = {"skip": skip, "limit": limit}
         if document_type:
@@ -492,7 +495,7 @@ async def list_documents(
             conditions.append("category = :category")
             params["category"] = category
         if meeting_id:
-            if has_chunk_table:
+            if has_chunk_table and has_scope_meeting:
                 conditions.append(
                     """
                     (
@@ -509,7 +512,7 @@ async def list_documents(
                 conditions.append("meeting_id = :meeting_id")
             params["meeting_id"] = str(meeting_id)
         if project_id:
-            if has_chunk_table:
+            if has_chunk_table and has_scope_project:
                 conditions.append(
                     """
                     (
@@ -548,12 +551,13 @@ async def list_documents(
             params,
         ).scalar_one()
 
-        if rows:
-            docs = [_with_presigned_url(_row_to_doc(r)) for r in rows]
-            return KnowledgeDocumentList(documents=docs, total=total)
+        # Merge DB rows with in-process docs to avoid missing just-uploaded docs
+        # when DB insert/schema is partially broken in demo environments.
+        merged: dict[str, KnowledgeDocument] = {}
+        for row in rows:
+            doc = _row_to_doc(row)
+            merged[str(doc.id)] = doc
 
-        # DB query succeeded but returned no rows, fallback to in-process docs.
-        # This covers recent uploads when DB insert failed in the same runtime.
         mock_docs = _filter_mock_docs(
             document_type=document_type,
             source=source,
@@ -561,11 +565,21 @@ async def list_documents(
             meeting_id=meeting_id,
             project_id=project_id,
         )
-        mock_docs = [_with_presigned_url(d) for d in mock_docs]
-        return KnowledgeDocumentList(
-            documents=mock_docs[skip:skip + limit],
-            total=len(mock_docs),
-        )
+        for doc in mock_docs:
+            if str(doc.id) not in merged:
+                merged[str(doc.id)] = doc
+
+        if merged:
+            merged_docs = sorted(
+                merged.values(),
+                key=lambda d: d.uploaded_at or datetime.min,
+                reverse=True,
+            )
+            docs = [_with_presigned_url(d) for d in merged_docs]
+            effective_total = max(total, len(docs))
+            return KnowledgeDocumentList(documents=docs[skip:skip + limit], total=effective_total)
+
+        return KnowledgeDocumentList(documents=[], total=0)
     except Exception as exc:
         db.rollback()
         logger.warning("List documents fallback to mock: %s", exc)

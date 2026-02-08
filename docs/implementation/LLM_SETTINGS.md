@@ -103,7 +103,7 @@ Khai báo types:
 ```json
 {
   "provider": "groq",
-  "model": "llama-3.3-70b-versatile",
+  "model": "meta-llama/llama-4-scout-17b-16e-instruct",
   "api_key": "gsk_xxx..."
 }
 ```
@@ -120,6 +120,9 @@ Hoặc xoá key:
 - **Không lưu key ở client**. Frontend chỉ giữ tạm trong state.
 - **Server lưu key mã hoá** bằng `SECRET_KEY`. Cần set `SECRET_KEY` ổn định ở môi trường production.
 - Nếu đổi `SECRET_KEY` -> key cũ không giải mã được.
+- Biến model Groq cho chatbot đã đổi tên sang `LLM_GROQ_CHAT_MODEL`.
+- Có thể khai báo thêm `LLM_GROQ_VISION_MODEL` nếu tách model vision riêng.
+- Alias cũ vẫn hỗ trợ: `LLM_GROQ_MODEL`, `GROQ_MODEL`.
 
 ## Điểm mở rộng
 - Hiện tại **minutes generation** dùng override theo organizer. Có thể mở rộng sang:
@@ -132,4 +135,3 @@ Hoặc xoá key:
 - `404 user not found` -> user_id frontend không tồn tại trong DB.
 - `api_key_set=false` dù đã lưu -> kiểm tra `SECRET_KEY` và payload.
 - LLM vẫn dùng key env -> check `user_account.preferences.llm` có provider/model/api_key.
-

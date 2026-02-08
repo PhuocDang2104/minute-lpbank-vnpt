@@ -32,6 +32,10 @@ Biến môi trường quan trọng:
 - `ASR_URL`: URL nội bộ của ASR (mặc định `http://asr:9000` trong compose).
 - `WHISPER_MODEL`: đường dẫn model trong container (mặc định `/models/ggml-tiny.en-q5_1.bin`).
 - `WHISPER_THREADS`: số luồng chạy whisper (mặc định `1`).
+- `LLM_VISION_PROVIDER`: provider caption ảnh (`gemini`).
+- `LLM_VISION_API_KEY`: API key cho vision caption.
+- `LLM_VISION_MODEL`: model cho vision caption.
+- Alias cũ vẫn dùng được: `GEMINI_VISION_API_KEY`, `GEMINI_VISION_MODEL`.
 
 ## Setup local
 Chạy toàn bộ stack:
@@ -65,4 +69,3 @@ curl -X POST "http://localhost:8000/api/v1/meetings/<meeting_id>/trigger-inferen
 - **0 transcript chunks**: kiểm tra ASR JSON có `transcription` hoặc `segments`.
 - **DB lỗi cột start_time**: DB đang schema cũ (`time_start/time_end/lang`), dùng code compatibility trong `transcript_service.py`.
 - **ASR 500**: kiểm tra log `minute_asr`, verify `WHISPER_MODEL` tồn tại và ffmpeg chạy được.
-

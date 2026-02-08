@@ -96,7 +96,7 @@ def get_llm_status() -> Dict[str, Any]:
         api_key_set = bool(settings.gemini_api_key and len(settings.gemini_api_key) > 10)
         api_key_preview = (settings.gemini_api_key[:8] + "...") if settings.gemini_api_key else None
     elif provider == "groq":
-        model = settings.groq_model
+        model = settings.llm_groq_chat_model
         api_key_set = bool(settings.groq_api_key and len(settings.groq_api_key) > 10)
         api_key_preview = (settings.groq_api_key[:8] + "...") if settings.groq_api_key else None
     else:
@@ -247,7 +247,7 @@ def call_llm_sync(
         return _groq_generate(
             prompt,
             system_prompt=system_prompt,
-            model_name=model_name or candidate_model or settings.groq_model,
+            model_name=model_name or candidate_model or settings.llm_groq_chat_model,
             temperature=temperature,
             max_tokens=max_tokens,
             api_key=groq_key,
@@ -277,7 +277,7 @@ class GeminiChat:
             self.api_key = gemini_key
         elif self.provider == "groq":
             candidate_model = llm_config.model if llm_config and llm_config.provider == "groq" else ""
-            self.model_name = candidate_model or settings.groq_model
+            self.model_name = candidate_model or settings.llm_groq_chat_model
             self.api_key = groq_key
         else:
             self.model_name = None
@@ -336,7 +336,7 @@ Nguyên tắc bắt buộc:
                 assistant_message = await asyncio.to_thread(
                     _groq_chat,
                     messages,
-                    model_name=self.model_name or settings.groq_model,
+                    model_name=self.model_name or settings.llm_groq_chat_model,
                     temperature=settings.ai_temperature,
                     max_tokens=settings.ai_max_tokens,
                     api_key=self.api_key,
