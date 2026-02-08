@@ -94,8 +94,8 @@ class GenerateMinutesRequest(BaseModel):
     session_type: Optional[str] = None  # meeting / course (auto-infer if None)
     include_topic_tracker: bool = True
     include_ai_filters: bool = True
-    include_quiz: bool = True
-    include_knowledge_table: bool = True
+    include_quiz: bool = False
+    include_knowledge_table: bool = False
     format: str = "markdown"  # markdown / html / text
 
 

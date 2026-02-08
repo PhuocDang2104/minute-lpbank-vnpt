@@ -145,8 +145,9 @@ async def _summarize_transcript_windows(
     summaries: List[str] = []
     for idx, chunk in enumerate(chunks, start=1):
         prompt = (
-            "Tóm tắt ngắn gọn đoạn transcript sau (3-5 gạch đầu dòng). "
+            "Tóm tắt ngắn gọn đoạn transcript sau thành 4-7 ý ngắn. "
             "Giữ nguyên nội dung, không bịa. "
+            "Nếu dữ liệu mỏng thì vẫn đưa bản tóm tắt sơ bộ thay vì bỏ trống. "
             "Nếu có thời điểm/nhân vật quan trọng hoặc action/decision/risk thì nêu rõ.\n\n"
             f"ĐOẠN {idx}/{len(chunks)}:\n{chunk}"
         )
@@ -989,17 +990,6 @@ async def generate_minutes_with_ai(
                 study_pack = _normalize_study_pack(structured_payload.get("study_pack"))
         else:
             summary_result = await assistant.generate_summary_with_context(context_payload)
-            if session_type == "course" and transcript:
-                concepts: List[Dict[str, Any]] = []
-                quiz: List[Dict[str, Any]] = []
-                if request.include_knowledge_table:
-                    concepts_raw = await assistant.extract_concepts(transcript)
-                    concepts = _safe_json_list(_parse_json_fragment(concepts_raw, expect_array=True))
-                if request.include_quiz:
-                    quiz_raw = await assistant.generate_quiz(transcript)
-                    quiz = _safe_json_list(_parse_json_fragment(quiz_raw, expect_array=True))
-                if concepts or quiz:
-                    study_pack = {"concepts": concepts, "quiz": quiz}
     except Exception as exc:
         logger.warning("AI summary generation failed for meeting %s: %s", meeting_id, exc)
         fallback_summary = meeting_desc or "Chưa có mô tả cuộc họp. Vui lòng cập nhật."
@@ -1025,6 +1015,34 @@ async def generate_minutes_with_ai(
         for item in (summary_result.get("key_points") or [])
         if str(item).strip()
     ]
+    if not summary_result["summary"]:
+        if meeting_desc:
+            summary_result["summary"] = f"Tóm tắt sơ bộ cho '{meeting_title}': {meeting_desc[:320]}"
+        elif llm_fallback_transcript:
+            summary_result["summary"] = f"Tóm tắt sơ bộ cho '{meeting_title}': {llm_fallback_transcript[:320]}"
+        elif related_docs:
+            summary_result["summary"] = (
+                f"Tóm tắt sơ bộ cho '{meeting_title}': đã có tài liệu liên quan, "
+                "cần thêm transcript để tạo biên bản chi tiết."
+            )
+        else:
+            summary_result["summary"] = (
+                f"Tóm tắt sơ bộ cho '{meeting_title}': phiên họp đã được ghi nhận, "
+                "nhưng dữ liệu nội dung còn hạn chế."
+            )
+    if not summary_result["key_points"]:
+        fallback_points: List[str] = []
+        if action_rows:
+            fallback_points.append(f"Đã ghi nhận {len(action_rows)} action item.")
+        if decision_rows:
+            fallback_points.append(f"Đã ghi nhận {len(decision_rows)} quyết định.")
+        if risk_rows:
+            fallback_points.append(f"Đã ghi nhận {len(risk_rows)} rủi ro.")
+        if related_docs:
+            fallback_points.append(f"Có {len(related_docs)} tài liệu tham chiếu.")
+        if not fallback_points:
+            fallback_points.append("Cần bổ sung transcript để tăng độ chính xác của biên bản.")
+        summary_result["key_points"] = fallback_points[:5]
 
     actions = [row.get("description", "") for row in action_rows if row.get("description")]
     decisions = [row.get("description", "") for row in decision_rows if row.get("description")]
@@ -1036,9 +1054,6 @@ async def generate_minutes_with_ai(
 
     if not next_steps:
         next_steps = actions[:3]
-
-    if session_type == "course" and not study_pack:
-        study_pack = {"concepts": [], "quiz": []}
 
     ai_filters: List[str] = []
     if request.include_ai_filters and session_type == "meeting":
@@ -1126,8 +1141,8 @@ def format_minutes(
     ai_filters: Optional[List[str]] = None,
     include_topic_tracker: bool = True,
     include_ai_filters: bool = True,
-    include_quiz: bool = True,
-    include_knowledge_table: bool = True,
+    include_quiz: bool = False,
+    include_knowledge_table: bool = False,
     format_type: str = "markdown",
 ) -> str:
     """Format session minutes as markdown-friendly text."""
@@ -1169,7 +1184,6 @@ def format_minutes(
     topic_tracker = topic_tracker or []
     ai_filters = ai_filters or []
     next_steps = next_steps or []
-    study_pack = study_pack or {}
 
     if session_type == "meeting":
         if decision_rows:
@@ -1251,41 +1265,6 @@ def format_minutes(
             for flt in ai_filters:
                 lines.append(f"- {flt}")
             lines.append("")
-
-    if session_type == "course":
-        concepts = _safe_json_list(study_pack.get("concepts"))
-        quiz = _safe_json_list(study_pack.get("quiz"))
-
-        if include_knowledge_table and concepts:
-            lines.append("## Table Of Knowledge")
-            lines.append("| Term | Definition | Example |")
-            lines.append("| --- | --- | --- |")
-            for row in concepts:
-                lines.append(
-                    "| "
-                    + " | ".join(
-                        [
-                            _md_cell(row.get("term")),
-                            _md_cell(row.get("definition")),
-                            _md_cell(row.get("example")),
-                        ]
-                    )
-                    + " |"
-                )
-            lines.append("")
-
-        if include_quiz and quiz:
-            lines.append("## Quiz")
-            for idx, row in enumerate(quiz, start=1):
-                lines.append(f"**Q{idx}. {_md_cell(row.get('question'))}**")
-                options = row.get("options") if isinstance(row.get("options"), list) else []
-                correct_idx = int(row.get("correct_answer_index") or 0)
-                for option_idx, option in enumerate(options):
-                    prefix = "(correct) " if option_idx == correct_idx else ""
-                    lines.append(f"- {prefix}{_md_cell(option)}")
-                if row.get("explanation"):
-                    lines.append(f"Answer note: {_md_cell(row.get('explanation'))}")
-                lines.append("")
 
     if include_topic_tracker and topic_tracker:
         lines.append("## Topic Tracker")

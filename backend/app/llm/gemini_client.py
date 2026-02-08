@@ -333,7 +333,7 @@ Sứ mệnh:
 6) Multimodal: nếu có "visual_context"/ghi chú khung hình, hãy dùng để giải thích đúng ngữ cảnh.
 
 Nguyên tắc bắt buộc:
-- Chỉ dùng dữ liệu được cung cấp (context/transcript/doc). Nếu thiếu dữ liệu, nói rõ “Chưa đủ thông tin”.
+- Chỉ dùng dữ liệu được cung cấp (context/transcript/doc). Khi dữ liệu thiếu, vẫn trả lời bằng phần chắc chắn và ghi rõ phần chưa đủ bằng chứng.
 - Không bịa, không suy đoán ngoài ngữ cảnh. Ưu tiên câu trả lời ngắn gọn, rõ ràng.
 - Nếu cần xác nhận hoặc hành động (tool-calling), luôn hỏi lại trước khi thực hiện (human-in-the-loop).
 - Trả lời tiếng Việt, giọng chuyên nghiệp nhưng thân thiện.
@@ -554,17 +554,17 @@ Format output JSON:
     # ================= SUMMARY GENERATION =================
 
     async def generate_summary_with_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate meeting summary with full context and strict guardrails."""
+        """Generate meeting summary with full context and practical guardrails."""
         prompt = f"""Bạn là trợ lý MINUTE tạo biên bản cuộc họp/học.
 Hãy tóm tắt dựa trên dữ liệu JSON bên dưới và KHÔNG bịa thông tin.
 
 Quy tắc:
 - Chỉ dùng dữ liệu đã cung cấp.
-- Nếu transcript, description, actions, decisions, risks, documents đều rỗng:
-  - Nếu title đủ cụ thể thì cho phép suy đoán 1-2 câu, bắt đầu bằng "Ước đoán: ".
-  - Nếu title quá chung chung (vd: "Meeting", "Cuộc họp", "Sync", "Họp nhanh") thì trả về summary rỗng.
-- Nếu có dữ liệu, tóm tắt 2-5 câu, ngắn gọn.
-- key_points: 3-5 gạch đầu dòng rút từ transcript hoặc actions/decisions/risks; nếu có visual_context/timeline_highlights thì ưu tiên.
+- KHÔNG trả về summary rỗng. Luôn trả về bản tóm tắt khả dụng.
+- Nếu dữ liệu ít, viết "Tóm tắt sơ bộ" 1-3 câu từ title/description/visual/documents và nêu rõ phần cần bổ sung.
+- Nếu có dữ liệu, tóm tắt 3-6 câu, ngắn gọn, ưu tiên insight có thể hành động.
+- key_points: 3-6 ý, ưu tiên transcript/actions/decisions/risks; nếu có visual_context/topic_tracker/documents thì đưa vào.
+- Không dùng các câu từ chối kiểu "không đủ nội dung để generate" trừ khi toàn bộ dữ liệu rỗng tuyệt đối.
 - Không dùng markdown.
 
 Dữ liệu:
@@ -596,6 +596,47 @@ Trả về đúng JSON, không kèm text khác:
                 key_points = [str(raw_points)]
         if not summary and not key_points:
             summary = response.strip()
+
+        if not summary.strip():
+            title = str(context.get("title") or "Cuộc họp").strip()
+            desc = str(context.get("description") or "").strip()
+            transcript = str(context.get("transcript") or "").strip()
+            actions = context.get("actions") or []
+            decisions = context.get("decisions") or []
+            risks = context.get("risks") or []
+            docs = context.get("documents") or []
+
+            if desc:
+                summary = f"Tóm tắt sơ bộ cho '{title}': {desc[:280]}"
+            elif transcript:
+                summary = f"Tóm tắt sơ bộ cho '{title}': {transcript[:280]}"
+            elif actions or decisions or risks:
+                summary = (
+                    f"Tóm tắt sơ bộ cho '{title}': đã ghi nhận "
+                    f"{len(actions)} action, {len(decisions)} quyết định và {len(risks)} rủi ro."
+                )
+            elif docs:
+                summary = f"Tóm tắt sơ bộ cho '{title}': đã có tài liệu liên quan, cần thêm transcript để tổng hợp sâu hơn."
+            else:
+                summary = f"Tóm tắt sơ bộ cho '{title}': phiên họp đã được ghi nhận, cần thêm transcript hoặc ghi chú để tạo biên bản chi tiết."
+
+        if not key_points:
+            fallback_points: List[str] = []
+            actions = context.get("actions") or []
+            decisions = context.get("decisions") or []
+            risks = context.get("risks") or []
+            docs = context.get("documents") or []
+            if actions:
+                fallback_points.append(f"Đã ghi nhận {len(actions)} action item cần theo dõi.")
+            if decisions:
+                fallback_points.append(f"Đã ghi nhận {len(decisions)} quyết định trong phiên.")
+            if risks:
+                fallback_points.append(f"Đã ghi nhận {len(risks)} rủi ro/điểm cần lưu ý.")
+            if docs:
+                fallback_points.append(f"Có {len(docs)} tài liệu liên quan trong phiên.")
+            if not fallback_points:
+                fallback_points.append("Cần bổ sung transcript hoặc ghi chú để tăng độ chi tiết của biên bản.")
+            key_points = fallback_points[:5]
         return {"summary": summary, "key_points": key_points}
     
     async def generate_minutes_json(self, transcript: str) -> Dict[str, Any]:
@@ -653,16 +694,7 @@ Trả về MỘT JSON Object duy nhất (KHÔNG kèm markdown block ```json```) 
     
     "attendees_mentioned": [
         "Tên người tham gia được nhắc đến trong transcript"
-    ],
-
-    "study_pack": {{
-        "concepts": [
-             {{ "term": "...", "definition": "...", "example": "..." }}
-        ],
-        "quiz": [
-             {{ "question": "...", "options": ["..."], "correct_answer_index": 0, "explanation": "..." }}
-        ]
-    }}
+    ]
 }}
 
 LƯU Ý QUAN TRỌNG:
@@ -671,8 +703,6 @@ LƯU Ý QUAN TRỌNG:
 - Nếu không xác định được người, ghi "Không rõ" thay vì bỏ trống
 - Priority: high = được nhấn mạnh nhiều lần, medium = đề cập bình thường, low = đề cập qua
 - executive_summary phải viết như văn bản chuyên nghiệp, có đầu có đuôi
-- NẾU đây là buổi học/training: hãy điền đầy đủ thông tin vào "study_pack".
-- NẾU đây là cuộc họp dự án/công việc: "study_pack" có thể để rỗng hoặc null.
 - Nếu transcript có dấu hiệu visual context (ví dụ [VISUAL]/[SCREEN]) hãy nhắc trong executive_summary/key_points.
 """
         
@@ -715,7 +745,7 @@ LƯU Ý QUAN TRỌNG:
     async def generate_summary(self, transcript: str) -> str:
         """Generate meeting summary"""
         prompt = f"""Tạo tóm tắt cuộc họp dựa trên transcript sau, không bịa thông tin.
-Nếu transcript trống hoặc không đủ dữ liệu thì trả về chuỗi rỗng.
+Không được trả về chuỗi rỗng. Nếu dữ liệu ngắn, hãy tạo "tóm tắt sơ bộ" và nêu rõ cần thêm dữ liệu nào.
 
 {transcript[:3000]}
 

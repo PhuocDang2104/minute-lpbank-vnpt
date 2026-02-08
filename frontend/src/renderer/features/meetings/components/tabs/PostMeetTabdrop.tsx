@@ -115,6 +115,8 @@ const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
         include_actions: true,
         include_decisions: true,
         include_risks: true,
+        include_quiz: false,
+        include_knowledge_table: false,
         format: 'markdown',
       });
       setMinutes(generated);

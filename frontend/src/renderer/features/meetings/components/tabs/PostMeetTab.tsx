@@ -81,6 +81,8 @@ export const PostMeetTabV2 = ({ meeting }: PostMeetTabV2Props) => {
         include_actions: true,
         include_decisions: true,
         include_risks: true,
+        include_quiz: false,
+        include_knowledge_table: false,
         format: 'markdown',
       });
       setMinutes(generated);
@@ -803,4 +805,3 @@ const RisksBlockV2 = ({ meetingId }: { meetingId: string }) => {
 };
 
 export default PostMeetTabV2;
-
