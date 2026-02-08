@@ -6,7 +6,7 @@ import { meetingsApi } from '../../../lib/api/meetings';
 import { sessionsApi } from '../../../lib/api/sessions';
 import type { MeetingWithParticipants } from '../../../shared/dto/meeting';
 import { useChatContext } from '../../../contexts/ChatContext';
-import { API_URL, USE_API } from '../../../config/env';
+import { USE_API, WS_BASE_URL } from '../../../config/env';
 
 const TARGET_SAMPLE_RATE = 16000;
 const DEFAULT_FRAME_MS = 250;
@@ -65,16 +65,10 @@ const MeetingDock = () => {
   const mountedRef = useRef(true);
   const { setOverride, clearOverride } = useChatContext();
 
-  const wsBase = useMemo(() => {
-    if (API_URL.startsWith('https://')) return API_URL.replace(/^https:/i, 'wss:').replace(/\/$/, '');
-    if (API_URL.startsWith('http://')) return API_URL.replace(/^http:/i, 'ws:').replace(/\/$/, '');
-    return API_URL.replace(/\/$/, '');
-  }, []);
-
   const audioWsUrl = useMemo(() => {
     if (!streamSessionId) return '';
-    return `${wsBase}/api/v1/ws/audio/${streamSessionId}`;
-  }, [streamSessionId, wsBase]);
+    return `${WS_BASE_URL.replace(/\/$/, '')}/api/v1/ws/audio/${streamSessionId}`;
+  }, [streamSessionId]);
 
   const fetchMeeting = useCallback(async () => {
     if (!meetingId) return;

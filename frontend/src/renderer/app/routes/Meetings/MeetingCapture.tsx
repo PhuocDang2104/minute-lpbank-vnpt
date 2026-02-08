@@ -12,7 +12,7 @@ import {
   StopCircle,
 } from 'lucide-react';
 import { sessionsApi } from '../../../lib/api/sessions';
-import { API_URL, USE_API } from '../../../config/env';
+import { USE_API, WS_BASE_URL } from '../../../config/env';
 
 type CaptureStatus = 'idle' | 'starting' | 'streaming' | 'error';
 
@@ -53,15 +53,10 @@ const MeetingCapture = () => {
     return clamped;
   };
 
-  const wsBase = useMemo(() => {
-    if (API_URL.startsWith('https://')) return API_URL.replace(/^https:/i, 'wss:').replace(/\/$/, '');
-    if (API_URL.startsWith('http://')) return API_URL.replace(/^http:/i, 'ws:').replace(/\/$/, '');
-    return API_URL.replace(/\/$/, '');
-  }, []);
   const audioWsUrl = useMemo(() => {
     if (!sessionId) return '';
-    return `${wsBase}/api/v1/ws/audio/${sessionId}`;
-  }, [sessionId, wsBase]);
+    return `${WS_BASE_URL.replace(/\/$/, '')}/api/v1/ws/audio/${sessionId}`;
+  }, [sessionId]);
 
   const fetchToken = async () => {
     if (!sessionId) {

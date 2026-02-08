@@ -5,7 +5,7 @@
 
 import { API_URL } from '../config/env';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || API_URL;
+const API_BASE_URL = API_URL;
 const API_PREFIX = '/api/v1';
 const ACCESS_TOKEN_KEY = 'minute_access_token';
 
