@@ -1,5 +1,5 @@
 /**
- * Landing Page - Welcome to Minute
+ * Landing Page - Welcome to MINUTE
  */
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -71,8 +71,8 @@ export const Landing: React.FC = () => {
       <header className="landing-header">
         <div className="landing-header__brand">
           <Link to="/" className="logo" aria-label="Homepage" title="Homepage">
-            <img src="/minute_icon.svg" alt="Minute" className="landing-logo__icon" />
-            <span>Minute</span>
+            <img src="/minute_icon.svg" alt="MINUTE" className="landing-logo__icon" />
+            <span>MINUTE</span>
           </Link>
           <nav className="landing-nav">
             <Link to="/about" className="landing-nav__link">About</Link>
@@ -96,8 +96,8 @@ export const Landing: React.FC = () => {
               A Multimodal AI Assistant for <span className="gradient-text">Meetings &amp; Learning</span>
             </h1>
             <p className="hero-subtitle">
-              MINUTE helps you prepare and stay in sync throughout online sessions—whether you're in a meeting or
-              studying—powered by Gemini AI.
+              MINUTE helps you prepare and stay in sync throughout online sessions, whether you're in a meeting or
+              studying, powered by multimodal GEMINI 3 LLM.
             </p>
             <div className="hero-actions">
               <Link to="/about" className="btn btn-outline btn-lg hero-cta hero-cta--ghost">
@@ -268,30 +268,30 @@ export const Landing: React.FC = () => {
       {/* Comparison Section */}
       <section className="comparison">
         <div className="comparison__header reveal-on-scroll">
-          <h2>Before and After Minute</h2>
+          <h2>Before and After MINUTE</h2>
         </div>
         <div className="comparison-shell">
           <div className="comparison-panel comparison-panel--without reveal-on-scroll">
-            <h3 className="comparison-title">Without Minute</h3>
+            <h3 className="comparison-title">Without MINUTE</h3>
             <ul className="comparison-list comparison-list--without">
-              <li>Meeting minutes and follow-up tasks often pile up after each session.</li>
-              <li>Important decisions remain in personal memory instead of shared systems.</li>
-              <li>Manual note consolidation consumes hours of low-value work.</li>
-              <li>Hard to trace: which meeting approved this and who owns it?</li>
-              <li>High pressure on coordinators and PMs with missed tasks and deadlines.</li>
+              <li>Realtime context is fragmented across transcript, slides, and personal notes.</li>
+              <li>Teams cannot verify claims quickly because evidence and timestamps are missing.</li>
+              <li>External web and tool actions may run without a consistent approval gate.</li>
+              <li>Action items often miss clear owner and deadline confirmation.</li>
+              <li>Post-session quality varies by person, making follow-up hard to scale.</li>
             </ul>
           </div>
           <div className="comparison-divider">
             <span>VS</span>
           </div>
           <div className="comparison-panel comparison-panel--with reveal-on-scroll">
-            <h3 className="comparison-title">With Minute</h3>
+            <h3 className="comparison-title">With MINUTE</h3>
             <ul className="comparison-list comparison-list--with">
-              <li>One AI platform across pre-meeting, live meeting, and post-meeting workflows.</li>
-              <li>Minutes, decisions, and actions are automated and standardized.</li>
-              <li>Teams get more time for analysis, customer work, and strategic decisions.</li>
-              <li>Transparent meeting history and traceable decisions for audits and risk control.</li>
-              <li>Smoother follow-up execution with fewer handoff gaps and missed items.</li>
+              <li>One multimodal timeline merges audio, visual events, and 2-minute recap windows.</li>
+              <li>LightRAG answers are grounded in session memory and uploaded documents first.</li>
+              <li>Risky tool calls follow propose-approve-execute with human-in-the-loop control.</li>
+              <li>Meeting and study outputs are structured, versioned, and evidence-backed.</li>
+              <li>Decisions move faster with clear ownership, deadlines, and audit-ready traces.</li>
             </ul>
           </div>
         </div>
@@ -433,12 +433,12 @@ export const Landing: React.FC = () => {
       {/* Footer */}
       <footer className="landing-footer reveal-on-scroll">
         <div className="footer-brand">
-          <img src="/minute_icon.svg" alt="Minute" className="landing-logo__icon landing-logo__icon--sm" />
-          <span>Minute</span>
+          <img src="/minute_icon.svg" alt="MINUTE" className="landing-logo__icon landing-logo__icon--sm" />
+          <span>MINUTE</span>
         </div>
         <a
           className="landing-footer__link"
-          href="https://github.com/PhuocDang2104/vnpt_ai_hackathon_meetmate"
+          href="https://github.com/PhuocDang2104/minute_google_gemini_hackathon"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -446,7 +446,7 @@ export const Landing: React.FC = () => {
           GitHub
           <ExternalLink size={14} />
         </a>
-        <p>© {new Date().getFullYear()} Minute - AI Meeting Assistant for Enterprise</p>
+        <p>(c) {new Date().getFullYear()} MINUTE - AI Meeting Assistant for Enterprise</p>
       </footer>
 
       <style>{`
@@ -1658,3 +1658,5 @@ export const Landing: React.FC = () => {
 };
 
 export default Landing;
+
+

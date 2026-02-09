@@ -338,7 +338,7 @@ origins = [
 
 ```bash
 # 1. Clone và setup
-git clone https://github.com/PhuocDang2104/vnpt_ai_hackathon_meetmate.git
+git clone https://github.com/PhuocDang2104/minute_google_gemini_hackathon.git
 cd vnpt_ai_hackathon_meetmate
 
 # 2. Setup Supabase (manual via dashboard)
@@ -372,4 +372,5 @@ npx vercel --prod
 ---
 
 *Last updated: December 2024*
+
 

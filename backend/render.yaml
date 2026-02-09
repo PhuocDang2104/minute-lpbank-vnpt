@@ -2,7 +2,7 @@ services:
   - type: web
     name: meetmate-api
     runtime: python
-    repo: https://github.com/PhuocDang2104/vnpt_ai_hackathon_meetmate
+    repo: https://github.com/PhuocDang2104/minute_google_gemini_hackathon
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -16,4 +16,5 @@ services:
         generateValue: true
       - key: CORS_ORIGINS
         value: "*"
+
 

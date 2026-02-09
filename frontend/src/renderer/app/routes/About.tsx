@@ -1,46 +1,43 @@
 import {
+  ArrowRight,
+  BarChart3,
   Brain,
-  Users,
-  FileText,
-  Mic,
   CheckCircle,
-  Zap,
-  Github,
+  Database,
   ExternalLink,
+  FileText,
+  Github,
+  Info,
+  Layers,
+  Lightbulb,
+  Mail,
+  Map,
+  MessageSquare,
+  Mic,
+  ShieldCheck,
   Sparkles,
   Target,
-  Lightbulb,
   Workflow,
-  BarChart3,
-  MessageSquare,
-  Info,
-  Map,
-  BadgeDollarSign,
-  Mail,
-  LogIn,
-  ShieldCheck,
-  Layers,
-  Cloud,
-  Database,
+  Zap,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import FloatingNavbar from '../../components/ui/floating-navbar'
 import ContactEmailForm from '../../components/ui/contact-email-form'
+import FloatingNavbar from '../../components/ui/floating-navbar'
 
 const SECTION_NAV = [
-  { id: 'overview', label: 'Tổng quan' },
-  { id: 'problem', label: 'Vấn đề' },
-  { id: 'solution', label: 'Giải pháp' },
-  { id: 'goals', label: 'Mục tiêu' },
-  { id: 'architecture', label: 'SAAR AI' },
-  { id: 'system-architecture', label: 'Kiến trúc' },
-  { id: 'ai-stack', label: 'AI Stack' },
-  { id: 'compliance', label: 'Compliance' },
-  { id: 'deployment', label: 'Triển khai' },
+  { id: 'overview', label: 'Overview' },
+  { id: 'problem', label: 'Problem' },
+  { id: 'solution', label: 'Solution' },
+  { id: 'realtime', label: 'Realtime Graph' },
+  { id: 'rag', label: 'LightRAG' },
+  { id: 'pipelines', label: 'AI Pipelines' },
+  { id: 'architecture', label: 'Architecture' },
+  { id: 'websocket', label: 'WebSocket API' },
+  { id: 'reliability', label: 'Latency & Ops' },
+  { id: 'security', label: 'Security' },
   { id: 'roadmap', label: 'Roadmap' },
-  { id: 'team', label: 'Team' },
-  { id: 'contact', label: 'Liên hệ' },
+  { id: 'contact', label: 'Contact' },
 ]
 
 const About = () => {
@@ -80,30 +77,27 @@ const About = () => {
       <FloatingNavbar
         navItems={[
           { name: 'About', to: '/about', icon: <Info size={18} /> },
-          { name: 'Lộ trình', to: '/roadmap', icon: <Map size={18} /> },
-          { name: 'Pricing', to: '/pricing', icon: <BadgeDollarSign size={18} /> },
+          { name: 'Roadmap', to: '/roadmap', icon: <Map size={18} /> },
           { name: 'Contact', onClick: () => scrollToSection('contact'), icon: <Mail size={18} /> },
         ]}
-        action={{ label: 'Đăng nhập', to: '/login', icon: <LogIn size={16} /> }}
+        action={{ label: 'Get Started', to: '/app/meetings', icon: <ArrowRight size={16} /> }}
       />
       <header className="landing-header">
         <div className="landing-header__brand">
           <Link to="/" className="logo" aria-label="Homepage" title="Homepage">
             <img src="/minute_icon.svg" alt="Minute" className="landing-logo__icon" />
-            <span>Minute</span>
+            <span>MINUTE</span>
           </Link>
           <nav className="landing-nav">
             <Link to="/about" className="landing-nav__link">About</Link>
-            <Link to="/roadmap" className="landing-nav__link">Lộ trình</Link>
-            <Link to="/pricing" className="landing-nav__link">Pricing</Link>
+            <Link to="/roadmap" className="landing-nav__link">Roadmap</Link>
             <button type="button" className="landing-nav__link" onClick={() => scrollToSection('contact')}>
               Contact
             </button>
           </nav>
         </div>
         <div className="landing-actions">
-          <Link to="/login" className="btn btn-ghost">Đăng nhập</Link>
-          <Link to="/register" className="btn btn-primary">Đăng ký</Link>
+          <Link to="/app/meetings" className="btn btn-primary landing-get-started">Get Started</Link>
         </div>
       </header>
 
@@ -112,19 +106,18 @@ const About = () => {
           <div className="about-hero__content">
             <div className="about-hero__badge">
               <Sparkles size={16} />
-              VNPT AI Hackathon 2025 | Track 1
+              Gemini Hackathon 3 | MINUTE Product Blueprint
             </div>
             <h1 className="about-hero__title">
-              <span className="about-hero__logo">Meet</span>
-              <span className="about-hero__logo about-hero__logo--accent">Mate</span>
+              <span className="about-hero__logo">MINUTE</span>
             </h1>
             <p className="about-hero__tagline">
-              Agentic S/CRAG AI Meeting Co-Host for BFSI
+              Multimodal meeting and study companion powered by Gemini 3 API
             </p>
             <p className="about-hero__description">
-              Minute chuẩn hóa vòng đời cuộc họp cho doanh nghiệp BFSI/LPBank: thu thập ngữ cảnh trước họp,
-              hỗ trợ realtime trong họp, phát hành biên bản và action items sau họp - tất cả có trích dẫn,
-              audit và kiểm soát quyền truy cập.
+              MINUTE is a web application that supports both live sessions and post-session workflows.
+              It listens to streaming audio, understands visual context from slides or shared screens,
+              and produces evidence-backed recap, Q&A, and summaries with explicit citations.
             </p>
             <div className="about-hero__actions">
               <button
@@ -132,43 +125,43 @@ const About = () => {
                 className="btn btn-primary btn-lg"
                 onClick={() => scrollToSection('solution')}
               >
-                Xem giải pháp
+                Explore the solution
               </button>
-              <Link to="/roadmap" className="btn btn-outline btn-lg">Lộ trình sản phẩm</Link>
+              <Link to="/roadmap" className="btn btn-outline btn-lg">View roadmap</Link>
             </div>
             <div className="about-hero__metrics">
               <div className="about-metric">
-                <span className="about-metric__label">Stage-aware router</span>
-                <span className="about-metric__value">Pre / In / Post</span>
+                <span className="about-metric__label">Session lifecycle</span>
+                <span className="about-metric__value">In-session + post-session</span>
               </div>
               <div className="about-metric">
-                <span className="about-metric__label">Realtime pipeline</span>
-                <span className="about-metric__value">Audio WS - STT - Live recap</span>
+                <span className="about-metric__label">Realtime recap cadence</span>
+                <span className="about-metric__value">2-minute windows</span>
               </div>
               <div className="about-metric">
-                <span className="about-metric__label">RAG permission-aware</span>
-                <span className="about-metric__value">pgvector + ACL filter</span>
+                <span className="about-metric__label">Tiered retrieval</span>
+                <span className="about-metric__value">LightRAG Tier 0 to Tier 3</span>
               </div>
               <div className="about-metric">
-                <span className="about-metric__label">Audit-ready</span>
-                <span className="about-metric__value">Citations + log + replay</span>
+                <span className="about-metric__label">Risk controls</span>
+                <span className="about-metric__value">Human approval for risky tools</span>
               </div>
             </div>
           </div>
           <div className="about-hero__visual">
             <img
               src="/minute_ai.png"
-              alt="Minute product preview"
+              alt="MINUTE product preview"
               className="about-hero__image"
               loading="lazy"
             />
             <div className="about-hero__visual-note">
-              Desktop app + meeting add-in concept, tối ưu cho enterprise PMO.
+              Realtime timeline + grounded Q&A + post-session output generation.
             </div>
           </div>
         </section>
 
-        <nav className="about-nav" aria-label="Điều hướng trang giới thiệu">
+        <nav className="about-nav" aria-label="About page sections">
           {SECTION_NAV.map((item) => (
             <button
               key={item.id}
@@ -185,32 +178,32 @@ const About = () => {
         <section className="about-section about-section--no-border">
           <div className="about-section__header">
             <Sparkles size={24} />
-            <h2>Điểm nổi bật cốt lõi</h2>
+            <h2>Core Product Differentiators</h2>
           </div>
 
           <div className="about-grid about-grid--4 about-grid--highlights">
             <div className="about-ai-card">
               <Workflow size={24} />
-              <h4>Stage-aware Assistant</h4>
-              <p>LangGraph router điều phối Pre/In/Post theo bối cảnh, SLA và độ nhạy dữ liệu.</p>
+              <h4>Multimodal Companion</h4>
+              <p>Understands both what is said and what is shown, aligned to timestamps.</p>
             </div>
 
             <div className="about-ai-card">
               <Zap size={24} />
-              <h4>Realtime Pipeline</h4>
-              <p>Audio WS - SmartVoice STT - session bus - live transcript/recap/ADR trên UI.</p>
+              <h4>Realtime Timeline</h4>
+              <p>Continuously publishes transcript, visual events, and recap windows during live sessions.</p>
             </div>
 
             <div className="about-ai-card">
               <Database size={24} />
-              <h4>RAG Permission-aware</h4>
-              <p>pgvector + metadata filter, nguyên tắc no-source-no-answer.</p>
+              <h4>LightRAG Tiering</h4>
+              <p>Starts from session memory, escalates to uploaded docs, then optional web search.</p>
             </div>
 
             <div className="about-ai-card">
               <ShieldCheck size={24} />
-              <h4>Audit & Governance</h4>
-              <p>Structured outputs, citations, log & replay theo meeting_id.</p>
+              <h4>Governed Tool Calling</h4>
+              <p>Risky actions use propose-approve-execute with audit traces and policy checks.</p>
             </div>
           </div>
         </section>
@@ -218,29 +211,29 @@ const About = () => {
         <section className="about-section" id="problem">
           <div className="about-section__header">
             <Target size={24} />
-            <h2>Vấn đề & Giải pháp</h2>
+            <h2>Problem Statement</h2>
           </div>
 
           <div className="about-grid about-grid--2">
             <div className="about-card about-card--problem about-card--accent">
-              <h3>Vấn đề hiện tại</h3>
+              <h3>Current Friction in Meetings and Study Sessions</h3>
               <ul>
-                <li>Biên bản họp ghi thủ công, phát hành chậm và dễ sai sót.</li>
-                <li>Người họp vừa lắng nghe vừa ghi chép, dễ bỏ sót quyết định quan trọng.</li>
-                <li>Tài liệu rải rác (SharePoint/OneDrive/email/wiki) khó tra cứu khi đang họp.</li>
-                <li>Action items thiếu owner, deadline; follow-up rời rạc.</li>
-                <li>Yêu cầu bảo mật và kiểm toán cao trong môi trường BFSI.</li>
+                <li>Manual note-taking is slow, inconsistent, and hard to verify later.</li>
+                <li>Important decisions and actions are often not tied to concrete evidence.</li>
+                <li>Knowledge is fragmented across transcript, files, and external references.</li>
+                <li>Session follow-up quality drops when outputs are not structured or versioned.</li>
+                <li>Teams need stronger control over tool actions, access scope, and auditability.</li>
               </ul>
             </div>
 
             <div className="about-card about-card--solution about-card--accent">
-              <h3>Giải pháp Minute</h3>
+              <h3>MINUTE Response</h3>
               <ul>
-                <li>AI tự động tạo agenda & pre-read theo ngữ cảnh dự án.</li>
-                <li>Live transcript, live recap và ADR (Actions/Decisions/Risks).</li>
-                <li>RAG Q&A có citations và kiểm soát truy cập tài liệu.</li>
-                <li>Tạo biên bản chuẩn BFSI, sync tasks sang Jira/Planner.</li>
-                <li>Audit-ready: log, versioning và policy tuân thủ.</li>
+                <li>Automates recap, summary, and minutes-grade outputs with citations.</li>
+                <li>Links claims to doc sections, pages, timestamps, or visual moments.</li>
+                <li>Supports contextual Q&A scoped by session and access control.</li>
+                <li>Generates post-session outputs for both meeting and study workflows.</li>
+                <li>Uses policy checks and human approvals for high-risk external actions.</li>
               </ul>
             </div>
           </div>
@@ -249,35 +242,21 @@ const About = () => {
         <section className="about-section about-section--features" id="solution">
           <div className="about-section__header">
             <Workflow size={24} />
-            <h2>Solution Overview (Pre/In/Post)</h2>
+            <h2>Functional Scope</h2>
           </div>
 
           <div className="about-grid about-grid--3">
-            <div className="about-feature about-feature--pre">
-              <div className="about-feature__icon about-feature__icon--pre">
-                <FileText size={28} />
-              </div>
-              <h3>Pre-Meeting</h3>
-              <p className="about-feature__summary">Chuẩn bị agenda và pre-read theo ngữ cảnh.</p>
-              <ul>
-                <li>Agenda + pre-read pack theo lịch và chủ đề</li>
-                <li>Gợi ý câu hỏi trọng tâm trước họp</li>
-                <li>Chọn đúng policy/proposal/biên bản liên quan</li>
-                <li>Đề xuất người tham gia theo vai trò</li>
-              </ul>
-            </div>
-
             <div className="about-feature about-feature--in">
               <div className="about-feature__icon about-feature__icon--in">
                 <Mic size={28} />
               </div>
-              <h3>In-Meeting</h3>
-              <p className="about-feature__summary">Co-host realtime, ghi chép và phân tích liên tục.</p>
+              <h3>In-Session Realtime Assistant</h3>
+              <p className="about-feature__summary">Live understanding and recap while the session is happening.</p>
               <ul>
-                <li>Live transcript + recap theo timeline</li>
-                <li>Auto-detect Actions/Decisions/Risks</li>
-                <li>Ask AI dựa trên tài liệu nội bộ</li>
-                <li>Tool suggestions: task, schedule, attach docs</li>
+                <li>Streaming ASR transcript with partial/final timestamped segments</li>
+                <li>Frame sampling and visual event extraction from shared screen/video</li>
+                <li>Recap timeline updates every 2 minutes</li>
+                <li>In-session Q&A over current session memory and uploaded docs</li>
               </ul>
             </div>
 
@@ -285,42 +264,140 @@ const About = () => {
               <div className="about-feature__icon about-feature__icon--post">
                 <CheckCircle size={28} />
               </div>
-              <h3>Post-Meeting</h3>
-              <p className="about-feature__summary">Tổng hợp, chuẩn hóa biên bản và follow-up.</p>
+              <h3>Post-Session Summary & Outputs</h3>
+              <p className="about-feature__summary">Consolidated outputs after live sessions or offline uploads.</p>
               <ul>
-                <li>Executive summary + MoM + highlights</li>
-                <li>Sync tasks với Jira/Planner/Work</li>
-                <li>Archive biên bản có citations & timecode</li>
-                <li>Tra cứu quyết định theo meeting/project</li>
+                <li>Core summary with key takeaways and structured notes</li>
+                <li>Meeting branch: action items + related documents</li>
+                <li>Study branch: concepts + examples + layered quiz flow</li>
+                <li>Versioned artifacts ready for export workflows</li>
+              </ul>
+            </div>
+
+            <div className="about-feature about-feature--pre">
+              <div className="about-feature__icon about-feature__icon--pre">
+                <FileText size={28} />
+              </div>
+              <h3>Personalization & Settings</h3>
+              <p className="about-feature__summary">Configurable assistant behavior for different users and domains.</p>
+              <ul>
+                <li>Model profiles: Gemini default, plus optional alternatives</li>
+                <li>Bring-your-own API key support</li>
+                <li>Prompt customization: tone, goals, and personal context</li>
+                <li>Session-type aware behavior for meeting and study modes</li>
               </ul>
             </div>
           </div>
         </section>
 
-        <section className="about-section" id="goals">
+        <section className="about-section" id="realtime">
           <div className="about-section__header">
-            <Lightbulb size={24} />
-            <h2>Product Goals & Target Users</h2>
+            <Zap size={24} />
+            <h2>Realtime Graph Overview</h2>
           </div>
 
-          <div className="about-grid about-grid--2">
-            <div className="about-card about-card--goal">
-              <h3>Product Goals</h3>
+          <div className="about-demo-list about-demo-list--modern">
+            <div className="about-demo-item">
+              <span className="about-demo-number">1</span>
+              <div>
+                <h4>Audio Lane</h4>
+                <p>Audio ingest to ASR streaming to transcript buffer to transcript events.</p>
+              </div>
+            </div>
+
+            <div className="about-demo-item">
+              <span className="about-demo-number">2</span>
+              <div>
+                <h4>Video Lane</h4>
+                <p>Video ingest to frame sampling to slide-change detection to visual events.</p>
+              </div>
+            </div>
+
+            <div className="about-demo-item">
+              <span className="about-demo-number">3</span>
+              <div>
+                <h4>Merge Lane</h4>
+                <p>Event alignment to 2-minute context windows to recap generation to timeline update.</p>
+              </div>
+            </div>
+
+            <div className="about-demo-item">
+              <span className="about-demo-number">4</span>
+              <div>
+                <h4>In-Session Q&A Lane</h4>
+                <p>User query to tiered retrieval to answer with citations to optional escalation.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="about-section about-section--ai" id="rag">
+          <div className="about-section__header">
+            <MessageSquare size={24} />
+            <h2>LightRAG Tiered Retrieval</h2>
+          </div>
+
+          <div className="about-grid about-grid--4 about-grid--ai">
+            <div className="about-ai-card about-ai-card--tone">
+              <Database size={24} />
+              <h4>Tier 0</h4>
+              <p>Session memory: recap windows, transcript, summary, and visual moments.</p>
+            </div>
+
+            <div className="about-ai-card about-ai-card--tone">
+              <FileText size={24} />
+              <h4>Tier 1</h4>
+              <p>Uploaded documents with hybrid retrieval and ACL/session filters.</p>
+            </div>
+
+            <div className="about-ai-card about-ai-card--tone">
+              <Workflow size={24} />
+              <h4>Tier 2</h4>
+              <p>Optional web search when evidence is insufficient and policy allows it.</p>
+            </div>
+
+            <div className="about-ai-card about-ai-card--tone">
+              <Brain size={24} />
+              <h4>Tier 3</h4>
+              <p>Deep multi-hop research with explicit limitations and source reporting.</p>
+            </div>
+          </div>
+          <p className="about-section__note">
+            MINUTE follows a no-source-no-answer principle for critical claims.
+          </p>
+        </section>
+
+        <section className="about-section" id="pipelines">
+          <div className="about-section__header">
+            <Brain size={24} />
+            <h2>AI Task Router & Pipelines</h2>
+          </div>
+
+          <div className="about-grid about-grid--3">
+            <div className="about-card about-card--accent">
+              <h3><code>realtime_recap</code></h3>
               <ul>
-                <li>Product-ready: Pre/In/Post end-to-end, realtime co-host.</li>
-                <li>RAG có trích dẫn, audit-ready cho môi trường BFSI.</li>
-                <li>Mở rộng multi-workspace, policy theo đơn vị.</li>
-                <li>Phân tích xu hướng họp và organizational memory.</li>
+                <li>Builds context windows from transcript and visual events.</li>
+                <li>Generates timeline recap every 2 minutes.</li>
+                <li>Extracts meeting decisions/actions or study concepts.</li>
               </ul>
             </div>
 
-            <div className="about-card about-card--persona">
-              <h3>Target Users</h3>
+            <div className="about-card about-card--accent">
+              <h3><code>qna</code></h3>
               <ul>
-                <li>Doanh nghiệp lớn/BFSI, enterprise PMO.</li>
-                <li>Khối công nghệ, vận hành, pháp chế, rủi ro.</li>
-                <li>Đơn vị cần audit/tuân thủ cao.</li>
-                <li>Nhóm điều hành cần ra quyết định nhanh, rõ ràng.</li>
+                <li>Runs tiered retrieval with reranking and context packing.</li>
+                <li>Performs self-check and citation validation.</li>
+                <li>Escalates to web tools only when needed and approved.</li>
+              </ul>
+            </div>
+
+            <div className="about-card about-card--accent">
+              <h3><code>summary_generate</code></h3>
+              <ul>
+                <li>Consolidates full transcript and recap timeline.</li>
+                <li>Branches output by session type: meeting vs study.</li>
+                <li>Persists versioned summaries and related artifacts.</li>
               </ul>
             </div>
           </div>
@@ -328,295 +405,170 @@ const About = () => {
 
         <section className="about-section" id="architecture">
           <div className="about-section__header">
-            <Brain size={24} />
-            <h2>SAAR AI Architecture</h2>
-          </div>
-
-          <div className="about-grid about-grid--2">
-            <div className="about-card about-card--accent">
-              <h3>SAAR (Self-aware Adaptive Agentic RAG)</h3>
-              <ul>
-                <li>Stage-aware routing: điều phối theo stage, SLA, sensitivity.</li>
-                <li>Shared MeetingState xuyên suốt agenda/transcript/ADR.</li>
-                <li>RAG-first + graded retrieval, bắt buộc citations.</li>
-                <li>Self-reflect loop để kiểm tra và bổ sung context.</li>
-                <li>Tool-calling schema-based, có UI confirm & audit log.</li>
-              </ul>
-            </div>
-
-            <figure className="about-media">
-              <img
-                src="/docs/assets/saar-architecture.png"
-                alt="SAAR AI architecture diagram"
-                loading="lazy"
-              />
-              <figcaption>SAAR: router Pre/In/Post, RAG-first, audit-ready.</figcaption>
-            </figure>
-          </div>
-        </section>
-
-        <section className="about-section" id="system-architecture">
-          <div className="about-section__header">
             <Layers size={24} />
-            <h2>System Architecture & Tech Stack</h2>
+            <h2>MVP Architecture & Tech Stack</h2>
           </div>
 
           <div className="about-architecture">
             <div className="about-arch-layer">
-              <h4>Client Layer</h4>
+              <h4>Client Web</h4>
               <div className="about-tech-tags">
-                <span className="about-tech-tag">Electron</span>
-                <span className="about-tech-tag">Vite</span>
-                <span className="about-tech-tag">React 18</span>
+                <span className="about-tech-tag">React</span>
                 <span className="about-tech-tag">TypeScript</span>
-                <span className="about-tech-tag">Teams Add-in</span>
+                <span className="about-tech-tag">Vite</span>
+                <span className="about-tech-tag">Session Hub UI</span>
               </div>
             </div>
 
             <div className="about-arch-layer">
-              <h4>Communication</h4>
+              <h4>Realtime Gateway</h4>
               <div className="about-tech-tags">
                 <span className="about-tech-tag">WebSocket</span>
-                <span className="about-tech-tag">gRPC Audio</span>
-                <span className="about-tech-tag">REST APIs</span>
-                <span className="about-tech-tag">Event Bus</span>
+                <span className="about-tech-tag">Audio chunks</span>
+                <span className="about-tech-tag">Frame metadata</span>
+                <span className="about-tech-tag">Event streaming</span>
               </div>
             </div>
 
             <div className="about-arch-layer">
-              <h4>Backend Core</h4>
+              <h4>AI Orchestration</h4>
               <div className="about-tech-tags">
-                <span className="about-tech-tag">FastAPI</span>
-                <span className="about-tech-tag">Uvicorn</span>
-                <span className="about-tech-tag">SQLAlchemy</span>
-                <span className="about-tech-tag">PostgreSQL</span>
+                <span className="about-tech-tag about-tech-tag--ai">Gemini 3 API</span>
+                <span className="about-tech-tag about-tech-tag--ai">Task Router</span>
+                <span className="about-tech-tag about-tech-tag--ai">Reflective loop</span>
+                <span className="about-tech-tag about-tech-tag--ai">Tool controller</span>
               </div>
             </div>
 
             <div className="about-arch-layer">
-              <h4>AI/ML Layer</h4>
+              <h4>Retrieval Layer</h4>
               <div className="about-tech-tags">
-                <span className="about-tech-tag about-tech-tag--ai">LangChain</span>
-                <span className="about-tech-tag about-tech-tag--ai">LangGraph</span>
-                <span className="about-tech-tag about-tech-tag--ai">LLM</span>
-                <span className="about-tech-tag about-tech-tag--ai">SmartVoice</span>
-                <span className="about-tech-tag about-tech-tag--ai">pgvector</span>
+                <span className="about-tech-tag">Postgres</span>
+                <span className="about-tech-tag">pgvector</span>
+                <span className="about-tech-tag">BM25 hybrid</span>
+                <span className="about-tech-tag">ACL filters</span>
               </div>
             </div>
 
             <div className="about-arch-layer">
-              <h4>Deployment & Security</h4>
+              <h4>Artifacts & Audit</h4>
               <div className="about-tech-tags">
-                <span className="about-tech-tag">Docker Compose</span>
-                <span className="about-tech-tag">VPC/On-prem</span>
-                <span className="about-tech-tag">RBAC/ABAC</span>
-                <span className="about-tech-tag">Audit & Retention</span>
+                <span className="about-tech-tag">Object storage</span>
+                <span className="about-tech-tag">Summary versioning</span>
+                <span className="about-tech-tag">Event store</span>
+                <span className="about-tech-tag">Trace and audit logs</span>
               </div>
-            </div>
-          </div>
-
-          <div className="about-card about-card--stack">
-            <h3>Tech Stack nổi bật</h3>
-            <div className="about-tech-tags">
-              <span className="about-tech-tag">Electron + Vite</span>
-              <span className="about-tech-tag">React + TypeScript</span>
-              <span className="about-tech-tag">FastAPI + WebSocket</span>
-              <span className="about-tech-tag">PostgreSQL + pgvector</span>
-              <span className="about-tech-tag">LangChain + LangGraph</span>
-              <span className="about-tech-tag">SmartVoice STT</span>
-              <span className="about-tech-tag">Docker Compose</span>
             </div>
           </div>
 
           <div className="about-media-grid">
             <figure className="about-media">
               <img
-                src="/docs/assets/system-architecture-4-layers.png"
-                alt="System architecture layers"
+                src="/about/system-architecture-4-layers.png"
+                alt="MINUTE system architecture layers"
                 loading="lazy"
               />
-              <figcaption>System Architecture (multi-layer).</figcaption>
+              <figcaption>System architecture layers for MVP delivery.</figcaption>
             </figure>
             <figure className="about-media">
               <img
-                src="/docs/assets/architecture.png"
-                alt="System architecture diagram"
+                src="/about/architecture.png"
+                alt="MINUTE architecture diagram"
                 loading="lazy"
               />
-              <figcaption>Realtime pipeline & service topology.</figcaption>
+              <figcaption>Realtime and post-session service topology.</figcaption>
             </figure>
           </div>
         </section>
 
-        <section className="about-section about-section--ai" id="ai-stack">
+        <section className="about-section" id="websocket">
           <div className="about-section__header">
-            <Sparkles size={24} />
-            <h2>AI Components (VNPT Platform)</h2>
-          </div>
-
-          <div className="about-grid about-grid--4 about-grid--ai">
-            <div className="about-ai-card about-ai-card--tone">
-              <Mic size={24} />
-              <h4>SmartVoice</h4>
-              <p>Streaming STT vi/en, diarization hooks cho meeting realtime.</p>
-            </div>
-
-            <div className="about-ai-card about-ai-card--tone">
-              <MessageSquare size={24} />
-              <h4>SmartBot</h4>
-              <p>Intent routing, recap, ADR extraction, tool-calling.</p>
-            </div>
-
-            <div className="about-ai-card about-ai-card--tone">
-              <FileText size={24} />
-              <h4>SmartReader</h4>
-              <p>OCR + text extraction, ingest tài liệu vào Knowledge Hub.</p>
-            </div>
-
-            <div className="about-ai-card about-ai-card--tone">
-              <Workflow size={24} />
-              <h4>SmartUX</h4>
-              <p>Thu thập UX metrics phục vụ tối ưu trải nghiệm người dùng.</p>
-            </div>
-          </div>
-          <p className="about-section__note">
-            Optional modules: sentiment/insights, voice verification, vnSocial cho marketing use case.
-          </p>
-        </section>
-
-        <section className="about-section" id="compliance">
-          <div className="about-section__header">
-            <ShieldCheck size={24} />
-            <h2>Key Capabilities & Security</h2>
+            <Workflow size={24} />
+            <h2>Realtime WebSocket Contract</h2>
           </div>
 
           <div className="about-grid about-grid--2">
-            <div className="about-card about-card--capabilities">
-              <h3>Key Capabilities</h3>
+            <div className="about-card about-card--docs">
+              <h3>Client to Server Events</h3>
               <ul>
-                <li>Realtime WS flow: session → audio WS → frontend WS.</li>
-                <li>Live recap + topic segmentation + ADR extraction.</li>
-                <li>Knowledge Hub: upload → chunk → embed → Q&A.</li>
-                <li>Tool suggestions: create task, schedule, attach docs.</li>
-                <li>Compliance-ready: citations, timecode, versioning.</li>
+                <li><code>audio_chunk</code>: sequence, payload, timestamp hint</li>
+                <li><code>video_frame_meta</code>: frame id, time, ROI, checksum</li>
+                <li><code>user_query</code>: query id, text, scope</li>
+                <li><code>approve_tool_call</code>: proposal id, decision, constraints</li>
+                <li><code>session_control</code>: start, pause, stop</li>
               </ul>
             </div>
 
-            <div className="about-card about-card--security">
-              <h3>Security & Compliance</h3>
+            <div className="about-card about-card--docs">
+              <h3>Server to Client Events</h3>
               <ul>
-                <li>PII masking/tokenization trước khi gọi external LLM.</li>
-                <li>Private link/VPC peering cho endpoint LLM.</li>
-                <li>RBAC/ABAC theo phòng ban, ACL chặt cho RAG.</li>
-                <li>Audit logs cho tool calls, RAG queries, state transitions.</li>
-                <li>Retention & compliance archive theo policy.</li>
+                <li><code>transcript_event</code>: partial/final segments with timestamps</li>
+                <li><code>slide_change_event</code> and <code>visual_event</code></li>
+                <li><code>recap_window</code>: recap text plus citations</li>
+                <li><code>tool_call_proposal</code>: reason, risk, suggested queries</li>
+                <li><code>qna_answer</code>: answer, citations, tier used</li>
               </ul>
             </div>
           </div>
         </section>
 
-        <section className="about-section about-section--kpi" id="kpi">
+        <section className="about-section about-section--kpi" id="reliability">
           <div className="about-section__header">
             <BarChart3 size={24} />
-            <h2>Observability & KPIs</h2>
+            <h2>Latency Targets & Observability</h2>
           </div>
 
           <div className="about-grid about-grid--4 about-grid--kpi">
             <div className="about-metric-card">
-              <span className="about-metric-card__label">Latency</span>
-              <h4>Realtime Performance</h4>
-              <p>Realtime recap, WS tick scheduling, STT WER.</p>
+              <span className="about-metric-card__label">Transcript</span>
+              <h4>1-2s Partial Updates</h4>
+              <p>Target response window from speech to partial transcript.</p>
             </div>
 
             <div className="about-metric-card">
-              <span className="about-metric-card__label">Quality</span>
-              <h4>ADR Accuracy</h4>
-              <p>Precision/recall action items, ADR consistency.</p>
+              <span className="about-metric-card__label">Recap</span>
+              <h4>5-15s Post Window</h4>
+              <p>Recap publication delay after each 2-minute window ends.</p>
             </div>
 
             <div className="about-metric-card">
-              <span className="about-metric-card__label">Usage</span>
-              <h4>Adoption</h4>
-              <p>Ask-AI per meeting, highlight views, Q&A usage.</p>
+              <span className="about-metric-card__label">Q&A</span>
+              <h4>Tier 0/1 in 2-6s</h4>
+              <p>Fast path with session memory and uploaded document grounding.</p>
             </div>
 
             <div className="about-metric-card">
-              <span className="about-metric-card__label">Cost</span>
-              <h4>Token Efficiency</h4>
-              <p>Token budget/meeting, cached glossary/FAQ.</p>
+              <span className="about-metric-card__label">Ops</span>
+              <h4>Traceable Pipeline</h4>
+              <p>Metrics on WS latency, ASR lag, recap lag, and tiered Q&A latency.</p>
             </div>
           </div>
         </section>
 
-        <section className="about-section" id="deployment">
+        <section className="about-section" id="security">
           <div className="about-section__header">
-            <Cloud size={24} />
-            <h2>Deployment & Ops</h2>
+            <ShieldCheck size={24} />
+            <h2>Security & Compliance Focus</h2>
           </div>
 
-          <div className="about-grid about-grid--3 about-grid--steps">
-            <div className="about-card about-card--step">
-              <h3>Local Dev</h3>
+          <div className="about-grid about-grid--2">
+            <div className="about-card about-card--security">
+              <h3>MVP Demo Guardrails</h3>
               <ul>
-                <li>Docker Compose: backend + Postgres.</li>
-                <li>Seed data sẵn cho demo PMO LPBank.</li>
-                <li>Electron UI kết nối qua VITE_API_URL.</li>
+                <li>Use synthetic or scrubbed datasets in public demo environments.</li>
+                <li>Avoid uploading sensitive personal or regulated information.</li>
+                <li>Maintain evidence-based responses with explicit citation trails.</li>
+                <li>Log tool-call proposals and user approvals for traceability.</li>
               </ul>
             </div>
 
-            <div className="about-card about-card--step">
-              <h3>MVP Cloud</h3>
+            <div className="about-card about-card--security">
+              <h3>Production-Oriented Controls</h3>
               <ul>
-                <li>Supabase + Render + Vercel (prototype).</li>
-                <li>CI/CD nhanh, phù hợp giai đoạn thử nghiệm.</li>
-                <li>Quan sát hiệu năng qua metrics dashboard.</li>
-              </ul>
-            </div>
-
-            <div className="about-card about-card--step">
-              <h3>Production</h3>
-              <ul>
-                <li>Private VPC/on-prem, WORM storage.</li>
-                <li>Audit + retention theo policy BFSI.</li>
-                <li>HA, backup, disaster recovery.</li>
-              </ul>
-            </div>
-          </div>
-
-          <figure className="about-media about-media--wide">
-            <img
-              src="/docs/assets/deployment.png"
-              alt="Deployment architecture"
-              loading="lazy"
-            />
-            <figcaption>Deployment architecture for enterprise rollout.</figcaption>
-          </figure>
-        </section>
-
-        <section className="about-section" id="docs">
-          <div className="about-section__header">
-            <FileText size={24} />
-            <h2>Docs & Artifacts</h2>
-          </div>
-
-          <div className="about-grid about-grid--2 about-grid--docs">
-            <div className="about-card about-card--docs">
-              <h3>Architecture & AI</h3>
-              <ul>
-                <li><code>docs/Minute _ SAAR – Self-aware Adaptive Agentic RAG.md</code></li>
-                <li><code>docs/rag_architecture.md</code></li>
-                <li><code>docs/AI architecture/</code></li>
-                <li><code>docs/in_meeting_flow.md</code></li>
-              </ul>
-            </div>
-
-            <div className="about-card about-card--docs">
-              <h3>API & Ops</h3>
-              <ul>
-                <li><code>docs/api_contracts.md</code></li>
-                <li><code>docs/real_time_transcript.md</code></li>
-                <li><code>docs/transcript_ingest_api.md</code></li>
-                <li><code>docs/DEPLOYMENT.md</code></li>
+                <li>TLS/mTLS, secrets vault, and strict role-based access policies.</li>
+                <li>ACL enforcement at retrieval layer and scoped session access.</li>
+                <li>PII masking/redaction before external API requests.</li>
+                <li>Retention policies, export controls, and full audit trail support.</li>
               </ul>
             </div>
           </div>
@@ -624,161 +576,46 @@ const About = () => {
 
         <section className="about-section about-section--roadmap" id="roadmap">
           <div className="about-section__header">
-            <Map size={24} />
-            <h2>Roadmap</h2>
+            <Lightbulb size={24} />
+            <h2>Delivery Roadmap</h2>
           </div>
 
           <div className="about-roadmap about-roadmap--timeline">
             <article className="about-roadmap__item">
-              <span className="about-roadmap__phase">GĐ0</span>
-              <h3>Realtime Meeting Core</h3>
+              <span className="about-roadmap__phase">Phase 1</span>
+              <h3>Hackathon Core</h3>
               <ul className="about-roadmap__list">
-                <li>Join meeting + realtime ASR + live recap.</li>
-                <li>Post-meeting summary & highlights.</li>
+                <li>Realtime transcript, recap windows, and timeline updates.</li>
+                <li>Post-session summary generation with citations.</li>
               </ul>
             </article>
 
             <article className="about-roadmap__item">
-              <span className="about-roadmap__phase">GĐ1</span>
-              <h3>Action & RAG Foundation</h3>
+              <span className="about-roadmap__phase">Phase 2</span>
+              <h3>Tiered Q&A Expansion</h3>
               <ul className="about-roadmap__list">
-                <li>Action/Decision extractor + task sync.</li>
-                <li>Internal RAG + knowledge hub.</li>
+                <li>Tier 2 web search with approval flow and corrective loop.</li>
+                <li>Meeting/study branch outputs with stronger templates.</li>
               </ul>
             </article>
 
             <article className="about-roadmap__item">
-              <span className="about-roadmap__phase">GĐ2</span>
-              <h3>Compliance & Quality</h3>
+              <span className="about-roadmap__phase">Phase 3</span>
+              <h3>Production Hardening</h3>
               <ul className="about-roadmap__list">
-                <li>Guardrails/compliance archive.</li>
-                <li>Quality dashboard + highlights.</li>
+                <li>Policy engine, retention control, and export workflows.</li>
+                <li>Scalable observability and workspace-level governance.</li>
               </ul>
             </article>
 
             <article className="about-roadmap__item">
-              <span className="about-roadmap__phase">GĐ3</span>
-              <h3>Org-level Intelligence</h3>
+              <span className="about-roadmap__phase">Phase 4</span>
+              <h3>Advanced Research Mode</h3>
               <ul className="about-roadmap__list">
-                <li>Analytics đa cấp, cross-meeting insights.</li>
-                <li>Multi-channel assistant (desktop/web/room).</li>
+                <li>Tier 3 deep research with multi-hop reasoning support.</li>
+                <li>Richer educational outputs and adaptive learning guidance.</li>
               </ul>
             </article>
-          </div>
-        </section>
-
-        <section className="about-section" id="demo">
-          <div className="about-section__header">
-            <Zap size={24} />
-            <h2>Demo Scenarios</h2>
-          </div>
-
-          <div className="about-demo-list about-demo-list--modern">
-            <div className="about-demo-item">
-              <span className="about-demo-number">1</span>
-              <div>
-                <h4>Steering Committee Prep</h4>
-                <p>AI đề xuất agenda, tài liệu pre-read, và danh sách người tham gia.</p>
-              </div>
-            </div>
-
-            <div className="about-demo-item">
-              <span className="about-demo-number">2</span>
-              <div>
-                <h4>Live Meeting với AI Co-host</h4>
-                <p>Realtime transcript, ADR detection, Ask AI với policy nội bộ.</p>
-              </div>
-            </div>
-
-            <div className="about-demo-item">
-              <span className="about-demo-number">3</span>
-              <div>
-                <h4>Minutes & Follow-up</h4>
-                <p>1-click generate MoM, export, sync tasks và compliance archive.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="about-section about-section--team" id="team">
-          <div className="about-section__header">
-            <Users size={24} />
-            <h2>Đội ngũ phát triển</h2>
-          </div>
-
-          <div className="about-team-grid about-team-grid--accent">
-            <div className="about-team-member">
-              <div className="about-team-avatar">
-                <Users size={32} />
-              </div>
-              <h4>Đặng Như Phước</h4>
-              <p>Leader | Backend/AI Engineer, realtime WS pipeline, LangGraph & RAG.</p>
-            </div>
-
-            <div className="about-team-member">
-              <div className="about-team-avatar">
-                <Users size={32} />
-              </div>
-              <h4>Thái Hoài An</h4>
-              <p>Data Engineer | Schema, pgvector, ingest tài liệu, seed/demo data.</p>
-            </div>
-
-            <div className="about-team-member">
-              <div className="about-team-avatar">
-                <Users size={32} />
-              </div>
-              <h4>Trương Minh Đạt</h4>
-              <p>BA & GTM Analyst | BFSI requirements, KPIs, go-to-market.</p>
-            </div>
-
-            <div className="about-team-member">
-              <div className="about-team-avatar">
-                <Users size={32} />
-              </div>
-              <h4>Hoàng Minh Quân</h4>
-              <p>End-user Analyst | UX research, deployment plan, rollout support.</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="about-section" id="mentors">
-          <div className="about-section__header">
-            <Lightbulb size={24} />
-            <h2>Mentor Acknowledgements</h2>
-          </div>
-
-          <div className="about-grid about-grid--2 about-grid--mentors">
-            <div className="about-card about-card--mentor">
-              <h3>Hồ Minh Nghĩa</h3>
-              <ul>
-                <li>Chuyên gia AI/GenAI, tư vấn kiến trúc & bảo mật.</li>
-                <li>Định hướng tính khả thi triển khai BFSI.</li>
-              </ul>
-            </div>
-
-            <div className="about-card about-card--mentor">
-              <h3>Nguyễn Phan Khoa Đức</h3>
-              <ul>
-                <li>Giám đốc phát triển công nghệ AI tại VNPT AI.</li>
-                <li>Cố vấn hướng công nghệ và sản phẩm.</li>
-              </ul>
-            </div>
-
-            <div className="about-card about-card--mentor">
-              <h3>Lâm Vũ Dương</h3>
-              <ul>
-                <li>Giám đốc VNPT, hỗ trợ kết nối & định hướng chương trình.</li>
-                <li>Đảm bảo alignment với chiến lược doanh nghiệp.</li>
-              </ul>
-            </div>
-
-            <div className="about-card about-card--mentor">
-              <h3>Thành Đạt</h3>
-              <ul>
-                <li>VNPT GoMeet Software Engineer, hỗ trợ tích hợp nền tảng họp.</li>
-                <li>Tư vấn kỹ thuật cho meeting add-in/bot.</li>
-              </ul>
-            </div>
           </div>
         </section>
       </div>
@@ -786,19 +623,19 @@ const About = () => {
       <section className="contact" id="contact">
         <div className="contact-card">
           <div className="contact-content">
-            <h2>Liên hệ</h2>
-            <p>Nhận demo, báo giá hoặc tư vấn triển khai cho doanh nghiệp.</p>
+            <h2>Contact</h2>
+            <p>Request a demo or discuss collaboration for meeting and study intelligence workflows.</p>
             <div className="contact-tags">
-              <span className="contact-tag">Demo nhanh</span>
-              <span className="contact-tag">Tư vấn triển khai</span>
-              <span className="contact-tag">Bảo mật doanh nghiệp</span>
+              <span className="contact-tag">Realtime assistant</span>
+              <span className="contact-tag">Tiered LightRAG</span>
+              <span className="contact-tag">Evidence-backed outputs</span>
             </div>
           </div>
           <div className="contact-panel">
             <ContactEmailForm />
             <div className="contact-actions">
-              <Link to="/register" className="btn btn-primary btn-lg">Nhận demo</Link>
-              <Link to="/about" className="btn btn-outline btn-lg">Về chúng tôi</Link>
+              <Link to="/app/meetings" className="btn btn-primary btn-lg">Get Started</Link>
+              <Link to="/about" className="btn btn-outline btn-lg">Back to About</Link>
             </div>
           </div>
         </div>
@@ -807,11 +644,11 @@ const About = () => {
       <footer className="landing-footer">
         <div className="footer-brand">
           <img src="/minute_icon.svg" alt="Minute" className="landing-logo__icon landing-logo__icon--sm" />
-          <span>Minute</span>
+          <span>MINUTE</span>
         </div>
         <a
           className="landing-footer__link"
-          href="https://github.com/PhuocDang2104/vnpt_ai_hackathon_meetmate"
+          href="https://github.com/PhuocDang2104/minute_google_gemini_hackathon"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -819,10 +656,11 @@ const About = () => {
           GitHub
           <ExternalLink size={14} />
         </a>
-        <p>© 2024 Minute - AI Meeting Assistant for Enterprise</p>
+        <p>(c) 2026 MINUTE | Gemini 3 Multimodal Meeting and Study Assistant</p>
       </footer>
     </div>
   )
 }
 
 export default About
+

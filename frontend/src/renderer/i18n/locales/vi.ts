@@ -286,7 +286,7 @@ export const vi = {
 
   // About
   about: {
-    title: 'Giới thiệu Minute',
+    title: 'About MINUTE',
     subtitle: 'Trợ lý cuộc họp AI thông minh',
     description: 'Minute là giải pháp quản lý cuộc họp toàn diện, tích hợp AI để tự động hóa việc ghi chú, tóm tắt và theo dõi công việc.',
     features: 'Tính năng chính',
@@ -400,3 +400,4 @@ export const vi = {
     },
   },
 };
+

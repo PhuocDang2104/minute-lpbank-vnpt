@@ -1,7 +1,7 @@
-import { ExternalLink, Github, Info, Map, BadgeDollarSign, Mail, LogIn } from 'lucide-react'
+import { ArrowRight, ExternalLink, Github, Info, Mail, Map } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import FloatingNavbar from '../../components/ui/floating-navbar'
 import ContactEmailForm from '../../components/ui/contact-email-form'
+import FloatingNavbar from '../../components/ui/floating-navbar'
 
 const Pricing = () => {
   const scrollToSection = (sectionId: string) => {
@@ -15,91 +15,88 @@ const Pricing = () => {
       <FloatingNavbar
         navItems={[
           { name: 'About', to: '/about', icon: <Info size={18} /> },
-          { name: 'Lộ trình', to: '/roadmap', icon: <Map size={18} /> },
-          { name: 'Pricing', to: '/pricing', icon: <BadgeDollarSign size={18} /> },
+          { name: 'Roadmap', to: '/roadmap', icon: <Map size={18} /> },
           { name: 'Contact', onClick: () => scrollToSection('contact'), icon: <Mail size={18} /> },
         ]}
-        action={{ label: 'Đăng nhập', to: '/login', icon: <LogIn size={16} /> }}
+        action={{ label: 'Get Started', to: '/app/meetings', icon: <ArrowRight size={16} /> }}
       />
       <header className="landing-header">
         <div className="landing-header__brand">
           <Link to="/" className="logo" aria-label="Homepage" title="Homepage">
             <img src="/minute_icon.svg" alt="Minute" className="landing-logo__icon" />
-            <span>Minute</span>
+            <span>MINUTE</span>
           </Link>
           <nav className="landing-nav">
             <Link to="/about" className="landing-nav__link">About</Link>
-            <Link to="/roadmap" className="landing-nav__link">Lộ trình</Link>
-            <Link to="/pricing" className="landing-nav__link">Pricing</Link>
+            <Link to="/roadmap" className="landing-nav__link">Roadmap</Link>
             <button type="button" className="landing-nav__link" onClick={() => scrollToSection('contact')}>
               Contact
             </button>
           </nav>
         </div>
         <div className="landing-actions">
-          <Link to="/login" className="btn btn-ghost">Đăng nhập</Link>
-          <Link to="/register" className="btn btn-primary">Đăng ký</Link>
+          <Link to="/app/meetings" className="btn btn-primary landing-get-started">Get Started</Link>
         </div>
       </header>
 
       <header className="pricing-hero">
-        <h1 className="pricing-hero__title">Bảng giá linh hoạt</h1>
+        <h1 className="pricing-hero__title">Flexible Plans for Every Team</h1>
         <p className="pricing-hero__subtitle">
-          Chọn gói phù hợp, dễ mở rộng khi nhu cầu tăng.
+          Start quickly, then scale governance, integrations, and support as adoption grows.
         </p>
         <div className="pricing-hero__actions">
-          <Link to="/register" className="btn btn-primary">
-            Nhận demo
+          <Link to="/app/meetings" className="btn btn-primary">
+            Get Started
           </Link>
           <Link to="/about" className="btn btn-outline">
-            Về chúng tôi
+            About MINUTE
           </Link>
         </div>
       </header>
 
       <section className="pricing">
         <div className="pricing__header">
-          <h2>Pricing linh hoạt theo quy mô</h2>
-          <p>Chọn gói phù hợp, dễ mở rộng khi nhu cầu tăng.</p>
+          <h2>Simple Pricing Structure</h2>
+          <p>Choose the plan that matches your current workflow and scale up when needed.</p>
         </div>
         <div className="pricing-grid">
           <div className="pricing-card">
             <div className="pricing-tier">Pilot</div>
-            <div className="pricing-price">Dùng thử</div>
-            <p className="pricing-desc">Cho nhóm nhỏ muốn thử nghiệm nhanh.</p>
+            <div className="pricing-price">Trial</div>
+            <p className="pricing-desc">For small teams that want to validate workflow fit quickly.</p>
             <ul className="pricing-list">
-              <li>Thiết lập nhanh trong 1-2 tuần</li>
-              <li>Pre/In/Post cơ bản</li>
-              <li>Hỗ trợ onboarding</li>
+              <li>Fast setup in 1-2 weeks</li>
+              <li>Core in-session and post-session features</li>
+              <li>Guided onboarding support</li>
             </ul>
-            <Link to="/register" className="btn btn-outline pricing-cta">
-              Nhận demo
+            <Link to="/app/meetings" className="btn btn-outline pricing-cta">
+              Get Started
             </Link>
           </div>
           <div className="pricing-card pricing-card--featured">
             <div className="pricing-tier">Business</div>
-            <div className="pricing-price">Theo gói</div>
-            <p className="pricing-desc">Dành cho phòng ban và trung tâm PMO.</p>
+            <div className="pricing-price">By plan</div>
+            <p className="pricing-desc">For departments and PMO teams operating at steady meeting volume.</p>
             <ul className="pricing-list">
-              <li>Tích hợp lịch & kho tài liệu</li>
-              <li>Workflow tùy chỉnh theo loại họp</li>
-              <li>SLA hỗ trợ giờ hành chính</li>
+              <li>Calendar and document repository integrations</li>
+              <li>Workflow customization by session type</li>
+              <li>Business-hours support SLA</li>
             </ul>
-            <Link to="/register" className="btn btn-primary pricing-cta">
-              Nhận báo giá
+            <Link to="/app/meetings" className="btn btn-primary pricing-cta">
+              Get Started
             </Link>
           </div>
           <div className="pricing-card">
             <div className="pricing-tier">Enterprise</div>
-            <div className="pricing-price">Liên hệ</div>
-            <p className="pricing-desc">Triển khai quy mô lớn, bảo mật nâng cao.</p>
+            <div className="pricing-price">Contact us</div>
+            <p className="pricing-desc">For large-scale deployments with advanced security and governance requirements.</p>
             <ul className="pricing-list">
-              <li>SSO, phân quyền & audit</li>
-              <li>Tùy chỉnh RAG theo data nội bộ</li>
-              <li>Hỗ trợ 24/7 & dedicated team</li>
+              <li>SSO, access control, and audit trails</li>
+              <li>Customized RAG setup for internal knowledge</li>
+              <li>24/7 support with dedicated delivery team</li>
             </ul>
-            <Link to="/register" className="btn btn-outline pricing-cta">
-              Liên hệ
+            <Link to="/app/meetings" className="btn btn-outline pricing-cta">
+              Get Started
             </Link>
           </div>
         </div>
@@ -108,19 +105,19 @@ const Pricing = () => {
       <section className="contact" id="contact">
         <div className="contact-card">
           <div className="contact-content">
-            <h2>Liên hệ</h2>
-            <p>Nhận demo, báo giá hoặc tư vấn triển khai cho doanh nghiệp.</p>
+            <h2>Contact</h2>
+            <p>Request a demo or discuss rollout options for your team.</p>
             <div className="contact-tags">
-              <span className="contact-tag">Demo nhanh</span>
-              <span className="contact-tag">Tư vấn triển khai</span>
-              <span className="contact-tag">Bảo mật doanh nghiệp</span>
+              <span className="contact-tag">Rapid onboarding</span>
+              <span className="contact-tag">Security-focused rollout</span>
+              <span className="contact-tag">Enterprise governance</span>
             </div>
           </div>
           <div className="contact-panel">
             <ContactEmailForm />
             <div className="contact-actions">
-              <Link to="/register" className="btn btn-primary btn-lg">Nhận demo</Link>
-              <Link to="/about" className="btn btn-outline btn-lg">Về chúng tôi</Link>
+              <Link to="/app/meetings" className="btn btn-primary btn-lg">Get Started</Link>
+              <Link to="/about" className="btn btn-outline btn-lg">About MINUTE</Link>
             </div>
           </div>
         </div>
@@ -129,11 +126,11 @@ const Pricing = () => {
       <footer className="landing-footer">
         <div className="footer-brand">
           <img src="/minute_icon.svg" alt="Minute" className="landing-logo__icon landing-logo__icon--sm" />
-          <span>Minute</span>
+          <span>MINUTE</span>
         </div>
         <a
           className="landing-footer__link"
-          href="https://github.com/PhuocDang2104/vnpt_ai_hackathon_meetmate"
+          href="https://github.com/PhuocDang2104/minute_google_gemini_hackathon"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -141,10 +138,11 @@ const Pricing = () => {
           GitHub
           <ExternalLink size={14} />
         </a>
-        <p>© 2024 Minute - AI Meeting Assistant for Enterprise</p>
+        <p>(c) 2026 MINUTE | Gemini 3 Multimodal Meeting and Study Assistant</p>
       </footer>
     </div>
   )
 }
 
 export default Pricing
+

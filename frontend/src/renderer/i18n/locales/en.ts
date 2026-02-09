@@ -286,7 +286,7 @@ export const en = {
 
   // About
   about: {
-    title: 'About Minute',
+    title: 'About MINUTE',
     subtitle: 'AI-Powered Meeting Assistant',
     description: 'Minute is a comprehensive meeting management solution with AI integration for automated note-taking, summarization, and task tracking.',
     features: 'Key Features',
@@ -400,3 +400,4 @@ export const en = {
     },
   },
 };
+

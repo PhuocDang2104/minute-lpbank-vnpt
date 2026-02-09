@@ -58,8 +58,8 @@ const LEGACY_LITERAL_PAIRS: Pair[] = [
   { vi: 'Tham gia ngay', en: 'Join now' },
   { vi: 'Quay lại', en: 'Back' },
   { vi: 'Cài đặt', en: 'Settings' },
-  { vi: 'Giới thiệu', en: 'About' },
-  { vi: 'Giới thiệu Minute', en: 'About Minute' },
+  { vi: 'About', en: 'About' },
+  { vi: 'About MINUTE', en: 'About MINUTE' },
   { vi: 'Dự án', en: 'Projects' },
   { vi: 'Lịch họp', en: 'Calendar' },
   { vi: 'Quản lý lịch họp của bạn', en: 'Manage your meeting schedule' },
@@ -170,4 +170,5 @@ export const applyLegacyAutoTranslation = (root: ParentNode, language: Language)
     }
   }
 }
+
 
