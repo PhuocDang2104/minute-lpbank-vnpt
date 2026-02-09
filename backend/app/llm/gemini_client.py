@@ -413,13 +413,13 @@ class MeetingAIAssistant:
         ctx_parts = []
         
         if self.meeting_context.get('title'):
-            ctx_parts.append(f"Cuộc họp: {self.meeting_context['title']}")
+            ctx_parts.append(f"Meeting: {self.meeting_context['title']}")
         
         if self.meeting_context.get('type'):
-            ctx_parts.append(f"Loại: {self.meeting_context['type']}")
+            ctx_parts.append(f"Type: {self.meeting_context['type']}")
         
         if self.meeting_context.get('project'):
-            ctx_parts.append(f"Dự án: {self.meeting_context['project']}")
+            ctx_parts.append(f"Project: {self.meeting_context['project']}")
         
         if self.meeting_context.get('agenda'):
             ctx_parts.append(f"Agenda: {self.meeting_context['agenda']}")
@@ -431,7 +431,7 @@ class MeetingAIAssistant:
             ctx_parts.append(f"Timeline highlights: {self.meeting_context['timeline_highlights']}")
         
         if self.meeting_context.get('transcript'):
-            ctx_parts.append(f"Transcript (trích): {self.meeting_context['transcript'][:15000]}...")
+            ctx_parts.append(f"Transcript excerpt: {self.meeting_context['transcript'][:15000]}...")
         
         return "\n".join(ctx_parts)
     
@@ -555,22 +555,24 @@ Format output JSON:
 
     async def generate_summary_with_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Generate meeting summary with full context and practical guardrails."""
-        prompt = f"""Bạn là trợ lý MINUTE tạo biên bản cuộc họp/học.
-Hãy tóm tắt dựa trên dữ liệu JSON bên dưới và KHÔNG bịa thông tin.
+        prompt = f"""You are MINUTE AI, a meeting and study-session copilot.
+Create a rich English summary using ONLY the JSON data below. Do not invent facts.
 
-Quy tắc:
-- Chỉ dùng dữ liệu đã cung cấp.
-- KHÔNG trả về summary rỗng. Luôn trả về bản tóm tắt khả dụng.
-- Nếu dữ liệu ít, viết "Tóm tắt sơ bộ" 1-3 câu từ title/description/visual/documents và nêu rõ phần cần bổ sung.
-- Nếu có dữ liệu, tóm tắt 3-6 câu, ngắn gọn, ưu tiên insight có thể hành động.
-- key_points: 3-6 ý, ưu tiên transcript/actions/decisions/risks; nếu có visual_context/topic_tracker/documents thì đưa vào.
-- Không dùng các câu từ chối kiểu "không đủ nội dung để generate" trừ khi toàn bộ dữ liệu rỗng tuyệt đối.
-- Không dùng markdown.
+Rules:
+- Output language: English only.
+- Never return an empty summary.
+- Summary target length: 220-420 words, written in 3-6 coherent paragraphs.
+- Cover: objective/context, major discussion threads, concrete outcomes, unresolved questions, risks, and next-step direction.
+- Ground claims in provided evidence (transcript, visual_context, topic_tracker, documents, actions, decisions, risks).
+- If data is sparse, still provide a useful preliminary summary and explicitly state what evidence is missing.
+- Avoid refusal-style responses like "not enough data to generate" unless all fields are truly empty.
+- key_points must contain 8-12 concise, specific, actionable bullets (plain strings).
+- No markdown in summary or key_points.
 
-Dữ liệu:
+Data:
 {json.dumps(context, ensure_ascii=False)}
 
-Trả về đúng JSON, không kèm text khác:
+Return STRICT JSON only (no extra prose):
 {{"summary": "...", "key_points": ["...", "..."]}}"""
         response = await self.chat.chat(prompt)
         result: Dict[str, Any] = {}
@@ -598,7 +600,7 @@ Trả về đúng JSON, không kèm text khác:
             summary = response.strip()
 
         if not summary.strip():
-            title = str(context.get("title") or "Cuộc họp").strip()
+            title = str(context.get("title") or "Meeting").strip()
             desc = str(context.get("description") or "").strip()
             transcript = str(context.get("transcript") or "").strip()
             actions = context.get("actions") or []
@@ -607,18 +609,31 @@ Trả về đúng JSON, không kèm text khác:
             docs = context.get("documents") or []
 
             if desc:
-                summary = f"Tóm tắt sơ bộ cho '{title}': {desc[:280]}"
+                summary = (
+                    f"Preliminary summary for '{title}': {desc[:360]}. "
+                    "Additional transcript evidence will improve detail and confidence."
+                )
             elif transcript:
-                summary = f"Tóm tắt sơ bộ cho '{title}': {transcript[:280]}"
+                summary = (
+                    f"Preliminary summary for '{title}': {transcript[:420]}. "
+                    "This draft should be refined with full transcript context."
+                )
             elif actions or decisions or risks:
                 summary = (
-                    f"Tóm tắt sơ bộ cho '{title}': đã ghi nhận "
-                    f"{len(actions)} action, {len(decisions)} quyết định và {len(risks)} rủi ro."
+                    f"Preliminary summary for '{title}': captured "
+                    f"{len(actions)} action item(s), {len(decisions)} decision(s), and {len(risks)} risk(s). "
+                    "Detailed narrative requires transcript or richer notes."
                 )
             elif docs:
-                summary = f"Tóm tắt sơ bộ cho '{title}': đã có tài liệu liên quan, cần thêm transcript để tổng hợp sâu hơn."
+                summary = (
+                    f"Preliminary summary for '{title}': related documents are available. "
+                    "Please add transcript evidence for a deeper and more reliable summary."
+                )
             else:
-                summary = f"Tóm tắt sơ bộ cho '{title}': phiên họp đã được ghi nhận, cần thêm transcript hoặc ghi chú để tạo biên bản chi tiết."
+                summary = (
+                    f"Preliminary summary for '{title}': the session is recorded but content data is still limited. "
+                    "Please provide transcript or notes to generate a full, evidence-based summary."
+                )
 
         if not key_points:
             fallback_points: List[str] = []
@@ -627,83 +642,75 @@ Trả về đúng JSON, không kèm text khác:
             risks = context.get("risks") or []
             docs = context.get("documents") or []
             if actions:
-                fallback_points.append(f"Đã ghi nhận {len(actions)} action item cần theo dõi.")
+                fallback_points.append(f"{len(actions)} action item(s) were captured and should be tracked.")
             if decisions:
-                fallback_points.append(f"Đã ghi nhận {len(decisions)} quyết định trong phiên.")
+                fallback_points.append(f"{len(decisions)} decision(s) were identified in this session.")
             if risks:
-                fallback_points.append(f"Đã ghi nhận {len(risks)} rủi ro/điểm cần lưu ý.")
+                fallback_points.append(f"{len(risks)} risk(s) or blockers were flagged.")
             if docs:
-                fallback_points.append(f"Có {len(docs)} tài liệu liên quan trong phiên.")
+                fallback_points.append(f"{len(docs)} related document(s) are linked to this session.")
             if not fallback_points:
-                fallback_points.append("Cần bổ sung transcript hoặc ghi chú để tăng độ chi tiết của biên bản.")
-            key_points = fallback_points[:5]
+                fallback_points.append("Add transcript or notes to increase summary depth and reliability.")
+            key_points = fallback_points[:8]
         return {"summary": summary, "key_points": key_points}
     
     async def generate_minutes_json(self, transcript: str) -> Dict[str, Any]:
         """Generate comprehensive minutes in strict JSON format with rich content"""
-        prompt = f"""Bạn là trợ lý MINUTE chuyên nghiệp tạo biên bản cuộc họp cho doanh nghiệp.
-Phân tích nội dung cuộc họp (transcript) bên dưới và tạo biên bản chi tiết.
+        prompt = f"""You are MINUTE AI, generating professional meeting minutes for business teams.
+Analyze the transcript below and produce a detailed, factual minutes JSON.
 
-TRANSCRIPT CUỘC HỌP:
+TRANSCRIPT:
 {transcript[:20000]}
 
-YÊU CẦU OUTPUT (JSON Strict Mode):
-Trả về MỘT JSON Object duy nhất (KHÔNG kèm markdown block ```json```) với cấu trúc:
+OUTPUT REQUIREMENTS (Strict JSON Mode):
+- Return exactly ONE JSON object only (no markdown code fence, no commentary).
+- Output language: English only.
+- Be specific, evidence-based, and avoid hallucinations.
+- If a field is unknown, use "Unknown" or null instead of omitting required structure.
 
+Required JSON schema:
 {{
-    "executive_summary": "Tóm tắt điều hành 2-4 đoạn văn. Bắt đầu bằng mục đích cuộc họp, các nội dung chính đã thảo luận, kết quả đạt được và những điều cần theo dõi.",
-    
-    "key_points": [
-        "Điểm thảo luận quan trọng 1 - mô tả ngắn gọn nội dung và ai đề cập",
-        "Điểm thảo luận quan trọng 2 - kết quả hoặc kết luận",
-        "Điểm thảo luận quan trọng 3"
-    ],
-    
-    "action_items": [
-        {{
-            "description": "Mô tả chi tiết công việc cần thực hiện",
-            "owner": "Tên người được giao (trích từ transcript, nếu không rõ ghi 'Chưa phân công')",
-            "deadline": "YYYY-MM-DD nếu đề cập, hoặc 'Sớm nhất có thể' nếu urgent, hoặc null",
-            "priority": "high/medium/low - dựa vào mức độ nhấn mạnh trong cuộc họp",
-            "created_by": "Tên người tạo ra yêu cầu này trong cuộc họp"
-        }}
-    ],
-    
-    "decisions": [
-        {{
-            "description": "Nội dung quyết định rõ ràng, cụ thể",
-            "rationale": "Lý do dẫn đến quyết định này (tóm tắt thảo luận)",
-            "decided_by": "Tên người chốt quyết định cuối cùng",
-            "approved_by": "Những người đồng ý/phê duyệt (nếu có)"
-        }}
-    ],
-    
-    "risks": [
-        {{
-            "description": "Mô tả rủi ro hoặc vấn đề tiềm ẩn được nêu ra",
-            "severity": "critical/high/medium/low",
-            "mitigation": "Biện pháp giảm thiểu đã thảo luận",
-            "raised_by": "Người nêu ra rủi ro này"
-        }}
-    ],
-    
-    "next_steps": [
-        "Bước tiếp theo 1 cần thực hiện sau cuộc họp",
-        "Bước tiếp theo 2"
-    ],
-    
-    "attendees_mentioned": [
-        "Tên người tham gia được nhắc đến trong transcript"
-    ]
+  "executive_summary": "3-6 well-structured paragraphs, target 220-420 words (minimum 120 words if transcript is sparse). Include purpose, key discussion flow, outcomes, unresolved points, risks, and implications.",
+  "key_points": [
+    "8-15 concrete points, each concise and evidence-grounded"
+  ],
+  "action_items": [
+    {{
+      "description": "Detailed action",
+      "owner": "Responsible person from transcript, else 'Unknown'",
+      "deadline": "YYYY-MM-DD if explicit, otherwise null",
+      "priority": "high/medium/low",
+      "created_by": "Who requested or initiated it, else 'Unknown'"
+    }}
+  ],
+  "decisions": [
+    {{
+      "description": "Clear decision statement",
+      "rationale": "Why this decision was made",
+      "decided_by": "Final decision maker if known, else 'Unknown'",
+      "approved_by": "Approver(s) if mentioned, else 'Unknown'"
+    }}
+  ],
+  "risks": [
+    {{
+      "description": "Risk or issue",
+      "severity": "critical/high/medium/low",
+      "mitigation": "Mitigation discussed, else empty string",
+      "raised_by": "Who raised it, else 'Unknown'"
+    }}
+  ],
+  "next_steps": [
+    "Specific follow-up steps after the meeting"
+  ],
+  "attendees_mentioned": [
+    "Names explicitly mentioned in transcript"
+  ]
 }}
 
-LƯU Ý QUAN TRỌNG:
-- Trích xuất TẤT CẢ thông tin có trong transcript, không bỏ sót
-- Với mỗi action/decision/risk, PHẢI ghi rõ ai là người tạo/đề xuất/quyết định
-- Nếu không xác định được người, ghi "Không rõ" thay vì bỏ trống
-- Priority: high = được nhấn mạnh nhiều lần, medium = đề cập bình thường, low = đề cập qua
-- executive_summary phải viết như văn bản chuyên nghiệp, có đầu có đuôi
-- Nếu transcript có dấu hiệu visual context (ví dụ [VISUAL]/[SCREEN]) hãy nhắc trong executive_summary/key_points.
+Guidance:
+- Extract as much useful detail as possible from transcript content.
+- Do not repeat near-duplicate bullets; merge similar points.
+- If visual signals appear (e.g., [VISUAL], [SCREEN], slide references), reflect them in executive_summary and key_points.
 """
         
         response = await self.chat.chat(prompt)
@@ -744,27 +751,37 @@ LƯU Ý QUAN TRỌNG:
     
     async def generate_summary(self, transcript: str) -> str:
         """Generate meeting summary"""
-        prompt = f"""Tạo tóm tắt cuộc họp dựa trên transcript sau, không bịa thông tin.
-Không được trả về chuỗi rỗng. Nếu dữ liệu ngắn, hãy tạo "tóm tắt sơ bộ" và nêu rõ cần thêm dữ liệu nào.
+        prompt = f"""Create a detailed English meeting summary from the transcript below.
+Use only transcript evidence and do not hallucinate.
+Never return an empty response.
+If transcript is short, still provide a useful preliminary summary and clearly list missing context.
 
+Transcript:
 {transcript[:3000]}
 
 Format:
-## Tóm tắt cuộc họp
+## Meeting Summary
 
-### Các điểm chính
-- ...
+### Executive Narrative
+- 2-4 compact paragraphs, concrete and evidence-based
 
-### Quyết định
+### Key Points
+- 8-12 specific points
+
+### Decisions
 - ...
 
 ### Action Items
+- owner, deadline (if available), and requested-by when possible
+
+### Risks and Blockers
 - ...
 
-### Rủi ro được đề cập
+### Next Steps
 - ...
 
-### Bước tiếp theo
-- ..."""
+### Follow-up Questions
+- ...
+"""
         
         return await self.chat.chat(prompt)

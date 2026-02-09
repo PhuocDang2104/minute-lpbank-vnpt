@@ -268,7 +268,7 @@ async def distribute_minutes(
                 meeting_date=start_time.strftime('%d/%m/%Y'),
                 meeting_time=start_time.strftime('%H:%M'),
                 meeting_location=meeting.location or 'Online',
-                executive_summary=minutes.executive_summary or 'Chưa có tóm tắt.',
+                executive_summary=minutes.executive_summary or 'No summary available.',
                 minutes_content=minutes.minutes_html or minutes.minutes_markdown or minutes.minutes_text
             )
         else:

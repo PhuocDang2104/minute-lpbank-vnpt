@@ -145,11 +145,11 @@ async def _summarize_transcript_windows(
     summaries: List[str] = []
     for idx, chunk in enumerate(chunks, start=1):
         prompt = (
-            "Tóm tắt ngắn gọn đoạn transcript sau thành 4-7 ý ngắn. "
-            "Giữ nguyên nội dung, không bịa. "
-            "Nếu dữ liệu mỏng thì vẫn đưa bản tóm tắt sơ bộ thay vì bỏ trống. "
-            "Nếu có thời điểm/nhân vật quan trọng hoặc action/decision/risk thì nêu rõ.\n\n"
-            f"ĐOẠN {idx}/{len(chunks)}:\n{chunk}"
+            "Summarize the following transcript window in English into 6-10 concise bullets. "
+            "Use only provided evidence, do not hallucinate. "
+            "If data is sparse, still provide a preliminary summary instead of leaving it empty. "
+            "Call out notable timestamps, participants, and any action/decision/risk signals.\n\n"
+            f"WINDOW {idx}/{len(chunks)}:\n{chunk}"
         )
         try:
             summary = await assistant.chat.chat(prompt)
@@ -523,7 +523,7 @@ def render_minutes_full_page(db: Session, minutes_id: str) -> str:
     template_html = template_path.read_text(encoding="utf-8")
 
     content_html = render_minutes_html_content(minutes)
-    exec_summary_html = minutes.executive_summary or "<p>Chưa có tóm tắt.</p>"
+    exec_summary_html = minutes.executive_summary or "<p>No summary available.</p>"
 
     filled = (
         template_html
@@ -992,7 +992,10 @@ async def generate_minutes_with_ai(
             summary_result = await assistant.generate_summary_with_context(context_payload)
     except Exception as exc:
         logger.warning("AI summary generation failed for meeting %s: %s", meeting_id, exc)
-        fallback_summary = meeting_desc or "Chưa có mô tả cuộc họp. Vui lòng cập nhật."
+        fallback_summary = (
+            meeting_desc
+            or "No meeting description is available yet. Please add context for a richer summary."
+        )
         summary_result = {
             "summary": fallback_summary,
             "key_points": actions[:3] if actions else decisions[:3],
@@ -1017,31 +1020,37 @@ async def generate_minutes_with_ai(
     ]
     if not summary_result["summary"]:
         if meeting_desc:
-            summary_result["summary"] = f"Tóm tắt sơ bộ cho '{meeting_title}': {meeting_desc[:320]}"
+            summary_result["summary"] = (
+                f"Preliminary summary for '{meeting_title}': {meeting_desc[:360]}. "
+                "Add transcript evidence for deeper and more reliable minutes."
+            )
         elif llm_fallback_transcript:
-            summary_result["summary"] = f"Tóm tắt sơ bộ cho '{meeting_title}': {llm_fallback_transcript[:320]}"
+            summary_result["summary"] = (
+                f"Preliminary summary for '{meeting_title}': {llm_fallback_transcript[:420]}. "
+                "This draft should be refined with full transcript context."
+            )
         elif related_docs:
             summary_result["summary"] = (
-                f"Tóm tắt sơ bộ cho '{meeting_title}': đã có tài liệu liên quan, "
-                "cần thêm transcript để tạo biên bản chi tiết."
+                f"Preliminary summary for '{meeting_title}': related documents are available. "
+                "Please add transcript data to generate detailed minutes."
             )
         else:
             summary_result["summary"] = (
-                f"Tóm tắt sơ bộ cho '{meeting_title}': phiên họp đã được ghi nhận, "
-                "nhưng dữ liệu nội dung còn hạn chế."
+                f"Preliminary summary for '{meeting_title}': this session is recorded, "
+                "but content evidence is currently limited."
             )
     if not summary_result["key_points"]:
         fallback_points: List[str] = []
         if action_rows:
-            fallback_points.append(f"Đã ghi nhận {len(action_rows)} action item.")
+            fallback_points.append(f"{len(action_rows)} action item(s) were captured.")
         if decision_rows:
-            fallback_points.append(f"Đã ghi nhận {len(decision_rows)} quyết định.")
+            fallback_points.append(f"{len(decision_rows)} decision(s) were captured.")
         if risk_rows:
-            fallback_points.append(f"Đã ghi nhận {len(risk_rows)} rủi ro.")
+            fallback_points.append(f"{len(risk_rows)} risk(s) were captured.")
         if related_docs:
-            fallback_points.append(f"Có {len(related_docs)} tài liệu tham chiếu.")
+            fallback_points.append(f"{len(related_docs)} reference document(s) are linked.")
         if not fallback_points:
-            fallback_points.append("Cần bổ sung transcript để tăng độ chính xác của biên bản.")
+            fallback_points.append("Add transcript evidence to improve summary depth and accuracy.")
         summary_result["key_points"] = fallback_points[:5]
 
     actions = [row.get("description", "") for row in action_rows if row.get("description")]
@@ -1169,7 +1178,7 @@ def format_minutes(
     lines.append("")
 
     lines.append("## Tóm tắt điều hành")
-    lines.append(summary or "Chưa có tóm tắt.")
+    lines.append(summary or "No summary available.")
     lines.append("")
 
     if key_points:
