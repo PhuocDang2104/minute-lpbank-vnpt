@@ -94,7 +94,7 @@ const Sidebar = () => {
 
   const bottomNavItems: NavItem[] = [
     { path: '/app/settings', label: lt('Cài đặt', 'Settings'), icon: <Settings size={20} /> },
-    { path: '/about', label: lt('Giới thiệu', 'About'), icon: <Info size={20} /> },
+    { path: '/about', label: lt('About', 'About'), icon: <Info size={20} /> },
   ]
 
   return (
@@ -296,3 +296,4 @@ const Sidebar = () => {
 }
 
 export default Sidebar
+

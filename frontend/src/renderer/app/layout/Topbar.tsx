@@ -130,7 +130,7 @@ const Topbar = () => {
             >
               {languageSwitchLabel}
             </button>
-            <Link to="/about" className="topbar__icon-btn" title={lt('Giới thiệu Minute', 'About Minute')}>
+            <Link to="/about" className="topbar__icon-btn" title={lt('About MINUTE', 'About MINUTE')}>
               <HelpCircle size={18} />
             </Link>
             <button
@@ -149,3 +149,4 @@ const Topbar = () => {
 }
 
 export default Topbar
+
