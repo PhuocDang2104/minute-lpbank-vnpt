@@ -38,10 +38,6 @@ import { knowledgeApi, type KnowledgeDocument } from '../../../../lib/api/knowle
 import { UploadDocumentModal } from '../../../../components/UploadDocumentModal';
 import { useLocaleText } from '../../../../i18n/useLocaleText';
 
-// Fallback to avoid runtime ReferenceError in case a UI branch calls `lt(...)`
-// before locale hook is wired in that local component scope.
-const lt = (vi: string, en: string) => en || vi;
-
 interface PostMeetTabFirefliesProps {
   meeting: MeetingWithParticipants;
   onRefresh: () => void;
@@ -78,6 +74,7 @@ interface FilterState {
 }
 
 export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFirefliesProps) => {
+  const { lt } = useLocaleText();
   const [minutes, setMinutes] = useState<MeetingMinutes | null>(null);
   const [transcripts, setTranscripts] = useState<TranscriptChunk[]>([]);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
@@ -195,7 +192,7 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
       setMinutes(generated);
     } catch (err) {
       console.error('Generate failed:', err);
-      alert('Không thể tạo biên bản. Vui lòng thử lại.');
+      alert(lt('Không thể tạo biên bản. Vui lòng thử lại.', 'Failed to generate minutes. Please try again.'));
     } finally {
       setIsGenerating(false);
     }
@@ -223,13 +220,13 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
       await loadAllData();
     } catch (err) {
       console.error('Add transcript failed:', err);
-      alert('Không thể thêm transcript. Vui lòng thử lại.');
+      alert(lt('Không thể thêm transcript. Vui lòng thử lại.', 'Failed to add transcript. Please try again.'));
     }
   };
 
   // Hidden feature: Delete all transcripts for demo
   const handleDeleteAllTranscripts = async () => {
-    if (!confirm('Bạn có chắc chắn muốn xóa tất cả transcript? Hành động này không thể hoàn tác.')) {
+    if (!confirm(lt('Bạn có chắc chắn muốn xóa tất cả transcript? Hành động này không thể hoàn tác.', 'Are you sure you want to delete all transcripts? This action cannot be undone.'))) {
       return;
     }
     try {
@@ -239,10 +236,10 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
       const api = (await import('../../../../lib/apiClient')).default;
       await api.delete(`/transcripts/${meeting.id}`);
       await loadAllData();
-      alert('Đã xóa tất cả transcript.');
+      alert(lt('Đã xóa tất cả transcript.', 'All transcripts were deleted.'));
     } catch (err) {
       console.error('Delete transcripts failed:', err);
-      alert('Không thể xóa transcript. Vui lòng thử lại.');
+      alert(lt('Không thể xóa transcript. Vui lòng thử lại.', 'Failed to delete transcripts. Please try again.'));
     }
   };
 
@@ -291,7 +288,7 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
       <div className="fireflies-layout">
         <div className="fireflies-loading">
           <div className="spinner" style={{ width: 40, height: 40 }} />
-          <p>Đang tải dữ liệu cuộc họp...</p>
+          <p>{lt('Đang tải dữ liệu cuộc họp...', 'Loading meeting data...')}</p>
         </div>
       </div>
     );
@@ -394,7 +391,7 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
   };
 
   const handleDeleteDocument = async (doc: KnowledgeDocument) => {
-    const ok = window.confirm(`Xóa tài liệu "${doc.title}"?`);
+    const ok = window.confirm(lt(`Xóa tài liệu "${doc.title}"?`, `Delete document "${doc.title}"?`));
     if (!ok) return;
 
     setDeletingDocId(doc.id);
@@ -403,7 +400,7 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
       await loadDocuments();
     } catch (err) {
       console.error('Delete session document failed:', err);
-      alert('Xóa tài liệu thất bại. Vui lòng thử lại.');
+      alert(lt('Xóa tài liệu thất bại. Vui lòng thử lại.', 'Failed to delete document. Please try again.'));
     } finally {
       setDeletingDocId(null);
     }
@@ -446,7 +443,7 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
           className="btn btn--secondary btn--sm"
           onClick={() => setShowUploadModal(true)}
           disabled={!safeMeetingId}
-          title={!safeMeetingId ? 'ID phiên không hợp lệ' : undefined}
+          title={!safeMeetingId ? lt('ID phiên không hợp lệ', 'Invalid session ID') : undefined}
         >
           {lt('Tải tài liệu', 'Upload doc')}
         </button>
@@ -484,7 +481,7 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
                     {doc.title}
                   </div>
                   <div style={{ fontSize: 11, opacity: 0.7 }}>
-                    {(doc.file_type || 'file').toUpperCase()} • {doc.source || 'Đã tải lên'}
+                    {(doc.file_type || 'file').toUpperCase()} • {doc.source || lt('Đã tải lên', 'Uploaded')}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -493,13 +490,13 @@ const LeftPanel = ({ meetingId, filters, setFilters, actionItems, transcripts }:
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn--ghost btn--icon btn--sm"
-                    title="Mở tài liệu"
+                    title={lt('Mở tài liệu', 'Open document')}
                   >
                     <Search size={12} />
                   </a>
                   <button
                     className="btn btn--ghost btn--icon btn--sm"
-                    title="Xóa tài liệu"
+                    title={lt('Xóa tài liệu', 'Delete document')}
                     disabled={deletingDocId === doc.id}
                     onClick={() => handleDeleteDocument(doc)}
                   >
@@ -637,6 +634,7 @@ const CenterPanel = ({
   videoProofText,
   setVideoProofText,
 }: CenterPanelProps) => {
+  const { lt, dateLocale, timeLocale, language } = useLocaleText();
   const [isEditingSummary, setIsEditingSummary] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [dragActive, setDragActive] = useState(false);
@@ -665,25 +663,27 @@ const CenterPanel = ({
   const handleExportPDF = () => {
     if (!minutes) return;
 
-    const formatDate = (d: string | undefined) => d ? new Date(d).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Chưa có';
-    const formatTime = (d: string | undefined) => d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+    const formatDate = (d: string | undefined) => d ? new Date(d).toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : lt('Chưa có', 'N/A');
+    const formatTime = (d: string | undefined) => d ? new Date(d).toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' }) : '';
     const priorityLabel = (value: string | undefined) => {
-      const labels: Record<string, string> = {
-        low: 'Thấp',
-        medium: 'Trung bình',
-        high: 'Cao',
-        critical: 'Khẩn cấp',
+      const labels: Record<string, [string, string]> = {
+        low: ['Thấp', 'Low'],
+        medium: ['Trung bình', 'Medium'],
+        high: ['Cao', 'High'],
+        critical: ['Khẩn cấp', 'Critical'],
       };
-      return labels[(value || '').toLowerCase()] || value || '';
+      const label = labels[(value || '').toLowerCase()];
+      return label ? lt(label[0], label[1]) : value || '';
     };
     const severityLabel = (value: string | undefined) => {
-      const labels: Record<string, string> = {
-        low: 'Thấp',
-        medium: 'Trung bình',
-        high: 'Cao',
-        critical: 'Nghiêm trọng',
+      const labels: Record<string, [string, string]> = {
+        low: ['Thấp', 'Low'],
+        medium: ['Trung bình', 'Medium'],
+        high: ['Cao', 'High'],
+        critical: ['Nghiêm trọng', 'Critical'],
       };
-      return labels[(value || '').toLowerCase()] || value || '';
+      const label = labels[(value || '').toLowerCase()];
+      return label ? lt(label[0], label[1]) : value || '';
     };
 
     // Parse minutes_markdown for action_items, decisions, risks if available
@@ -701,10 +701,10 @@ const CenterPanel = ({
     } catch { /* ignore */ }
 
     const printContent = `<!DOCTYPE html>
-<html lang="vi">
+<html lang="${language}">
 <head>
   <meta charset="UTF-8">
-  <title>Biên bản - ${meeting.title}</title>
+  <title>${lt('Biên bản', 'Minutes')} - ${meeting.title}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1f2937; background: #fff; }
@@ -769,27 +769,27 @@ const CenterPanel = ({
     <div class="header">
       <div class="header-top">
         <div class="logo">Minute</div>
-        <div class="doc-type">BIÊN BẢN CUỘC HỌP</div>
+        <div class="doc-type">${lt('BIÊN BẢN CUỘC HỌP', 'MEETING MINUTES')}</div>
       </div>
       <div class="meeting-title">${meeting.title}</div>
     </div>
     
     <!-- Meeting Info -->
     <table class="info-table">
-      <tr><td>Ngày họp</td><td>${formatDate(meeting.start_time)}</td></tr>
-      <tr><td>Thời gian</td><td>${formatTime(meeting.start_time)}${meeting.end_time ? ' - ' + formatTime(meeting.end_time) : ''}</td></tr>
-      ${meeting.meeting_type ? '<tr><td>Loại cuộc họp</td><td>' + meeting.meeting_type + '</td></tr>' : ''}
-      ${meeting.participants?.length ? '<tr><td>Người tham gia</td><td>' + meeting.participants.map(p => p.display_name || p.email).join(', ') + '</td></tr>' : ''}
+      <tr><td>${lt('Ngày họp', 'Meeting date')}</td><td>${formatDate(meeting.start_time)}</td></tr>
+      <tr><td>${lt('Thời gian', 'Time')}</td><td>${formatTime(meeting.start_time)}${meeting.end_time ? ' - ' + formatTime(meeting.end_time) : ''}</td></tr>
+      ${meeting.meeting_type ? '<tr><td>' + lt('Loại cuộc họp', 'Meeting type') + '</td><td>' + meeting.meeting_type + '</td></tr>' : ''}
+      ${meeting.participants?.length ? '<tr><td>' + lt('Người tham gia', 'Participants') + '</td><td>' + meeting.participants.map(p => p.display_name || p.email).join(', ') + '</td></tr>' : ''}
     </table>
     
     <!-- Executive Summary -->
     <div class="section">
       <div class="section-header">
         <span class="section-icon"></span>
-        <span class="section-title">Tóm tắt điều hành</span>
+        <span class="section-title">${lt('Tóm tắt điều hành', 'Executive summary')}</span>
       </div>
       <div class="summary-box">
-        <div class="summary-text">${minutes.executive_summary || 'Chưa có tóm tắt.'}</div>
+        <div class="summary-text">${minutes.executive_summary || lt('Chưa có tóm tắt.', 'No summary available.')}</div>
       </div>
     </div>
     
@@ -798,7 +798,7 @@ const CenterPanel = ({
     <div class="section">
       <div class="section-header">
         <span class="section-icon"></span>
-        <span class="section-title">Những điểm chính</span>
+        <span class="section-title">${lt('Những điểm chính', 'Key points')}</span>
         <span class="section-count">${keyPoints.length}</span>
       </div>
       <ul class="key-points">
@@ -811,17 +811,17 @@ const CenterPanel = ({
     <div class="section">
       <div class="section-header">
         <span class="section-icon"></span>
-        <span class="section-title">Công việc cần thực hiện</span>
+        <span class="section-title">${lt('Công việc cần thực hiện', 'Action items')}</span>
         <span class="section-count">${actionItems.length}</span>
       </div>
       ${actionItems.map((a: any) => `
         <div class="item-card action">
           <div class="item-desc">${a.description}</div>
           <div class="item-meta">
-            <span>👤 ${a.owner || 'Chưa phân công'}</span>
+            <span>👤 ${a.owner || lt('Chưa phân công', 'Unassigned')}</span>
             ${a.deadline ? `<span>${a.deadline}</span>` : ''}
             ${a.priority ? `<span class="badge ${a.priority}">${priorityLabel(a.priority)}</span>` : ''}
-            ${a.created_by ? `<span>Yêu cầu bởi: ${a.created_by}</span>` : ''}
+            ${a.created_by ? `<span>${lt('Yêu cầu bởi', 'Requested by')}: ${a.created_by}</span>` : ''}
           </div>
         </div>
       `).join('')}
@@ -832,7 +832,7 @@ const CenterPanel = ({
     <div class="section">
       <div class="section-header">
         <span class="section-icon"></span>
-        <span class="section-title">Các quyết định</span>
+        <span class="section-title">${lt('Các quyết định', 'Decisions')}</span>
         <span class="section-count">${decisions.length}</span>
       </div>
       ${decisions.map((d: any) => `
@@ -840,7 +840,7 @@ const CenterPanel = ({
           <div class="item-desc">${d.description}</div>
           <div class="item-meta">
             ${d.rationale ? `<span>${d.rationale}</span>` : ''}
-            ${d.decided_by || d.confirmed_by ? `<span>Quyết định bởi: ${d.decided_by || d.confirmed_by}</span>` : ''}
+            ${d.decided_by || d.confirmed_by ? `<span>${lt('Quyết định bởi', 'Decided by')}: ${d.decided_by || d.confirmed_by}</span>` : ''}
           </div>
         </div>
       `).join('')}
@@ -851,7 +851,7 @@ const CenterPanel = ({
     <div class="section">
       <div class="section-header">
         <span class="section-icon"></span>
-        <span class="section-title">Rủi ro & Vấn đề</span>
+        <span class="section-title">${lt('Rủi ro & Vấn đề', 'Risks & issues')}</span>
         <span class="section-count">${risks.length}</span>
       </div>
       ${risks.map((r: any) => `
@@ -860,7 +860,7 @@ const CenterPanel = ({
           <div class="item-meta">
             <span class="badge ${r.severity}">${severityLabel(r.severity || 'medium')}</span>
             ${r.mitigation ? `<span>${r.mitigation}</span>` : ''}
-            ${r.raised_by ? `<span>Nêu bởi: ${r.raised_by}</span>` : ''}
+            ${r.raised_by ? `<span>${lt('Nêu bởi', 'Raised by')}: ${r.raised_by}</span>` : ''}
           </div>
         </div>
       `).join('')}
@@ -868,7 +868,7 @@ const CenterPanel = ({
     
     <!-- Footer -->
     <div class="footer">
-      <p>Biên bản được tạo tự động bởi Minute AI • ${new Date().toLocaleDateString('vi-VN')}</p>
+      <p>${lt('Biên bản được tạo tự động bởi Minute AI', 'Minutes generated automatically by Minute AI')} • ${new Date().toLocaleDateString(dateLocale)}</p>
     </div>
   </div>
 </body>
@@ -892,7 +892,7 @@ const CenterPanel = ({
         allRecipients.push(...customEmail.split(',').map(e => e.trim()).filter(e => e));
       }
       if (allRecipients.length === 0) {
-        alert('Vui lòng chọn ít nhất một người nhận.');
+        alert(lt('Vui lòng chọn ít nhất một người nhận.', 'Please select at least one recipient.'));
         setIsSendingEmail(false);
         return;
       }
@@ -912,7 +912,7 @@ const CenterPanel = ({
       setCustomEmail('');
     } catch (err: any) {
       console.error('Send email failed:', err);
-      setSendSuccess(true); // giả vờ thành công để tiếp tục luồng
+      setSendSuccess(true); // Keep demo flow alive even when API call fails.
     } finally {
       setIsSendingEmail(false);
     }
@@ -928,7 +928,7 @@ const CenterPanel = ({
       setIsEditingSummary(false);
     } catch (err) {
       console.error('Save failed:', err);
-      alert('Lưu thất bại');
+      alert(lt('Lưu thất bại', 'Save failed'));
     }
   };
 
@@ -965,13 +965,18 @@ const CenterPanel = ({
         );
       } catch (inferenceErr: any) {
         console.error('Video inference failed:', inferenceErr);
-        alert(`Video đã được tải lên nhưng xử lý gặp lỗi: ${inferenceErr.message || 'Không thể tạo transcript'}. Vui lòng kiểm tra logs backend.`);
+        alert(
+          lt(
+            `Video đã được tải lên nhưng xử lý gặp lỗi: ${inferenceErr.message || 'Không thể tạo transcript'}. Vui lòng kiểm tra logs backend.`,
+            `Video uploaded, but processing failed: ${inferenceErr.message || 'Failed to create transcript'}. Please check backend logs.`,
+          ),
+        );
       } finally {
         setIsProcessingVideo(false);
       }
     } catch (err: any) {
       console.error('Upload video failed:', err);
-      alert(`Lỗi: ${err.message || 'Không thể tải lên video'}`);
+      alert(lt(`Lỗi: ${err.message || 'Không thể tải lên video'}`, `Error: ${err.message || 'Failed to upload video'}`));
     } finally {
       setIsUploadingVideo(false);
     }
@@ -997,7 +1002,7 @@ const CenterPanel = ({
       if (file.type.startsWith('video/')) {
         handleVideoUpload(file);
       } else {
-        alert('Vui lòng chọn file video');
+        alert(lt('Vui lòng chọn file video', 'Please select a video file'));
       }
     }
   };
@@ -1008,7 +1013,7 @@ const CenterPanel = ({
       if (file.type.startsWith('video/')) {
         handleVideoUpload(file);
       } else {
-        alert('Vui lòng chọn file video');
+        alert(lt('Vui lòng chọn file video', 'Please select a video file'));
       }
     }
   };
@@ -1016,7 +1021,7 @@ const CenterPanel = ({
   const handleVideoDelete = async () => {
     if (!meeting.recording_url) return;
 
-    if (!confirm('Bạn có chắc chắn muốn xóa video này? Hành động này không thể hoàn tác.')) {
+    if (!confirm(lt('Bạn có chắc chắn muốn xóa video này? Hành động này không thể hoàn tác.', 'Are you sure you want to delete this video? This action cannot be undone.'))) {
       return;
     }
 
@@ -1030,10 +1035,10 @@ const CenterPanel = ({
       await onRefresh();
       setVideoProofText(null);
 
-      alert('Video đã được xóa thành công.');
+      alert(lt('Video đã được xóa thành công.', 'Video deleted successfully.'));
     } catch (err: any) {
       console.error('Delete video failed:', err);
-      alert(`Lỗi: ${err.message || 'Không thể xóa video'}`);
+      alert(lt(`Lỗi: ${err.message || 'Không thể xóa video'}`, `Error: ${err.message || 'Failed to delete video'}`));
     }
   };
 
@@ -1079,29 +1084,29 @@ const CenterPanel = ({
       <div className="fireflies-center-header">
         <div className="fireflies-center-title">
           <Sparkles size={20} style={{ color: '#8b5cf6' }} />
-          <span>Nội dung AI tạo</span>
+          <span>{lt('Nội dung AI tạo', 'AI generated content')}</span>
         </div>
 
         <div className="fireflies-center-actions">
           {minutes && (
             <>
-              <button className="fireflies-icon-btn" onClick={startEdit} title="Chỉnh sửa">
+              <button className="fireflies-icon-btn" onClick={startEdit} title={lt('Chỉnh sửa', 'Edit')}>
                 <Edit3 size={16} />
               </button>
               <button
                 className="fireflies-icon-btn"
                 onClick={() => {
                   navigator.clipboard.writeText(minutes.executive_summary || '');
-                  alert('Đã sao chép!');
+                  alert(lt('Đã sao chép!', 'Copied!'));
                 }}
-                title="Sao chép"
+                title={lt('Sao chép', 'Copy')}
               >
                 <Copy size={16} />
               </button>
-              <button className="fireflies-icon-btn" onClick={handleExportPDF} title="Xuất PDF / In">
+              <button className="fireflies-icon-btn" onClick={handleExportPDF} title={lt('Xuất PDF / In', 'Export PDF / Print')}>
                 <Download size={16} />
               </button>
-              <button className="fireflies-icon-btn" onClick={openEmailModal} title="Gửi Email">
+              <button className="fireflies-icon-btn" onClick={openEmailModal} title={lt('Gửi Email', 'Send email')}>
                 <Mail size={16} />
               </button>
             </>
@@ -1114,7 +1119,11 @@ const CenterPanel = ({
             style={{ marginLeft: 8 }}
           >
             <Sparkles size={14} style={{ marginRight: 4 }} />
-            {isGenerating ? 'Đang tạo...' : minutes ? 'Tạo lại' : 'Tạo biên bản'}
+            {isGenerating
+              ? lt('Đang tạo...', 'Generating...')
+              : minutes
+                ? lt('Tạo lại', 'Regenerate')
+                : lt('Tạo biên bản', 'Generate minutes')}
           </button>
         </div>
       </div>
@@ -1138,7 +1147,7 @@ const CenterPanel = ({
             <div style={{ marginTop: 24, padding: '0 24px' }}>
               <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <CheckSquare size={18} color="#10b981" />
-                Việc cần làm
+                {lt('Việc cần làm', 'Action items')}
               </h3>
               <ActionItemsContent items={actionItems} />
             </div>
@@ -1156,14 +1165,16 @@ const CenterPanel = ({
           onClick={() => setShowEmailModal(false)}>
           <div style={{ background: 'var(--bg-primary)', borderRadius: '16px', padding: '24px', width: '680px', maxHeight: '85vh', overflow: 'auto', boxShadow: '0 25px 50px rgba(0,0,0,0.3)' }}
             onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 20px', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>📧 Gửi biên bản qua Email</h3>
+            <h3 style={{ margin: '0 0 20px', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>📧 {lt('Gửi biên bản qua Email', 'Send minutes by email')}</h3>
 
             {sendSuccess && (
               <div style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '10px', background: 'var(--success-subtle)', color: 'var(--text-primary)', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '18px' }}>✅</span>
                 <div>
-                  <div style={{ fontWeight: 700 }}>Đã gửi thành công</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Đã gửi biên bản đến {sentCount || 'các'} người nhận</div>
+                  <div style={{ fontWeight: 700 }}>{lt('Đã gửi thành công', 'Sent successfully')}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {lt('Đã gửi biên bản đến', 'Minutes sent to')} {sentCount || lt('các', 'selected')} {lt('người nhận', 'recipients')}
+                  </div>
                 </div>
               </div>
             )}
@@ -1172,8 +1183,10 @@ const CenterPanel = ({
             <div style={{ marginBottom: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', background: 'linear-gradient(135deg, #6366f115, #8b5cf615)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '16px' }}>👥</span>
-                <span style={{ fontWeight: 600, fontSize: '14px' }}>Thành viên cuộc họp</span>
-                <span style={{ marginLeft: 'auto', background: '#6366f1', color: 'white', padding: '2px 10px', borderRadius: '12px', fontSize: '12px' }}>{selectedParticipants.length} đã chọn</span>
+                <span style={{ fontWeight: 600, fontSize: '14px' }}>{lt('Thành viên cuộc họp', 'Meeting participants')}</span>
+                <span style={{ marginLeft: 'auto', background: '#6366f1', color: 'white', padding: '2px 10px', borderRadius: '12px', fontSize: '12px' }}>
+                  {selectedParticipants.length} {lt('đã chọn', 'selected')}
+                </span>
               </div>
               <div style={{ padding: '8px', maxHeight: '140px', overflowY: 'auto' }}>
                 {meeting.participants && meeting.participants.length > 0 ? meeting.participants.map((p, idx) => (
@@ -1181,12 +1194,12 @@ const CenterPanel = ({
                     <input type="checkbox" checked={p.email ? selectedParticipants.includes(p.email) : false} onChange={() => p.email && toggleParticipant(p.email)} disabled={!p.email} style={{ width: '16px', height: '16px', accentColor: '#6366f1' }} />
                     <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 600, fontSize: '13px' }}>{(p.display_name || p.email || '?').charAt(0).toUpperCase()}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 500, fontSize: '13px' }}>{p.display_name || p.email || 'Không rõ'}</div>
+                      <div style={{ fontWeight: 500, fontSize: '13px' }}>{p.display_name || p.email || lt('Không rõ', 'Unknown')}</div>
                       {p.email && <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{p.email}</div>}
                     </div>
-                    {!p.email && <span style={{ color: '#ef4444', fontSize: '11px' }}>Không có email</span>}
+                    {!p.email && <span style={{ color: '#ef4444', fontSize: '11px' }}>{lt('Không có email', 'No email')}</span>}
                   </label>
-                )) : <p style={{ color: 'var(--text-muted)', margin: '12px', textAlign: 'center' }}>Không có thành viên nào</p>}
+                )) : <p style={{ color: 'var(--text-muted)', margin: '12px', textAlign: 'center' }}>{lt('Không có thành viên nào', 'No participants')}</p>}
               </div>
             </div>
 
@@ -1194,7 +1207,7 @@ const CenterPanel = ({
             <div style={{ marginBottom: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', background: 'linear-gradient(135deg, #f59e0b15, #ef444415)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '16px' }}>✉️</span>
-                <span style={{ fontWeight: 600, fontSize: '14px' }}>Email khác (tùy chọn)</span>
+                <span style={{ fontWeight: 600, fontSize: '14px' }}>{lt('Email khác (tùy chọn)', 'Other emails (optional)')}</span>
               </div>
               <div style={{ padding: '12px' }}>
                 <input type="text" value={customEmail} onChange={(e) => setCustomEmail(e.target.value)} placeholder="email1@example.com, email2@example.com"
@@ -1206,14 +1219,14 @@ const CenterPanel = ({
             <div style={{ marginBottom: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', background: 'linear-gradient(135deg, #10b98115, #14b8a615)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '16px' }}>📄</span>
-                <span style={{ fontWeight: 600, fontSize: '14px' }}>Biên bản sẽ gửi</span>
+                <span style={{ fontWeight: 600, fontSize: '14px' }}>{lt('Biên bản sẽ gửi', 'Minutes preview')}</span>
               </div>
               <div style={{ padding: '16px', maxHeight: '160px', overflowY: 'auto' }}>
                 <div style={{ background: 'white', borderRadius: '8px', padding: '16px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
                   <h4 style={{ margin: '0 0 8px', color: '#1a1a2e', fontSize: '15px' }}>{meeting.title}</h4>
-                  <p style={{ fontSize: '11px', color: '#666', margin: '0 0 10px' }}>{meeting.start_time ? new Date(meeting.start_time).toLocaleDateString('vi-VN') : 'N/A'}</p>
+                  <p style={{ fontSize: '11px', color: '#666', margin: '0 0 10px' }}>{meeting.start_time ? new Date(meeting.start_time).toLocaleDateString(dateLocale) : 'N/A'}</p>
                   <div style={{ fontSize: '12px', color: '#333', lineHeight: 1.5 }}>
-                    <strong>Tóm tắt:</strong> {(minutes?.executive_summary || 'Chưa có').slice(0, 200)}{(minutes?.executive_summary?.length || 0) > 200 ? '...' : ''}
+                    <strong>{lt('Tóm tắt', 'Summary')}:</strong> {(minutes?.executive_summary || lt('Chưa có', 'N/A')).slice(0, 200)}{(minutes?.executive_summary?.length || 0) > 200 ? '...' : ''}
                   </div>
                 </div>
               </div>
@@ -1221,10 +1234,14 @@ const CenterPanel = ({
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button className="btn btn--ghost" onClick={() => setShowEmailModal(false)}>Hủy</button>
+              <button className="btn btn--ghost" onClick={() => setShowEmailModal(false)}>{lt('Hủy', 'Cancel')}</button>
               <button className="btn btn--primary" onClick={handleSendEmail} disabled={(selectedParticipants.length === 0 && !customEmail.trim()) || isSendingEmail}
                 style={{ minWidth: '140px' }}>
-                {isSendingEmail ? 'Đang gửi...' : sendSuccess ? 'Đã gửi' : `Gửi Email (${selectedParticipants.length + (customEmail.trim() ? customEmail.split(',').filter(e => e.trim()).length : 0)})`}
+                {isSendingEmail
+                  ? lt('Đang gửi...', 'Sending...')
+                  : sendSuccess
+                    ? lt('Đã gửi', 'Sent')
+                    : `${lt('Gửi Email', 'Send email')} (${selectedParticipants.length + (customEmail.trim() ? customEmail.split(',').filter(e => e.trim()).length : 0)})`}
               </button>
             </div>
           </div>
@@ -1244,6 +1261,7 @@ interface RightPanelProps {
 }
 
 const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDeleteAllTranscripts }: RightPanelProps) => {
+  const { lt } = useLocaleText();
   const [searchInTranscript, setSearchInTranscript] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [bulkInput, setBulkInput] = useState('');
@@ -1303,7 +1321,7 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
       onAddTranscripts(newTranscripts);
       setBulkInput('');
       setShowAddModal(false);
-      alert(`Đã thêm ${newTranscripts.length} transcript entries.`);
+      alert(lt(`Đã thêm ${newTranscripts.length} transcript entries.`, `Added ${newTranscripts.length} transcript entries.`));
     }
   };
 
@@ -1322,10 +1340,10 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
           className="fireflies-right-title"
           onClick={handleTitleClick}
           style={{ cursor: 'pointer' }}
-          title="Shift+Click để thêm bản chép lời thủ công"
+          title={lt('Shift+Click để thêm bản chép lời thủ công', 'Shift+Click to add transcript manually')}
         >
           <span></span>
-          Bản chép lời
+          {lt('Bản chép lời', 'Transcript')}
         </h3>
 
         <div className="fireflies-search fireflies-search--sm">
@@ -1334,7 +1352,7 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
           </div>
           <input
             className="fireflies-search__input"
-            placeholder="Tìm trong bản chép lời"
+            placeholder={lt('Tìm trong bản chép lời', 'Search transcript')}
             value={searchInTranscript}
             onChange={(e) => setSearchInTranscript(e.target.value)}
           />
@@ -1345,22 +1363,29 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
       <div className="fireflies-transcript-list">
         {filteredTranscripts.length === 0 ? (
           <div className="fireflies-empty">
-            <p>Không có transcript nào phù hợp với bộ lọc</p>
+            <p>{lt('Không có transcript nào phù hợp với bộ lọc', 'No transcripts match the current filters')}</p>
           </div>
         ) : (
           filteredTranscripts.map((chunk) => {
             const matchesSearch =
               searchInTranscript && chunk.text.toLowerCase().includes(searchInTranscript.toLowerCase());
+            const rawSpeaker = (chunk.speaker || '').trim();
+            const isGenericSpeaker = /^(s|speaker[\s_-]*\d+)$/i.test(rawSpeaker);
+            const displaySpeaker = rawSpeaker && !isGenericSpeaker ? rawSpeaker : '';
 
             return (
               <div key={chunk.id} className={`fireflies-transcript-item ${matchesSearch ? 'highlight' : ''}`}>
                 <div className="fireflies-transcript-header">
-                  <div className="fireflies-speaker">
-                    <div className="fireflies-speaker-avatar">
-                      {chunk.speaker ? chunk.speaker.charAt(0).toUpperCase() : '?'}
+                  {displaySpeaker ? (
+                    <div className="fireflies-speaker">
+                      <div className="fireflies-speaker-avatar">
+                        {displaySpeaker.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="fireflies-speaker-name">{displaySpeaker}</span>
                     </div>
-                    <span className="fireflies-speaker-name">{chunk.speaker || 'Không rõ'}</span>
-                  </div>
+                  ) : (
+                    <div className="fireflies-speaker" aria-hidden="true" />
+                  )}
                   <span className="fireflies-timestamp">{formatTime(chunk.start_time)}</span>
                 </div>
                 <div className="fireflies-transcript-text">
@@ -1401,14 +1426,17 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: '0 0 16px', fontSize: '18px' }}>🎭 Demo Mode - Thêm Transcript Thủ Công</h3>
+            <h3 style={{ margin: '0 0 16px', fontSize: '18px' }}>🎭 {lt('Demo Mode - Thêm Transcript Thủ Công', 'Demo Mode - Add Transcript Manually')}</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              Nhập transcript theo format: <code>Tên người: Nội dung nói</code> (mỗi dòng một phát ngôn)
+              {lt('Nhập transcript theo format', 'Enter transcript in the format')}: <code>{lt('Tên người: Nội dung nói', 'Speaker Name: Spoken content')}</code> ({lt('mỗi dòng một phát ngôn', 'one utterance per line')})
             </p>
             <textarea
               value={bulkInput}
               onChange={(e) => setBulkInput(e.target.value)}
-              placeholder={`Quân: Ok, mình khai mạc phiên họp Hội đồng quản trị về dự án ORION giai đoạn 1 nhé.\nĐạt: Em chuyển sang phần ngân sách để Hội đồng quản trị nắm bức tranh tổng quan nhé.\nPhước: Có 2 rủi ro mức độ đỏ cần điều kiện bắt buộc.`}
+              placeholder={lt(
+                `Quân: Ok, mình khai mạc phiên họp Hội đồng quản trị về dự án ORION giai đoạn 1 nhé.\nĐạt: Em chuyển sang phần ngân sách để Hội đồng quản trị nắm bức tranh tổng quan nhé.\nPhước: Có 2 rủi ro mức độ đỏ cần điều kiện bắt buộc.`,
+                `Alex: Let's kick off the board meeting for ORION phase 1.\nJordan: I'll walk through the budget to give everyone the big picture.\nTaylor: We have 2 high-risk blockers that need mandatory mitigation.`,
+              )}
               style={{
                 width: '100%',
                 height: '300px',
@@ -1432,21 +1460,21 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
                   }
                 }}
               >
-                🗑 Xóa tất cả transcript
+                🗑 {lt('Xóa tất cả transcript', 'Delete all transcripts')}
               </button>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   className="btn btn--ghost"
                   onClick={() => setShowAddModal(false)}
                 >
-                  Hủy
+                  {lt('Hủy', 'Cancel')}
                 </button>
                 <button
                   className="btn btn--primary"
                   onClick={handleBulkAdd}
                   disabled={!bulkInput.trim()}
                 >
-                  Thêm bản chép lời
+                  {lt('Thêm bản chép lời', 'Add transcript')}
                 </button>
               </div>
             </div>
@@ -1712,6 +1740,7 @@ const SummaryContent = ({
   onSave: () => void;
   onCancel: () => void;
 }) => {
+  const { lt } = useLocaleText();
   const summary = minutes.executive_summary || minutes.minutes_markdown || '';
 
   // Extract keywords (simple)
@@ -1722,7 +1751,7 @@ const SummaryContent = ({
       {/* Keywords */}
       {keywords.length > 0 && (
         <div className="fireflies-keywords">
-          <span className="fireflies-keywords__title">Từ khóa:</span>
+          <span className="fireflies-keywords__title">{lt('Từ khóa', 'Keywords')}:</span>
           {keywords.map((kw, i) => (
             <span key={i} className="fireflies-keyword">
               "{kw}"
@@ -1744,11 +1773,11 @@ const SummaryContent = ({
           <div className="fireflies-edit-actions">
             <button className="btn btn--sm btn--ghost" onClick={onCancel}>
               <X size={14} style={{ marginRight: 4 }} />
-              Hủy
+              {lt('Hủy', 'Cancel')}
             </button>
             <button className="btn btn--sm btn--primary" onClick={onSave}>
               <Check size={14} style={{ marginRight: 4 }} />
-              Lưu
+              {lt('Lưu', 'Save')}
             </button>
           </div>
         </div>
@@ -1762,16 +1791,17 @@ const SummaryContent = ({
 };
 
 const ActionItemsContent = ({ items }: { items: ActionItem[] }) => {
-  const priorityLabel: Record<string, string> = {
-    low: 'Thấp',
-    medium: 'Trung bình',
-    high: 'Cao',
-    critical: 'Khẩn cấp',
+  const { lt, dateLocale } = useLocaleText();
+  const priorityLabel: Record<string, [string, string]> = {
+    low: ['Thấp', 'Low'],
+    medium: ['Trung bình', 'Medium'],
+    high: ['Cao', 'High'],
+    critical: ['Khẩn cấp', 'Critical'],
   };
   return (
     <div className="fireflies-actions-list">
       {items.length === 0 ? (
-        <div className="fireflies-empty">Không có việc cần làm</div>
+        <div className="fireflies-empty">{lt('Không có việc cần làm', 'No action items')}</div>
       ) : (
         items.map((item, i) => (
           <div key={item.id} className="fireflies-action-item">
@@ -1788,11 +1818,13 @@ const ActionItemsContent = ({ items }: { items: ActionItem[] }) => {
                 {item.due_date && (
                   <span className="fireflies-meta-tag">
                     <Calendar size={12} />
-                    {new Date(item.due_date).toLocaleDateString('vi-VN')}
+                    {new Date(item.due_date).toLocaleDateString(dateLocale)}
                   </span>
                 )}
                 <span className={`fireflies-priority fireflies-priority--${item.priority}`}>
-                  {priorityLabel[item.priority || ''] || item.priority}
+                  {priorityLabel[item.priority || '']
+                    ? lt(priorityLabel[item.priority || ''][0], priorityLabel[item.priority || ''][1])
+                    : item.priority}
                 </span>
               </div>
             </div>
@@ -1804,25 +1836,26 @@ const ActionItemsContent = ({ items }: { items: ActionItem[] }) => {
 };
 
 const DecisionsContent = ({ items, risks }: { items: DecisionItem[]; risks: RiskItem[] }) => {
-  const severityLabel: Record<string, string> = {
-    low: 'Thấp',
-    medium: 'Trung bình',
-    high: 'Cao',
-    critical: 'Nghiêm trọng',
+  const { lt } = useLocaleText();
+  const severityLabel: Record<string, [string, string]> = {
+    low: ['Thấp', 'Low'],
+    medium: ['Trung bình', 'Medium'],
+    high: ['Cao', 'High'],
+    critical: ['Nghiêm trọng', 'Critical'],
   };
   return (
     <div className="fireflies-decisions-list">
       {/* Decisions */}
       {items.length > 0 && (
         <div className="fireflies-decisions-group">
-          <h4 className="fireflies-group-title">💡 Quyết định chính</h4>
+          <h4 className="fireflies-group-title">💡 {lt('Quyết định chính', 'Key decisions')}</h4>
           {items.map((item, i) => (
             <div key={item.id} className="fireflies-decision-item">
               <div className="fireflies-decision-number">{i + 1}</div>
               <div className="fireflies-decision-content">
                 <div className="fireflies-decision-title">{item.title}</div>
-                {item.rationale && <div className="fireflies-decision-subtitle">Lý do: {item.rationale}</div>}
-                {item.impact && <div className="fireflies-decision-subtitle">Tác động: {item.impact}</div>}
+                {item.rationale && <div className="fireflies-decision-subtitle">{lt('Lý do', 'Rationale')}: {item.rationale}</div>}
+                {item.impact && <div className="fireflies-decision-subtitle">{lt('Tác động', 'Impact')}: {item.impact}</div>}
               </div>
             </div>
           ))}
@@ -1832,15 +1865,17 @@ const DecisionsContent = ({ items, risks }: { items: DecisionItem[]; risks: Risk
       {/* Risks */}
       {risks.length > 0 && (
         <div className="fireflies-decisions-group" style={{ marginTop: 24 }}>
-          <h4 className="fireflies-group-title">⚠️ Rủi ro đã nhận diện</h4>
+          <h4 className="fireflies-group-title">⚠️ {lt('Rủi ro đã nhận diện', 'Identified risks')}</h4>
           {risks.map((item) => (
             <div key={item.id} className="fireflies-risk-item">
               <div className={`fireflies-risk-badge fireflies-risk-badge--${item.severity}`}>
-                {severityLabel[item.severity || ''] || item.severity}
+                {severityLabel[item.severity || '']
+                  ? lt(severityLabel[item.severity || ''][0], severityLabel[item.severity || ''][1])
+                  : item.severity}
               </div>
               <div className="fireflies-risk-content">
                 <div className="fireflies-risk-title">{item.title}</div>
-                {item.mitigation && <div className="fireflies-risk-subtitle">Giảm thiểu: {item.mitigation}</div>}
+                {item.mitigation && <div className="fireflies-risk-subtitle">{lt('Giảm thiểu', 'Mitigation')}: {item.mitigation}</div>}
               </div>
             </div>
           ))}
@@ -1848,29 +1883,30 @@ const DecisionsContent = ({ items, risks }: { items: DecisionItem[]; risks: Risk
       )}
 
       {items.length === 0 && risks.length === 0 && (
-        <div className="fireflies-empty">Không có quyết định hoặc rủi ro</div>
+        <div className="fireflies-empty">{lt('Không có quyết định hoặc rủi ro', 'No decisions or risks')}</div>
       )}
     </div>
   );
 };
 
 const EmptyAIContent = ({ onGenerate, isGenerating }: { onGenerate: () => void; isGenerating: boolean }) => {
+  const { lt } = useLocaleText();
   return (
     <div className="fireflies-empty-ai">
       <div className="fireflies-empty-ai__icon">
         <Sparkles size={64} strokeWidth={1} />
       </div>
-      <h3 className="fireflies-empty-ai__title">Tạo biên bản cuộc họp với AI</h3>
+      <h3 className="fireflies-empty-ai__title">{lt('Tạo biên bản cuộc họp với AI', 'Generate meeting minutes with AI')}</h3>
       <p className="fireflies-empty-ai__description">
-        AI sẽ phân tích bản chép lời và tạo:
-        <br />• Tóm tắt điều hành
-        <br />• Việc cần làm và người phụ trách
-        <br />• Quyết định chính và tác động
-        <br />• Rủi ro đã nhận diện
+        {lt('AI sẽ phân tích bản chép lời và tạo:', 'AI will analyze the transcript and generate:')}
+        <br />• {lt('Tóm tắt điều hành', 'Executive summary')}
+        <br />• {lt('Việc cần làm và người phụ trách', 'Action items and owners')}
+        <br />• {lt('Quyết định chính và tác động', 'Key decisions and impact')}
+        <br />• {lt('Rủi ro đã nhận diện', 'Identified risks')}
       </p>
       <button className="btn btn--primary btn--lg" onClick={onGenerate} disabled={isGenerating}>
         <Sparkles size={18} style={{ marginRight: 8 }} />
-        {isGenerating ? 'Đang tạo biên bản...' : 'Tạo với AI'}
+        {isGenerating ? lt('Đang tạo biên bản...', 'Generating minutes...') : lt('Tạo với AI', 'Generate with AI')}
       </button>
     </div>
   );

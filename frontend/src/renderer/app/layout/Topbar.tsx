@@ -15,7 +15,7 @@ const Topbar = () => {
 
   const [searchTerm, setSearchTerm] = useState('')
   const toggleLanguage = () => setLanguage(language === 'vi' ? 'en' : 'vi')
-  const languageSwitchLabel = language === 'vi' ? 'EN' : 'VI'
+  const languageSwitchLabel = language === 'vi' ? 'VI' : 'EN'
 
   const routeTitles: Record<string, string> = useMemo(() => ({
     '/': 'Home',

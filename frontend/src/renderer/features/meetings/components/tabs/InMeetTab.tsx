@@ -919,15 +919,22 @@ const RealtimeTranscriptPanel = ({
                 const matchesSearch =
                   searchInTranscript.trim().length > 0 &&
                   chunk.text.toLowerCase().includes(searchInTranscript.trim().toLowerCase());
+                const rawSpeaker = String(chunk.speaker || '').trim();
+                const isGenericSpeaker = /^(s|speaker[\s_-]*\d+)$/i.test(rawSpeaker);
+                const displaySpeaker = rawSpeaker && !isGenericSpeaker ? rawSpeaker : '';
                 return (
                   <div key={chunk.id} className={`fireflies-transcript-item ${matchesSearch ? 'highlight' : ''}`}>
                     <div className="fireflies-transcript-header">
-                      <div className="fireflies-speaker">
-                        <div className="fireflies-speaker-avatar">
-                          {chunk.speaker ? chunk.speaker.charAt(0).toUpperCase() : 'S'}
+                      {displaySpeaker ? (
+                        <div className="fireflies-speaker">
+                          <div className="fireflies-speaker-avatar">
+                            {displaySpeaker.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="fireflies-speaker-name">{displaySpeaker}</span>
                         </div>
-                        <span className="fireflies-speaker-name">{chunk.speaker || 'SPEAKER_01'}</span>
-                      </div>
+                      ) : (
+                        <div className="fireflies-speaker" aria-hidden="true" />
+                      )}
                       <span className="fireflies-timestamp">{formatDuration(Math.max(0, Math.floor(chunk.time || 0)))}</span>
                     </div>
                     <div className="fireflies-transcript-text">{highlightText(chunk.text)}</div>
