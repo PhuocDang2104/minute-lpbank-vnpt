@@ -1440,7 +1440,7 @@ async def query_knowledge_ai(
             context_parts.append(f"[Inline snippet {idx} | score=0.500] {snippet}")
             citations.append(f"Inline snippet {idx}")
 
-    context = "\n".join(context_parts) if context_parts else "Không có ngữ cảnh liên quan."
+    context = "\n".join(context_parts) if context_parts else "No relevant context found."
     citations = list(dict.fromkeys(citations))
 
     # If no context at all, avoid repeating 'Không đủ dữ liệu', give gentle ask for clarification
@@ -1450,15 +1450,16 @@ async def query_knowledge_ai(
             try:
                 chat = GeminiChat(
                     system_prompt=(
-                        "Bạn là MINUTE Knowledge Assistant. Trả lời ngắn gọn, tiếng Việt. "
-                        "Không bịa; nếu thiếu dữ liệu, nói rõ và gợi ý người dùng cung cấp thêm."
+                        "You are MINUTE Knowledge Assistant. Respond concisely in English. "
+                        "Respond in English even if the question is in Vietnamese. "
+                        "Do not hallucinate; if evidence is missing, say so clearly and ask for more context."
                     )
                 )
-                prompt = f"""Câu hỏi: {request.query}
-Hiện chưa tìm thấy tài liệu, transcript hoặc visual context phù hợp trong session.
-Hãy:
-- Nói rõ chưa có ngữ cảnh khớp và đề nghị người dùng mô tả thêm.
-- Sau đó đưa ra gợi ý chung (mang tính kiến thức nền, có thể không chính xác tuyệt đối)."""
+                prompt = f"""Question: {request.query}
+No relevant documents, transcript, or visual context were found for this session.
+Please:
+- Clearly state that there is no matching evidence yet, and ask the user to provide more details or upload relevant materials.
+- Then provide a brief, general suggestion (high-level background that may not be specific to this session)."""
                 answer = await chat.chat(prompt)
                 return KnowledgeQueryResponse(
                     answer=answer,
@@ -1469,7 +1470,7 @@ Hãy:
             except Exception as exc:
                 logger.error("LLM generic fallback failed: %s", exc)
         return KnowledgeQueryResponse(
-            answer="Mình chưa thấy ngữ cảnh liên quan trong session (docs/transcript/visual). Bạn mô tả rõ hơn chủ đề nhé.",
+            answer="I couldn't find relevant context in this session (docs/transcript/visual). Please describe what you need or upload the relevant materials.",
             relevant_documents=[],
             confidence=0.3,
             citations=[],
@@ -1480,21 +1481,22 @@ Hãy:
         try:
             chat = GeminiChat(
                 system_prompt=(
-                    "Bạn là MINUTE RAG Assistant. Trả lời ngắn gọn bằng tiếng Việt. "
-                    "Chỉ dùng thông tin trong Context (docs, transcript, visual). "
-                    "Nếu context chỉ phản ánh một phần cuộc họp, vẫn phải trả lời phần chắc chắn và ghi rõ phạm vi."
+                    "You are MINUTE RAG Assistant. Respond concisely in English. "
+                    "Respond in English even if the question is in Vietnamese. "
+                    "Use ONLY the information inside Context (docs, transcript, visual). "
+                    "If Context covers only part of a meeting/session, answer what is supported and clearly state the scope."
                 )
             )
-            prompt = f"""Câu hỏi: {request.query}
+            prompt = f"""Question: {request.query}
 
 Context (top chunks):
 {context}
 
-Yêu cầu:
-- Trả lời ngắn gọn, không markdown.
-- Nếu dùng thông tin, nêu rõ nguồn trong ngoặc [] (có thể là tài liệu, transcript chunk, visual event).
-- Nếu dữ liệu chỉ là một phần, hãy tóm tắt phần đó trước, sau đó ghi rõ "phạm vi hiện có chỉ gồm ...".
-- Chỉ trả lời "không đủ dữ liệu" khi context thực sự rỗng hoặc vô nghĩa."""
+Requirements:
+- Respond concisely, no markdown.
+- When using evidence, cite the source in brackets [] (document title, transcript chunk, or visual event).
+- If the data only covers a subset, briefly summarize what is covered, then state: \"current evidence only includes ...\".
+- Only say \"insufficient evidence\" when Context is truly empty or meaningless."""
             answer = await chat.chat(prompt)
             confidence = 0.90 if relevant_docs else 0.60
             if best_score is not None:
@@ -1510,9 +1512,9 @@ Yêu cầu:
 
     # Fallback response
     if relevant_docs:
-        answer = f"Tìm thấy {len(relevant_docs)} tài liệu liên quan: {', '.join([d.title for d in relevant_docs[:3]])}"
+        answer = f"Found {len(relevant_docs)} relevant documents: {', '.join([d.title for d in relevant_docs[:3]])}"
     else:
-        answer = "Không tìm thấy thông tin liên quan trong session knowledge base."
+        answer = "No relevant information was found in this session knowledge base."
 
     return KnowledgeQueryResponse(
         answer=answer,

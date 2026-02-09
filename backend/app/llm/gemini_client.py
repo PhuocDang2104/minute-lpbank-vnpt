@@ -30,23 +30,23 @@ def _compose_effective_system_prompt(
         return prompt_parts[0] if prompt_parts[0] else ""
     behavior_lines: List[str] = []
     if llm_config.behavior_note_style:
-        behavior_lines.append(f"- Độ chi tiết mong muốn: {llm_config.behavior_note_style}")
+        behavior_lines.append(f"- Desired detail level: {llm_config.behavior_note_style}")
     if llm_config.behavior_tone:
-        behavior_lines.append(f"- Văn phong mong muốn: {llm_config.behavior_tone}")
+        behavior_lines.append(f"- Desired tone/style: {llm_config.behavior_tone}")
     if llm_config.behavior_cite_evidence is True:
-        behavior_lines.append("- Luôn đính kèm bằng chứng/timestamp/tài liệu khi có.")
+        behavior_lines.append("- Always include evidence (timestamps/documents) when available.")
     elif llm_config.behavior_cite_evidence is False:
-        behavior_lines.append("- Không bắt buộc trích dẫn bằng chứng nếu không cần.")
+        behavior_lines.append("- Evidence/citations are optional unless needed.")
     if llm_config.behavior_profile:
-        behavior_lines.append(f"- Hồ sơ người dùng:\n{llm_config.behavior_profile}")
+        behavior_lines.append(f"- User profile:\n{llm_config.behavior_profile}")
     if behavior_lines:
         prompt_parts.append(
-            "User behavior settings (ưu tiên khi trả lời, không vượt qua quy tắc an toàn):\n"
+            "User behavior settings (high priority within safety rules):\n"
             + "\n".join(behavior_lines)
         )
     if llm_config.master_prompt:
         prompt_parts.append(
-            "User master prompt (ưu tiên cao nhất trong phạm vi an toàn):\n"
+            "User master prompt (highest priority within safety rules):\n"
             + llm_config.master_prompt.strip()
         )
     return "\n\n".join([p for p in prompt_parts if p])
@@ -302,7 +302,7 @@ class GeminiChat:
     ):
         base_system_prompt = system_prompt or self._default_system_prompt()
         self.system_prompt = _compose_effective_system_prompt(base_system_prompt, llm_config)
-        self.mock_response = mock_response or "AI đang ở chế độ mock (chưa cấu hình API Key)."
+        self.mock_response = mock_response or "AI is running in mock mode (no API key configured)."
         self.history: List[Dict[str, str]] = []
         
         provider_override = llm_config.provider if llm_config else None
@@ -322,21 +322,21 @@ class GeminiChat:
             self.api_key = None
     
     def _default_system_prompt(self) -> str:
-        return """Bạn là MINUTE AI Assistant — trợ lý thông minh cho meetings & study sessions.
+        return """You are MINUTE AI Assistant — an intelligent copilot for meetings and study sessions.
 
-Sứ mệnh:
-1) Pre-meeting: gợi ý agenda, pre-read, tài liệu liên quan.
-2) In-meeting: recap theo mốc thời gian, nhận diện action/decision/risk.
-3) Post-meeting: tạo biên bản, summary, notes, next steps.
-4) Study mode: trích xuất khái niệm, ví dụ, tạo quiz ôn tập.
-5) Q&A: trả lời theo ngữ cảnh dựa trên transcript/summary/tài liệu.
-6) Multimodal: nếu có "visual_context"/ghi chú khung hình, hãy dùng để giải thích đúng ngữ cảnh.
+Mission:
+1) Pre-meeting: suggest agendas, pre-read packs, and relevant documents.
+2) In-meeting: produce time-aware recaps and detect actions/decisions/risks.
+3) Post-meeting: generate minutes, summaries, notes, and next steps.
+4) Study mode: extract key concepts, examples, and create practice quizzes.
+5) Q&A: answer grounded in transcript/summary/documents.
+6) Multimodal: if "visual_context" or frame notes exist, use them to ground answers.
 
-Nguyên tắc bắt buộc:
-- Chỉ dùng dữ liệu được cung cấp (context/transcript/doc). Khi dữ liệu thiếu, vẫn trả lời bằng phần chắc chắn và ghi rõ phần chưa đủ bằng chứng.
-- Không bịa, không suy đoán ngoài ngữ cảnh. Ưu tiên câu trả lời ngắn gọn, rõ ràng.
-- Nếu cần xác nhận hoặc hành động (tool-calling), luôn hỏi lại trước khi thực hiện (human-in-the-loop).
-- Trả lời tiếng Việt, giọng chuyên nghiệp nhưng thân thiện.
+Hard rules:
+- Use ONLY the data provided (context/transcript/docs). If data is missing, answer what is supported and state what is unknown.
+- Do not hallucinate or speculate beyond the provided context. Prefer concise, clear answers.
+- If an action or tool call is needed, ask for confirmation first (human-in-the-loop).
+- Respond in English even if the user writes in Vietnamese.
 """
 
     async def chat(self, message: str, context: Optional[str] = None) -> str:

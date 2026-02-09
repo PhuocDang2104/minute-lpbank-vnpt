@@ -35,7 +35,7 @@ def _get_meeting_context(db: Session, meeting_id: Optional[str]) -> Tuple[Option
     if not row:
         return None, None
 
-    context = f"Cuoc hop: {row[0]} | Loai: {row[1]} | Du an: {row[3]}"
+    context = f"Meeting: {row[0]} | Type: {row[1]} | Project: {row[3]}"
     return context, row[4]
 
 
@@ -46,7 +46,7 @@ def _to_citations(docs) -> list[Citation]:
             Citation(
                 title=doc.title,
                 source=doc.source,
-                snippet=(doc.description or "Tai lieu lien quan trong session/project")[:240],
+                snippet=(doc.description or "Relevant document in this session/project")[:240],
                 url=doc.file_url,
             )
         )
@@ -80,8 +80,10 @@ async def query_rag(
 
     rag_result = await knowledge_service.query_knowledge_ai(db, knowledge_request)
     answer = rag_result.answer
-    if meeting_context and "Khong co ngu canh" in answer:
-        answer = f"{meeting_context}. {answer}"
+    if meeting_context:
+        normalized = (answer or "").lower()
+        if "no relevant context" in normalized or "couldn't find relevant context" in normalized:
+            answer = f"{meeting_context}. {answer}"
 
     citations = _to_citations(rag_result.relevant_documents)
     confidence = float(rag_result.confidence or 0.5)

@@ -38,6 +38,10 @@ import { knowledgeApi, type KnowledgeDocument } from '../../../../lib/api/knowle
 import { UploadDocumentModal } from '../../../../components/UploadDocumentModal';
 import { useLocaleText } from '../../../../i18n/useLocaleText';
 
+// Fallback to avoid runtime ReferenceError in case a UI branch calls `lt(...)`
+// before locale hook is wired in that local component scope.
+const lt = (vi: string, en: string) => en || vi;
+
 interface PostMeetTabFirefliesProps {
   meeting: MeetingWithParticipants;
   onRefresh: () => void;

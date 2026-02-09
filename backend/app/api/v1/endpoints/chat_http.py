@@ -66,10 +66,10 @@ HOME_ASK_SYSTEM_PROMPT = f"""Ban la MINUTE Assistant.
 
 Quy tac bat buoc:
 - Chi su dung thong tin nam trong <context>.
-- Neu cau hoi khong nam trong context hoac qua chuyen sau/ngoai pham vi, tra loi: "Minh chua co thong tin ve noi dung do trong tai lieu MINUTE hien tai. Ban co the hoi ve MINUTE, chuc nang va luong trai nghiem."
+- Neu cau hoi khong nam trong context hoac qua chuyen sau/ngoai pham vi, tra loi: "I don't have that information in the current MINUTE context. You can ask me about MINUTE, its features, and the user journey."
 - Neu nguoi dung chao hoi, cam on, chia se cam xuc hoac hoi dap giao tiep co ban, hay phan hoi than thien va goi y co the hoi ve MINUTE.
 - Khong bịa, khong suy doan ngoai context, khong dua thong tin moi.
-- Tra loi bang tieng Viet, van noi tu nhien, 1-5 cau, khong markdown.
+- Respond in English, natural tone, 1-5 sentences, no markdown.
 
 <context>
 {HOME_ASK_CONTEXT}
@@ -77,9 +77,9 @@ Quy tac bat buoc:
 """
 
 HOME_ASK_MOCK_RESPONSE = (
-    "MINUTE la tro ly thong minh cho meetings va study sessions. "
-    "Ung dung ho tro live recap, hoi dap theo ngu canh, va tao bien ban sau buoi hop. "
-    "Co the upload record, tao transcript + summary + action/quiz, va tra loi theo tai lieu lien quan."
+    "MINUTE is an intelligent copilot for meetings and study sessions. "
+    "It supports live recap, context-grounded Q&A, and post-session minutes. "
+    "You can upload recordings to generate transcript + summary + actions/quizzes and ask questions grounded in related documents."
 )
 
 
@@ -165,7 +165,7 @@ async def test_llm():
         return {"success": False, "error": "No API key configured", "status": status}
     try:
         chat = GeminiChat()
-        response = await chat.chat("Say hello in Vietnamese.")
+        response = await chat.chat("Say hello in English.")
         return {
             "success": True,
             "response": response,
