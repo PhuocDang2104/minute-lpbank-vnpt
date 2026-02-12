@@ -1,178 +1,171 @@
-﻿# MeetMate - Agentic S/CRAG AI Meeting Co-Host for BFSI (VNPT AI Hackathon 2025 | Track 1)
+# MINUTE - Multimodal Meeting & Study Companion (Gemini Hackathon 3)
 
-**Desktop app/web + Meetings (VNPT GoMeet | Google Meet) add-in concept | VNPT AI API | S/CRAG | Tool-Calling**
+**Web app + Realtime/Record processing | Gemini 3 API | Tiered LightRAG | Tool-calling (human-in-the-loop)**
 
-MeetMate chuẩn hóa vòng đời cuộc họp cho doanh nghiệp BFSI/LPBank: thu thập ngữ cảnh trước họp, hỗ trợ realtime trong họp, và phát hành biên bản + action items sau họp - tất cả có trích dẫn, audit và kiểm soát quyền truy cập.
+MINUTE standardizes the lifecycle of a session (meeting or study): realtime support during the session, post-session summarization, and context-aware Q&A with citations. The system prioritizes grounded answers from internal materials, while allowing controlled web-search expansion through policy and user approval.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Desktop-Electron%20%2B%20Vite%20%2B%20React-1f6feb" alt="Desktop">
-  <img src="https://img.shields.io/badge/Backend-Weebsocket%20%2B%20FastAPI%20%2B%20Postgres-2da44e" alt="Backend">
-  <img src="https://img.shields.io/badge/AI-LangGraph%20%2B%20RAG%20%2B%20Tool--Calling-f97316" alt="AI">
-  <img src="https://img.shields.io/badge/VNPT-SmartVoice%20%7C%20SmartBot%20%7C%20SmartReader%20%7C%20SmartUX-0ea5e9" alt="VNPT">
+  <img src="https://img.shields.io/badge/Client-Web%20App%20%2B%20Vite%20%2B%20React-1f6feb" alt="Client">
+  <img src="https://img.shields.io/badge/Backend-WebSocket%20%2B%20FastAPI%20%2B%20Postgres-2da44e" alt="Backend">
+  <img src="https://img.shields.io/badge/AI-Gemini%203%20%2B%20LightRAG%20%2B%20Tool--Calling-f97316" alt="AI">
+  <img src="https://img.shields.io/badge/Realtime-ASR%20%2B%20Visual%20Timeline%20%2B%20Recap-0ea5e9" alt="Realtime">
 </p>
 
-## Mục lục
-- **Product**: [Overview](#overview) · [Problem Summary](#problem-summary) · [Solution Overview (Pre/In/Post)](#solution-overview-preinpost) · [Product Goals & Target Users](#product-goals--target-users)
-- **Architecture**: [SAAR AI Architecture](#saar-ai-architecture) · [System Architecture (4 Layers)](#system-architecture-4-layers) · [AI Components (VNPT Platform)](#ai-components-vnpt-platform) · [Architecture Diagrams](#architecture-diagrams)
-- **Build & Ops**: [Key Capabilities](#key-capabilities) · [Tech Stack](#tech-stack) · [Repository Structure](#repository-structure) · [Quickstart (1 command)](#quickstart-1-command) · [Development](#development) · [Configuration](#configuration) · [API & Realtime](#api--realtime) · [Data Model](#data-model) · [RAG & Knowledge Hub](#rag--knowledge-hub) · [Security & Compliance](#security--compliance) · [Observability & KPIs](#observability--kpis) · [Deployment](#deployment) · [Test Automation Guide](#test-automation-guide)
-- **Project**: [Roadmap](#roadmap) · [Docs](#docs) · [Development Team](#development-team) · [Mentor Acknowledgements](#mentor-acknowledgements) · [Contributing](#contributing)
+## Table of Contents
+- **Product**: [Overview](#overview) | [Problem Summary](#problem-summary) | [Solution Overview (Pre/In/Post)](#solution-overview-preinpost) | [Product Goals & Target Users](#product-goals--target-users)
+- **Architecture**: [MINUTE AI Architecture](#minute-ai-architecture) | [System Architecture (5 Layers)](#system-architecture-5-layers) | [AI Components (MINUTE Platform)](#ai-components-minute-platform) | [Architecture Diagrams](#architecture-diagrams)
+- **Build & Ops**: [Key Capabilities](#key-capabilities) | [Tech Stack](#tech-stack) | [Repository Structure](#repository-structure) | [Quickstart (1 command)](#quickstart-1-command) | [Development](#development) | [Configuration](#configuration) | [API & Realtime](#api--realtime) | [Data Model](#data-model) | [RAG & Knowledge Hub](#rag--knowledge-hub) | [Security & Compliance](#security--compliance) | [Observability & KPIs](#observability--kpis) | [Deployment](#deployment) | [Test Automation Guide](#test-automation-guide)
+- **Project**: [Roadmap](#roadmap) | [Docs](#docs) | [Development Team](#development-team) | [Mentor Acknowledgements](#mentor-acknowledgements) | [Contributing](#contributing)
 
 ## Overview
-- Stage-aware assistant: Pre -> In -> Post meeting với router LangGraph.
-- Realtime pipeline: audio WS -> SmartVoice STT -> session bus -> live transcript/recap/ADR trên UI.
-- RAG permission-aware: pgvector + metadata filter, "no-source-no-answer".
-- Tool-calling: gợi ý tạo task/đặt lịch/tài liệu với human-in-the-loop.
-- Audit-ready: structured outputs, citations, log và replay theo `meeting_id`.
+- Task router by `task_type`: `realtime_recap` -> `qna` -> `summary_generate`.
+- Multimodal realtime processing: streaming ASR audio + timestamped video/frame events.
+- Tiered LightRAG: Tier 0 (session memory), Tier 1 (uploaded docs), Tier 2 (approved web search), Tier 3 (deep research when needed).
+- Human-in-the-loop tool-calling: propose -> approve -> execute with audit trail.
+- Session-type outputs: meeting (minutes/action/decision/risk) and study (concept/example/quiz).
 
 ## Problem Summary
-- Biên bản họp ghi thủ công, phát hành chậm; sai/thiếu ý chính, khó tổng hợp action items.
-- Người họp phải vừa lắng nghe vừa ghi chép -> mất tập trung, bỏ sót quyết định.
-- Tài liệu rải rác (LOffice, SharePoint/OneDrive, email, wiki) -> khó tra nhanh khi đang họp.
-- Sau họp khó theo dõi công việc: ai làm gì, deadline khi nào; cập nhật tiến độ rời rạc.
-- Yêu cầu bảo mật và kiểm toán trong môi trường BFSI (LPBank) rất nghiêm ngặt.
+- Manual note-taking delays summary/minutes delivery and often misses key actions/decisions.
+- In live sessions, users struggle to track both spoken content and on-screen visual context.
+- Post-session Q&A is often weakly grounded because transcript, recording, and references are fragmented.
+- There is no controlled knowledge expansion path when internal evidence is insufficient.
+- Sensitive actions (web search, export/share, write actions) require policy, retention, and auditable control.
 
 ## Solution Overview (Pre/In/Post)
-| Stage | Mục tiêu | Đầu ra chính | Hệ thống liên quan |
+| Stage | Goal | Main Output | Related Systems |
 | --- | --- | --- | --- |
-| Pre-Meeting | Chuẩn bị agenda và pre-read theo ngữ cảnh | Agenda + pre-read pack + câu hỏi trước họp | RAG, Calendar, Docs |
-| In-Meeting | Hỗ trợ realtime | Live transcript, live recap, ADR (Actions/Decisions/Risks), tool suggestions | SmartVoice STT, WS, LangGraph |
-| Post-Meeting | Tổng kết và theo dõi | Executive summary, MoM, highlights, sync tasks | LLM strong + RAG long-context |
+| Pre-Session (optional) | Initialize scope + personalization + baseline docs | Session profile, docs context, policy flags | Settings, RAG index, ACL |
+| In-Session | Realtime support across audio + video timeline | Live transcript, recap windows, cited Q&A, tool proposals | ASR, WS gateway, realtime AV pipeline |
+| Post-Session | Summarize and publish outputs by session type | Versioned summary, meeting minutes or study pack, related artifacts | Gemini 3 (long-context), retrieval + templates |
 
 ## Product Goals & Target Users
-- Product-ready: MeetMate đã vượt mức MVP, hướng tới sản phẩm hoàn thiện với Pre/In/Post end-to-end, realtime co-host, RAG có trích dẫn, và workflow/action sync.
-- Mở rộng: phân tích xu hướng họp theo dự án/đơn vị, trợ lý đa kênh (meetings/desktop/web/room), organizational memory, và compliance archive.
-- Đối tượng: doanh nghiệp lớn/BFSI, enterprise PMO, khối công nghệ, vận hành, pháp chế, rủi ro, kinh doanh, và các đơn vị cần audit/tuân thủ cao.
+- Product-ready: MINUTE focuses on an end-to-end demo for meeting/study workflows with realtime recap, post-session outputs, and grounded Q&A.
+- Differentiator: multimodal companion agent (hear + see + understand timeline), not only transcript-based assistance.
+- Expandability: personalized prompt/model profile, BYO API key, and workflow integrations for tasks/export/share.
+- Target users: enterprise teams, PM/BA/engineering roles, internal training, personal learning, and evidence-heavy scenarios.
 
-## SAAR AI Architecture
-SAAR (Self-aware Adaptive Agentic RAG) là xương sống AI của MeetMate:
-- Stage-aware routing: 1 entry graph, điều phối Pre/In/Post theo stage, sensitivity, SLA.
-- Shared `MeetingState`: giữ agenda/transcript/ADR/RAG hits nhất quán xuyên suốt.
-- RAG-first + graded retrieval: hybrid search, ACL filter, no-source-no-answer.
-- Self-reflect/corrective loop: kiểm định và bổ sung context trước khi trả lời.
-- Tool-calling là output hạng nhất: schema-based, idempotent, có UI confirm và audit log.
+## MINUTE AI Architecture
+MINUTE AI architecture runs with a router + specialized pipelines instead of a single linear flow:
+- Unified Task Router: receives `task_type` and dispatches to the relevant pipeline.
+- Shared session memory: final transcript, recap windows, visual events, citations.
+- Tiered LightRAG retrieval: prioritize in-scope session/internal evidence; escalate to web only when needed.
+- Self-check + corrective loop: validate evidence coverage before final response.
+- Tool-calling governance: risky actions require proposal/approval and are fully logged.
 
-![AI Architecture SAAR](docs/assets/saar-architecture.png)
+![AI Architecture SAAR](docs/architecture/assets/saar-architecture.png)
 
 
 ### Stage-aware Router Policy (recommended)
 | Stage | SLA | Model Profile | Tools | Notes |
 | --- | --- | --- | --- | --- |
-| Pre-Meeting | Near-realtime/BATCH | Strong (long-context) | calendar, rag_search, send_pre_read | History-aware RAG, citations bắt buộc |
-| In-Meeting | Realtime | Fast streaming | create_task, schedule, attach_doc, poll_vote | Tick every 30s, rolling 60s window |
-| Post-Meeting | Batch | Strong (long-context) | generate_minutes, sync_task, render_highlights | Map-reduce, compliance archive |
+| Pre-Session (optional) | Near-realtime/BATCH | Fast + grounded | `rag_search`, `ingest_docs`, `session_setup` | Standardize scope + ACL before session |
+| In-Session | Realtime | Fast streaming + multimodal | `realtime_recap`, `qna`, `tool_call_proposal` | 2-minute recap ticks, low-latency priority |
+| Post-Session | Batch | Strong long-context | `summary_generate`, `generate_minutes`, `export` | Versioning + review/approve before sharing |
 
 ## System Architecture (5 Layers)
-- Client Layer: Electron desktop, Teams add-in/bot, overlay Live Notes/Ask AI.
-- Communication Layer: WebSocket/gRPC cho audio -> ASR; REST cho RAG/summary/task; event bus.
-- Backend Core & Data: meeting ingest, transcription, realtime agent, RAG service, minutes/action service, archive.
-- AI/ML Layer: ASR (SmartVoice/Whisper), diarization, LLM serving, LangGraph orchestration.
-- Cloud, Deployment & Security
+- Client Layer: web app (landing/session hub/in-session/post-session/Q&A sidebar).
+- Communication Layer: WebSocket for audio/realtime events; REST for management, retrieval, summaries.
+- Backend Core & Data: FastAPI services, realtime session store, minutes/summary services, Postgres/pgvector.
+- AI/ML Layer: Gemini 3 text + multimodal reasoning, streaming ASR, LightRAG retrieval, LangGraph/LangChain orchestration.
+- Cloud/Deployment/Security Layer: Dockerized services, object storage, audit logs, retention policy.
 
-![System Architecture Layers](docs/assets/system-architecture-4-layers.png)
+![System Architecture Layers](docs/architecture/assets/system-architecture-4-layers.png)
 
-## AI Components (VNPT Platform)
-- SmartVoice: streaming STT (vi/en), diarization hooks.
-- SmartBot (intent + LLM): intent routing, recap, ADR extraction, tool-calling.
-- SmartReader: OCR + text extraction, ingest vào Knowledge Hub.
-- SmartUX: Collect end-users' UX Metric for frontend / UX improvements.
-- Optional: sentiment/insights, voice verification, vnSocial (marketing use case).
+## AI Components (MINUTE Platform)
+- Gemini 3 API: recap generation, grounded Q&A, summary/minutes synthesis.
+- Realtime ASR service (SmartVoice/whisper.cpp): partial/final transcript over time.
+- Visual understanding pipeline: frame sampling + slide-change detection + visual event extraction.
+- LightRAG service: Tier 0/1 retrieval and escalation controller for Tier 2/3.
+- Tool orchestration: proposal/approval/execution for web search, action writes, export/share.
 
 ## Architecture Diagrams
 
 ### System Architecture
-![System Architecture](docs/assets/architecture.png)
+![System Architecture](docs/architecture/assets/architecture.png)
 
 
 ### Cloud, Deployment & Security Layer
-![Deployment Architecture](docs/assets/deployment.png)
+![Deployment Architecture](docs/architecture/assets/deployment.png)
 
 
 ## Key Capabilities
 - Realtime WS flow: `POST /api/v1/sessions` -> `WS /api/v1/ws/audio` -> `WS /api/v1/ws/frontend`.
-- SmartVoice streaming STT (gRPC) với diarization hooks; fallback WS ingest cho dev/test.
-- Live recap + topic segmentation + ADR extraction (actions/decisions/risks).
-- Knowledge Hub: upload -> chunk -> embed -> pgvector search -> grounded Q&A.
-- Tool suggestions: create task/schedule/attach docs; executor + audit layer.
-- Compliance-ready: citations, PII masking plan, retention và audit trails.
+- Unified realtime AV flow: `WS /api/v1/ws/realtime-av/{id}` for `audio_chunk`, `video_frame_meta`, `user_query`, `approve_tool_call`.
+- 2-minute recap windows: merge transcript + visual events into timeline context.
+- In-session Q&A with tiered LightRAG, citations, and `no-source-no-answer` for critical claims.
+- Post-session outputs: summary versioning, meeting minutes (action/decision/risk), and study outputs.
+- Human-in-the-loop tool-calling with audit-ready logs by `session_id`/`meeting_id`.
 
 ## Tech Stack
-- Client: Electron + Vite + React + TypeScript.
+- Client: Vite + React + TypeScript (web app).
 - Backend: FastAPI, Uvicorn, SQLAlchemy, Pydantic, WebSocket.
-- AI: LangChain + LangGraph, Gemini client, SmartBot intent stubs, WhisperX (test).
-- RAG: pgvector, Jina Embeddings API (optional), metadata filters.
-- Infra: Docker Compose (backend + Postgres), seeded SQL init.
+- AI: Gemini API, LangChain + LangGraph, prompt pipelines for recap/Q&A/summary.
+- Retrieval: Postgres + pgvector, hybrid retrieval + metadata filters.
+- Realtime: ASR microservice (`services/asr`) + realtime AV window builder.
+- Infra: Docker Compose (backend + postgres + asr), seeded SQL initialization.
 
 ## Repository Structure
-```
-vnpt_ai_hackathon/
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   └── v1/
-│   │   │       ├── endpoints/         # REST: meetings, transcripts, knowledge, minutes...
-│   │   │       └── websocket/         # realtime WS handlers
-│   │   ├── core/                      # settings, security, logging
-│   │   ├── llm/                       # LangGraph router, chains, prompts, tools
-│   │   ├── services/                  # business logic + realtime pipeline
-│   │   ├── vectorstore/               # pgvector + LightRAG retrieval
-│   │   ├── models/                    # SQLAlchemy models
-│   │   ├── schemas/                   # Pydantic schemas
-│   │   └── workers/                   # background tasks
-│   ├── alembic/
-│   ├── tests/
-│   ├── Dockerfile
-│   └── requirements.txt
-├── electron/
-│   ├── src/
-│   │   ├── main/                      # Electron main process
-│   │   ├── preload/                   # contextBridge
-│   │   └── renderer/
-│   │       ├── app/                   # routes + layouts
-│   │       ├── features/              # domain features (pre/in/post, knowledge)
-│   │       ├── components/            # shared UI
-│   │       ├── services/              # API clients
-│   │       └── store/                 # state
-│   ├── public/
-│   ├── package.json
-│   └── vite.config.ts
-├── infra/
-│   ├── docker-compose.yml             # Postgres + backend containers
-│   ├── env/                           # env templates
-│   └── postgres/init/                 # init SQL + seeds
-├── docs/
-│   ├── CHANGELOG.md
-│   ├── CHANGELOG_history/
-│   ├── DEPLOYMENT.md
-│   ├── in_meeting_flow.md
-│   ├── real_time_transcript.md
-│   ├── transcript_ingest_api.md
-│   ├── rag_architecture.md
-│   ├── MeetMate _ SAAR – Self-aware Adaptive Agentic RAG.md
-│   ├── AI architecture/
-│   └── round_2/
-├── Techni_docs_2/                     # security, test plan, UX metrics
-├── scripts/
-│   ├── dev_start.sh
-│   ├── migrate.sh
-│   ├── seed_data.py
-│   └── setup_local.sh
-├── .gitignore
-├── requirements.txt
-├── CHANGELOG_20251208.md
-└── README.md
+```text
+google_gemini_hackathon/
++-- backend/
+|   +-- app/
+|   |   +-- api/v1/
+|   |   |   +-- endpoints/            # REST APIs: meetings, minutes, knowledge, realtime-av...
+|   |   |   \-- websocket/            # WS: audio ingest, frontend stream, realtime-av
+|   |   +-- core/                     # settings, security, logging
+|   |   +-- llm/                      # prompts, chains, graphs, tools
+|   |   +-- services/                 # business logic + realtime pipelines
+|   |   +-- vectorstore/              # pgvector + LightRAG retrieval
+|   |   +-- models/                   # SQLAlchemy models
+|   |   +-- schemas/                  # Pydantic schemas
+|   |   \-- workers/                  # background tasks
+|   +-- alembic/
+|   +-- tests/
+|   +-- requirements.txt
+|   \-- Dockerfile
++-- frontend/
+|   +-- src/renderer/
+|   |   +-- app/                      # routes + layout
+|   |   +-- features/                 # meetings, knowledge, settings, tasks...
+|   |   +-- components/               # shared UI
+|   |   +-- lib/                      # API clients + utils
+|   |   \-- store/                    # state
+|   +-- public/
+|   +-- package.json
+|   \-- vite.config.ts
++-- services/
+|   \-- asr/                          # whisper.cpp ASR microservice
++-- infra/
+|   +-- docker-compose.yml            # postgres + backend + asr
+|   +-- env/                          # local env mount
+|   \-- postgres/init/                # init SQL + seed
++-- docs/
+|   +-- architecture/
+|   +-- implementation/
+|   +-- reference/Gemini hackathon/
+|   \-- archive/
++-- scripts/
+|   +-- dev_start.sh
+|   +-- migrate.sh
+|   +-- run_tests.sh
+|   \-- seed_data.py
++-- local_worker/
++-- requirements.txt
+\-- README.md
 ```
 
 ## Quickstart (1 command)
-### Docker (backend + DB, recommended)
-Prerequisites: Docker 24+, Docker Compose, ports `8000` (API) và `5433` (Postgres) trống.
+### Docker (backend + DB + ASR, recommended)
+Prerequisites: Docker 24+, Docker Compose, and available ports `8000` (API), `5433` (Postgres), `9000` (ASR).
 
 ```bash
 cd infra
 docker compose up -d --build
 ```
 - API: `http://localhost:8000`
-- DB: `localhost:5433` (user/pass/db: `meetmate`)
-- Init SQL: `infra/postgres/init/01_init_extensions.sql`, `02_schema.sql`, `03_seed_mock.sql`
+- DB: `localhost:5433` (user/pass/db: `minute`)
+- ASR service: `http://localhost:9000`
+- Init SQL: `infra/postgres/init/00_create_role.sql`, `01_init_extensions.sql`, `02_schema.sql`, `03_seed_mock.sql`
 
 Quick checks:
 ```bash
@@ -188,27 +181,28 @@ Stop/cleanup:
 cd infra && docker compose down
 ```
 
-### Frontend (Electron)
+### Frontend (Web app)
 ```powershell
-cd electron
+cd frontend
 npm install
 npm run dev
 ```
 
 ## Development
 ### End-to-end (reviewer quick setup)
-1) Tạo env cho backend tại `infra/env/.env.local`:
+1) Create backend env at `infra/env/.env.local`:
 ```bash
 cat > infra/env/.env.local <<'EOF'
 ENV=development
-DATABASE_URL=postgresql+psycopg2://meetmate:meetmate@postgres:5432/meetmate
+DATABASE_URL=postgresql+psycopg2://minute:minute@postgres:5432/minute
+GEMINI_API_KEY=
 CORS_ORIGINS=*
-OPENAI_API_KEY=
+ASR_URL=http://asr:9000
 EOF
 ```
-Nếu chạy backend thuần Python (không Docker), đổi host DB thành `localhost:5433`.
+If running backend without Docker, change DB host to `localhost:5433`.
 
-2) Khởi chạy Postgres + Backend:
+2) Start Postgres + Backend + ASR:
 ```bash
 cd infra
 docker compose up -d --build
@@ -219,19 +213,19 @@ cd infra
 docker compose up -d --build
 ```
 
-3) Chạy Electron UI (dev):
+3) Run Web UI (dev):
 ```bash
-cd electron
+cd frontend
 npm ci
 VITE_API_URL=http://localhost:8000 npm run dev
 ```
-Electron dev sẽ load `http://localhost:5173`. Nếu cần mở Electron shell: `npx electron .` (yêu cầu đã build main/preload phù hợp).
+By default, frontend dev server runs at `http://localhost:5173`.
 
-4) Build gần-production (không tạo installer):
+4) Near-production build (without installer):
 ```bash
-cd electron
+cd frontend
 VITE_API_URL=http://localhost:8000 npm run build
-NODE_ENV=production npx electron .
+npm run preview -- --host
 ```
 
 ### Backend (local venv)
@@ -239,8 +233,8 @@ NODE_ENV=production npx electron .
 cd backend
 python -m venv .venv
 .\.venv\Scripts\activate
-pip install -r ..\requirements.txt
-copy ..\infra\env\.env.local.example .\.env.local
+pip install -r .\requirements.txt
+copy .\env.example.txt .\.env.local
 rem If running without Docker, set DATABASE_URL to localhost:5433
 uvicorn app.main:app --reload --port 8000
 ```
@@ -261,17 +255,15 @@ python seed_data.py
 - WhisperX diarization demo: `backend/tests/selfhost_whisperx_diarize.py`
 
 ### Demo data & login
-DB đã seed kịch bản PMO LPBank. Tất cả user seed dùng mật khẩu `demo123`:
-- Head of PMO: `nguyenvana@lpbank.vn / demo123`
-- Senior PM: `tranthib@lpbank.vn / demo123`
-- CTO (admin): `phamvand@lpbank.vn / demo123`
+Current DB seed still includes a PMO/LPBank demo scenario. All seeded users can use password `demo123` (see `infra/postgres/init/05_add_auth.sql`).
 
 ## Configuration
 Env is loaded from `backend/.env.local` or `infra/env/.env.local` (if present).
 
 Key variables:
 - `DATABASE_URL` - PostgreSQL connection string
-- Optional AI keys: `GEMINI_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`
+- Core AI keys: `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY`
+- `GEMINI_MODEL`, `GEMINI_VISION_MODEL`
 - `JINA_API_KEY`, `JINA_EMBED_MODEL`, `JINA_EMBED_DIMENSIONS`
 - `SMARTVOICE_GRPC_ENDPOINT`, `SMARTVOICE_ACCESS_TOKEN`, `SMARTVOICE_TOKEN_ID`, `SMARTVOICE_TOKEN_KEY`
 - `GOMEET_API_BASE_URL`, `GOMEET_PARTNER_TOKEN`
@@ -279,7 +271,7 @@ Key variables:
 - `SMTP_*`, `EMAIL_ENABLED` - email distribution (optional)
 - `CORS_ORIGINS`, `SECRET_KEY`
 
-Env templates: `infra/env/.env.*.example`.
+Env template: `backend/env.example.txt`.
 
 ## API & Realtime
 Core endpoints:
@@ -287,125 +279,126 @@ Core endpoints:
 - `POST /api/v1/sessions/{id}/sources` - get `audio_ingest_token` for bridge
 - `WS /api/v1/ws/audio/{id}?token=...` - raw audio ingress (PCM S16LE 16kHz)
 - `WS /api/v1/ws/in-meeting/{id}` - dev/test transcript ingest
-- `WS /api/v1/ws/frontend/{id}` - live transcript + state for UI
-- `WS /api/v1/ws/realtime-av/{id}` - unified realtime AV ingest (audio_chunk + video_frame_meta + recap/Q&A events)
+- `WS /api/v1/ws/frontend/{id}` - live transcript + realtime state for UI
+- `WS /api/v1/ws/realtime-av/{id}` - unified realtime AV ingest + in-session Q&A events
 - `GET /api/v1/realtime-av/sessions/{id}/snapshot` - realtime AV session state snapshot
 - `PUT /api/v1/realtime-av/sessions/{id}/roi` - update ROI for slide-change detection
-- `POST /api/v1/rag/query` / `POST /api/v1/knowledge/query` - RAG Q&A
-- `POST /api/v1/transcripts/{meeting_id}/chunks` - ingest transcript chunks
+- `POST /api/v1/rag/query` / `POST /api/v1/knowledge/query` - grounded Q&A
+- `POST /api/v1/transcripts/{meeting_id}/chunks` - transcript ingest
 - `POST /api/v1/minutes/generate` - minutes generation
 
-Target APIs (spec-level, see docs):
-- `POST /meetings/{id}/join`
-- `WS /meetings/{id}/audio`
-- `GET /meetings/{id}/recap/live`
-- `POST /actions`
-- `GET /meetings/{id}/minutes`
-- `POST /highlights/{id}/render`
+Realtime events (major):
+- Client -> server: `audio_chunk`, `video_frame_meta`, `user_query`, `approve_tool_call`
+- Server -> client: `transcript_event`, `visual_event`, `recap_window`, `tool_call_proposal`, `qna_answer`
 
-Specs: `docs/api_contracts.md`, `docs/in_meeting_flow.md`, `docs/real_time_transcript.md`.
+Specs: `docs/implementation/api_contracts.md`, `docs/architecture/in_meeting_flow.md`, `docs/architecture/realtime_flow.md`, `docs/implementation/real_time_transcript.md`.
 
 ## Data Model
 Core entities:
-- `Meeting` - metadata, participants, schedule.
-- `TranscriptChunk` - time-coded transcript by speaker.
-- `ActionItem` - task/owner/deadline/priority.
-- `Decision` - decision title/rationale/impact.
-- `Risk` - risk/mitigation/owner/severity.
-- `Citation` - doc/timecode evidence.
+- `Meeting` - metadata, participants, schedule/session context.
+- `TranscriptChunk` - time-coded transcript (partial/final pipeline persists final chunks).
+- `VisualEvent` - slide/chart/code/whiteboard cues by `ts_ms`.
+- `ContextWindow/RecapWindow` - merged transcript + visual context per time window.
+- `ActionItem` / `Decision` / `Risk` - structured insights for minutes-grade outputs.
+- `Citation` - evidence by doc/timecode/frame/source.
 
 ## RAG & Knowledge Hub
-- Ingest: upload -> extract text -> chunk -> embed (Jina) -> pgvector.
-- Search: hybrid vector + metadata filter (meeting/project scope).
-- Answering: grounded prompts, citations; no-source-no-answer.
-- Details: `docs/rag_architecture.md`, `docs/knowledge_vector_search.md`.
+- Ingest: upload -> extract text -> chunk -> embed -> pgvector index.
+- Retrieval:
+  - Tier 0: session memory (recap/transcript/visual moments)
+  - Tier 1: uploaded docs (hybrid keyword + vector + filters)
+  - Tier 2: web search (optional, gated by user approval/policy)
+  - Tier 3: deep research (best-effort with explicit limitations)
+- Answering: grounded prompts + citations + `no-source-no-answer` for critical claims.
+- Details: `docs/architecture/rag_architecture.md`, `docs/implementation/knowledge_vector_search.md`.
 
 ## Security & Compliance
-- PII masking + tokenization trước khi gọi external provider (policy-driven).
-- Private link / VPC peering cho endpoint LLM bên ngoài.
-- RBAC/ABAC theo phòng ban/dự án; ACL chặt cho RAG.
-- Audit logs cho tool calls, LLM/RAG queries, và state transitions.
+- Demo scope: synthetic/scrubbed data preferred; sensitive real data upload is not recommended.
+- Production direction: TLS/mTLS, secrets vaulting, RBAC/ABAC, ACL enforcement at retrieval layer.
+- PII masking/redaction before calling external providers.
+- Audit logs for query, retrieval, tool proposals/approvals, and state transitions.
+- Retention/distribution controls for artifacts (transcript, minutes, exports).
 
 ## Observability & KPIs
-- Latency: realtime recap, WS tick scheduling, STT WER.
-- Quality: precision/recall action items; ADR consistency.
-- Usage: Ask-AI per meeting, highlight views, post-meeting Q&A.
-- Cost: token budget per meeting; cached glossary/FAQ.
+- Latency: ASR lag, WS latency, recap lag by window, Q&A latency by tier.
+- Quality: recap consistency vs transcript/visual events, precision/recall of action extraction.
+- Usage: Ask-AI volume, tool-call approval rate, post-session review/approve completion.
+- Cost: token usage by session, retrieval/search cache hit rate, model routing efficiency.
 
 ## Deployment
 - Local dev: Docker Compose (`infra/docker-compose.yml`).
-- MVP cloud: Supabase + Render + Vercel (see `docs/DEPLOYMENT.md`).
-- Production: private VPC/on-prem, WORM storage, audit + retention.
+- MVP cloud: Vercel (frontend) + Render/FastAPI + Postgres/pgvector storage (see docs).
+- Production orientation: private networking, secure storage, audit + retention enforcement.
 
-### Hướng dẫn đóng gói & khởi chạy (end-to-end)
-Tóm tắt nhanh cho reviewer dựng lại toàn bộ sản phẩm (Postgres + FastAPI + Electron):
-1) Clone repo và vào thư mục dự án:
-   `git clone <repo-url>` -> `cd vnpt_ai_hackathon_meetmate`
-2) Yêu cầu tối thiểu: Docker 24+, Node 18+ + npm 9+, Python 3.11+ (nếu chạy backend thuần Python).
-3) Tạo `infra/env/.env.local` (xem mẫu ở mục Development).
-4) Khởi chạy Postgres + Backend: `cd infra && docker compose up -d --build`.
-5) Kiểm tra API: `curl http://localhost:8000/api/v1/health`.
-6) Chạy UI: `cd electron && VITE_API_URL=http://localhost:8000 npm run dev` (PowerShell: set `$env:VITE_API_URL` trước khi chạy).
-7) Dừng/dọn: `cd infra && docker compose down` (thêm `-v` nếu muốn reset seed).
+### End-to-end packaging & run guide
+Quick reviewer setup to run the full product (Postgres + FastAPI + Frontend):
+1) Clone the repo and enter the project folder:
+   `git clone <repo-url>` -> `cd google_gemini_hackathon`
+2) Minimum requirements: Docker 24+, Node 18+ + npm 9+, Python 3.11+ (if running backend directly).
+3) Create `infra/env/.env.local` (sample in Development section).
+4) Start services: `cd infra && docker compose up -d --build`.
+5) Health check API: `curl http://localhost:8000/api/v1/health`.
+6) Run UI: `cd frontend && VITE_API_URL=http://localhost:8000 npm run dev` (PowerShell: set `$env:VITE_API_URL` first).
+7) Stop/cleanup: `cd infra && docker compose down` (add `-v` to reset seed data).
 
 ## Test Automation Guide
-**Tiêu chí**: có script tự động, ổn định, chạy lặp 3 lần. Repo đã có `scripts/run_tests.sh` để chạy toàn bộ test backend (unit + integration) 3 lần liên tiếp.
+**Criteria**: automated script, stable runs, executed 3 consecutive times. Repo includes `scripts/run_tests.sh` for backend test suites (unit + integration) in 3 loops.
 
-### Phạm vi
+### Scope
 - Backend unit tests: `backend/tests/unit`
-- Backend integration tests (FastAPI TestClient, không cần DB ngoài): `backend/tests/integration`
-- Bỏ qua các test audio/WS thủ công: `backend/tests/test_audio_ws.py`, `backend/tests/test_audio_ingest_ws.py`, `backend/tests/test_ingest_ws.py`
+- Backend integration tests (FastAPI TestClient, no external DB required): `backend/tests/integration`
+- Manual audio/WS tests excluded: `backend/tests/test_audio_ws.py`, `backend/tests/test_audio_ingest_ws.py`, `backend/tests/test_ingest_ws.py`
 
-### Yêu cầu môi trường
+### Environment requirements
 - Python 3.11+
 - `pip install -r requirements.txt`
-- Không cần Postgres/Supabase (test dùng in-memory/mock)
+- Postgres/Supabase not required for current smoke suite
 
-### Cách chạy
-Từ root repo:
+### How to run
+From repo root:
 ```bash
 bash scripts/run_tests.sh
 ```
-Script sẽ:
-- Thiết lập `PYTHONPATH` để backend import được.
-- Chạy `pytest -q backend/tests/unit backend/tests/integration` 3 vòng liên tiếp.
-- Dừng ngay nếu có lỗi.
+The script:
+- Sets `PYTHONPATH` so backend imports resolve.
+- Runs `pytest -q backend/tests/unit backend/tests/integration` 3 consecutive rounds.
+- Stops immediately on first failure.
 
-### Ghi chú ổn định
-- Chạy một vòng: `PYTHONPATH=backend pytest -q backend/tests/unit backend/tests/integration`
-- Nếu thêm test mới cần network hoặc DB thật, cập nhật script hoặc đánh dấu skip để giữ bộ smoke này ổn định.
+### Stability notes
+- Single run: `PYTHONPATH=backend pytest -q backend/tests/unit backend/tests/integration`
+- If adding tests that require network or real DB, update script or mark skip to preserve smoke stability.
 
 ## Roadmap
-- GĐ0: join meeting + realtime ASR + live recap + post summary.
-- GĐ1: action/decision extractor + task sync + RAG internal.
-- GĐ2: guardrails/compliance archive + quality dashboard + highlights.
-- GĐ3: org-level analytics + multi-channel assistant.
+- G0: realtime transcript + recap windows + post-session summary/minutes.
+- G1: multimodal timeline (audio + visual events) + grounded in-session Q&A.
+- G2: tool-calling governance (proposal/approval/execution), export/share workflows.
+- G3: personalization, multi-provider routing, analytics by team/session type.
 
 ## Docs
-- SAAR spec: `docs/MeetMate _ SAAR – Self-aware Adaptive Agentic RAG.md`
-- Realtime flow: `docs/in_meeting_flow.md`, `docs/real_time_transcript.md`
-- Realtime AV (minute ASR + slide detection + capture + recap windows): `docs/implementation/REALTIME_AV_MINUTE_PIPELINE.md`
-- API contracts: `docs/api_contracts.md`, `docs/gomeet_control_api_spec.md`
-- Transcript ingest: `docs/transcript_ingest_api.md`
-- RAG architecture: `docs/rag_architecture.md`, `docs/knowledge_vector_search.md`
-- Deployment guide: `docs/DEPLOYMENT.md`
-- AI architecture deep dive: `docs/AI architecture/`
-- Data engineer guide: `docs/data_engineer_guide.md`
-- Security/test/UX plans: `Techni_docs_2/`
+- Product blueprint: `docs/reference/Gemini hackathon/Gemini Hackathon 3 _ Minute's Techinical Blueprint.md`
+- Idea proposal: `docs/reference/Gemini hackathon/Gemini Hackathon 3 _ Minute's Idea Proposal.md`
+- Realtime flow: `docs/architecture/realtime_flow.md`, `docs/architecture/in_meeting_flow.md`, `docs/implementation/real_time_transcript.md`
+- Realtime AV implementation: `docs/implementation/REALTIME_AV_MINUTE_PIPELINE.md`
+- API contracts: `docs/implementation/api_contracts.md`
+- Transcript ingest: `docs/implementation/transcript_ingest_api.md`
+- RAG architecture: `docs/architecture/rag_architecture.md`, `docs/implementation/knowledge_vector_search.md`
+- Deployment guide: `docs/DEPLOYMENT.md`, `docs/implementation/DEPLOYMENT.md`
+- Architecture deep dive: `docs/architecture/`
+- Security/test/UX plans: `docs/archive/Techni_docs_2/`
 
 ## Development Team
 **SAVINAI** - Saigon Vietnam AI
-- **Đặng Như Phước (Leader)**: Software Engineer, AI Engineer, Backend Engineer. Kiến trúc backend FastAPI, realtime WS pipeline (audio -> STT -> bus), LangGraph routing, RAG/ADR flow, tool-calling, và Docker/dev infra.
-- **Thái Hoài An**: Data Engineer, Software Engineer, AI Engineer. Mô hình dữ liệu + schema, pgvector/embeddings, ingest tài liệu (OCR/SmartReader), seed/demo data, và tối ưu truy vấn RAG.
-- **Trương Minh Đạt**: BA, GTM Analyst. Thu thập yêu cầu nghiệp vụ BFSI, chuẩn hóa use-case Pre/In/Post, KPIs, và định hướng go-to-market/documentation.
-- **Hoàng Minh Quân**: End-user Analyst, Product Deployment, BA. UX research, test/validation, kế hoạch triển khai, và hỗ trợ rollout/training.
+- **Dang Nhu Phuoc (Leader)**: Software Engineer, AI Engineer, Backend Engineer. FastAPI backend architecture, realtime WS pipeline (audio/video context), LangGraph routing, minutes/recap pipeline, and dev infra.
+- **Thai Hoai An**: Data Engineer, Software Engineer, AI Engineer. Data model + schema, pgvector/embeddings, document ingest, seed/demo data, and retrieval optimization.
+- **Truong Minh Dat**: BA, GTM Analyst. Meeting/study use-case standardization, product KPIs, and go-to-market/documentation direction.
+- **Hoang Minh Quan**: End-user Analyst, Product Deployment, BA. UX research, test/validation, deployment planning, and rollout/training support.
 
 ## Mentor Acknowledgements
-Xin chân thành cảm ơn các mentor đã đồng hành cùng đội thi trong Vòng 2 - Track 1: The Dreamer, hỗ trợ định hướng công nghệ, kiến trúc giải pháp và tính khả thi triển khai:
-- **Hồ Minh Nghĩa (@nghiahm1989)**: Tiến sỹ Khoa học máy tính (Học viện FSO - Liên bang Nga), chuyên gia mật mã và ứng dụng AI/GenAI trong tự động hóa; từng là Phó phòng Phát triển phần mềm Ban Cơ yếu Chính phủ, tư vấn chuyển đổi số TPBank; hiện là chuyên gia phụ trách mảng AI tại LPBank.
-- **Nguyễn Phan Khoa Đức (@dukeng96)**: Giám đốc phát triển công nghệ, sản phẩm và giải pháp AI tại VNPT AI; từng học tập tại Đại học Sydney (USYD) và làm việc tại Úc.
-- **Lâm Vũ Dương**: Giám đốc VNPT, hỗ trợ kết nối và định hướng chung cho chương trình.
-- **Thành Đạt**: VNPT GoMeet Software Engineer, hỗ trợ nền tảng họp và tích hợp kỹ thuật.
+Sincere thanks to the mentors who supported the team during the hackathon, guiding technology direction, solution architecture, and deployment feasibility:
+- **Ho Minh Nghia (@nghiahm1989)**: PhD in Computer Science (FSO Academy - Russian Federation), cryptography specialist and AI/GenAI automation expert; former Deputy Head of Software Development at the Government Cipher Committee, digital transformation consultant for TPBank; currently AI domain expert at LPBank.
+- **Nguyen Phan Khoa Duc (@dukeng96)**: Director of AI technology, product, and solution development at VNPT AI; studied at the University of Sydney (USYD) and worked in Australia.
+- **Lam Vu Duong**: VNPT Director, supported program alignment and overall direction.
+- **Thanh Dat**: VNPT GoMeet Software Engineer, supported meeting-platform and integration engineering.
 
 ## Contributing
-Internal hackathon repo. Open an issue or PR; keep API contracts + docs updated.
+Internal hackathon repository. Open an issue or PR; keep API contracts and docs updated.
