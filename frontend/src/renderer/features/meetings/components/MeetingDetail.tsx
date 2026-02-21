@@ -21,7 +21,7 @@ import { useChatContext } from '../../../contexts/ChatContext';
 import { useLocaleText } from '../../../i18n/useLocaleText';
 
 // Tab Components
-import PostMeetTabV2 from './tabs/PostMeetTab';
+import PostMeetTabFireflies from './tabs/PostMeetTabFireflies';
 
 export const MeetingDetail = () => {
   const { lt, language, dateLocale, timeLocale } = useLocaleText();
@@ -313,7 +313,7 @@ export const MeetingDetail = () => {
 
       {/* Summary only */}
       <main className="meeting-detail-v2__content">
-        <PostMeetTabV2
+        <PostMeetTabFireflies
           meeting={meeting}
           onRefresh={fetchMeeting}
         />
