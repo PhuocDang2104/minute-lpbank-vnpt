@@ -30,6 +30,8 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ASR_URL: ${ASR_URL:-http://asr:9000}
+      ASR_LANGUAGE: ${ASR_LANGUAGE:-vi}
+      LLM_OUTPUT_LANGUAGE: ${LLM_OUTPUT_LANGUAGE:-vi}
       PYTHONPATH: /app
       WATCHFILES_FORCE_POLLING: "true"
       WATCHFILES_POLL_DELAY_MS: "1000"
@@ -46,11 +48,16 @@ services:
     command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--app-dir", "/app" ]
 
   asr:
-    environment:
-    - WHISPER_THREADS=${WHISPER_THREADS:-1}
     build:
       context: ../services/asr
       dockerfile: Dockerfile
+      args:
+        WHISPER_MODEL_URL: ${WHISPER_MODEL_URL:-https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin}
+        WHISPER_MODEL_FILE: ${WHISPER_MODEL_FILE:-ggml-base.bin}
+    environment:
+    - WHISPER_THREADS=${WHISPER_THREADS:-1}
+    - WHISPER_LANGUAGE=${WHISPER_LANGUAGE:-vi}
+    - WHISPER_MODEL=${WHISPER_MODEL:-/models/ggml-base.bin}
     container_name: minute_asr
     restart: unless-stopped
     ports:

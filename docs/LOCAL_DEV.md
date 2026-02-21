@@ -1,115 +1,71 @@
-# Hướng Dẫn Khởi Động Môi Trường Local
+# Huong Dan Chay Local (Minute)
 
-## Yêu Cầu
+## Yeu cau
+- Docker Desktop
+- Node.js 18+
+- Python 3.11+ (neu chay backend ngoai Docker)
 
-- **Docker Desktop** (đang chạy)
-- **Node.js 18+**
-- **Python 3.11+** (nếu chạy backend ngoài Docker)
-
----
-
-## 🚀 Khởi Động Nhanh
-
-### Bước 1: Khởi động Database (PostgreSQL)
+## Cach nhanh (Docker full stack)
 
 ```bash
 cd infra
-docker compose up -d postgres
+docker compose up -d --build
 ```
 
-Đợi ~10 giây để database sẵn sàng.
+Service:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- Swagger: http://localhost:8000/docs
+- ASR: http://localhost:9000
+- Postgres: localhost:5433
 
-### Bước 2: Khởi động Backend (FastAPI)
+## Env local de nghi
 
-```bash
-cd infra
-docker compose up -d backend
+Tao `backend/.env.local`:
+
+```env
+ENV=development
+DATABASE_URL=postgresql+psycopg2://minute:minute@localhost:5433/minute
+SECRET_KEY=dev-secret-key-change-in-production
+CORS_ORIGINS=*
+
+# LLM
+GEMINI_API_KEY=
+GROQ_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash-lite
+LLM_OUTPUT_LANGUAGE=vi
+AI_TEMPERATURE=0.2
+AI_MAX_TOKENS=4096
+
+# ASR
+ASR_URL=http://localhost:9000
+ASR_LANGUAGE=vi
 ```
 
-### Bước 3: Khởi động Frontend (Vite)
+## Chay frontend
 
 ```bash
 cd frontend
-npm install   # Chỉ cần lần đầu
-npm run dev
+npm install
+VITE_API_URL=http://localhost:8000 npm run dev
 ```
 
----
-
-## 🔗 Địa Chỉ Truy Cập
-
-| Service | URL |
-|---------|-----|
-| **Frontend** | http://localhost:5173 |
-| **Backend API** | http://localhost:8000 |
-| **Swagger Docs** | http://localhost:8000/docs |
-| **Database** | `localhost:5433` |
-
----
-
-## 🔧 Kiểm Tra Services
+## Kiem tra nhanh
 
 ```bash
-# Kiểm tra database
-docker ps | grep minute_db
+curl http://localhost:8000/api/v1/health
+curl http://localhost:8000/api/v1/chat/status
+curl http://localhost:9000/health
+```
 
-# Kiểm tra backend
-curl http://localhost:8000/
-# Output: {"message":"Minute API v2 running"}
-
-# Kiểm tra frontend
-# Mở http://localhost:5173 trong browser
-```xc
-
----
-
-## ⏹️ Dừng Services
+## Dung service
 
 ```bash
 cd infra
 docker compose down
 ```
 
----
-
-## 📋 Thông tin Database
-
-```
-Host: localhost
-Port: 5433
-User: minute
-Password: minute
-Database: minute
-```
-
-**Connection URL:**
-```
-postgresql://minute:minute@localhost:5433/minute
-```
-
----
-
-## ⚠️ Lưu Ý
-
-1. **Lần đầu chạy**: `npm install` ở folder `frontend/`
-2. **GEMINI_API_KEY**: Set biến môi trường nếu cần dùng AI features
-   ```bash
-   export GEMINI_API_KEY=your-api-key
-   ```
-3. **Logs backend**: `docker logs minute_backend -f`
-
----
-
-## Troubleshooting
-
-- If you see `ModuleNotFoundError: No module named 'app'`, rebuild the backend image:
-  ```bash
-  cd infra
-  docker compose up -d --build backend
-  ```
-- If Postgres logs show `role "minute" does not exist`, reset the DB volume so init scripts run:
-  ```bash
-  cd infra
-  docker compose down -v
-  docker compose up -d postgres
-  ```
+## Neu gap loi
+- Postgres khoi dong loi: `docker compose down -v && docker compose up -d postgres`
+- Backend khong thay env: kiem tra file `backend/.env.local` hoac `infra/env/.env.local`
+- ASR loi model: kiem tra `WHISPER_MODEL` va build lai image `asr`

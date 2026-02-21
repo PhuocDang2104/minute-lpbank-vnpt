@@ -2,6 +2,9 @@
 
 Tài liệu này hướng dẫn chi tiết cách triển khai (deploy) ứng dụng Minute lên các nền tảng cloud miễn phí/phổ biến: **Aiven** (Database), **Render** (Backend), và **Vercel** (Frontend).
 
+Render env sync nhanh (Aiven DB + Supabase Storage):
+- `docs/implementation/RENDER_BACKEND_ENV_SYNC.md`
+
 ---
 
 ## 1. Database: Aiven (PostgreSQL)

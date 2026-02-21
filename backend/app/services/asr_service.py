@@ -33,12 +33,16 @@ async def transcribe_audio_file(audio_path: str | Path) -> Dict[str, Any]:
 
     url = f"{asr_url}/transcribe"
     timeout = httpx.Timeout(connect=10.0, read=1800.0, write=1800.0, pool=10.0)
+    language = (settings.asr_language or "").strip()
+    form_data: Dict[str, str] = {}
+    if language:
+        form_data["language"] = language
 
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             with path.open("rb") as f:
                 files = {"file": (path.name, f, "audio/wav")}
-                resp = await client.post(url, files=files)
+                resp = await client.post(url, data=form_data, files=files)
     except httpx.HTTPError as exc:
         raise AsrServiceError(f"ASR request failed: {exc}") from exc
 

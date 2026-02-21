@@ -22,11 +22,11 @@ def find_env_file():
 class Settings(BaseSettings):
     env: str = 'development'
     api_v1_prefix: str = '/api/v1'
-    project_name: str = 'MeetMate'
+    project_name: str = 'Minute'
     
     # Database - supports both local and cloud (Supabase/Railway)
     # Production: Set DATABASE_URL environment variable
-    database_url: str = 'postgresql+psycopg2://meetmate:meetmate@localhost:5433/meetmate'
+    database_url: str = 'postgresql+psycopg2://minute:minute@localhost:5433/minute'
     db_pool_size: int = 10          # default pool size
     db_max_overflow: int = 20       # extra connections allowed temporarily
     db_pool_timeout: int = 30       # seconds to wait before giving up
@@ -92,7 +92,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_user: str = ''  # your-email@gmail.com
     smtp_password: str = ''  # App Password (16 chars, no spaces)
-    email_from_name: str = 'MeetMate AI'
+    email_from_name: str = 'Minute AI'
     email_enabled: bool = False  # Set to True when SMTP is configured
 
     # Supabase Storage (S3-compatible)
@@ -106,10 +106,15 @@ class Settings(BaseSettings):
     max_video_file_size_mb: int = 100  # Maximum video file size in MB (default 100MB for Supabase free tier)
     
     # Diarization API (Hugging Face Space)
-    diarization_api_url: str = ''  # e.g. https://anhoaithai345-meetmate.hf.space/api/diarize
+    diarization_api_url: str = ''  # e.g. https://your-space.hf.space/api/diarize
 
     # Local ASR microservice (whisper.cpp)
     asr_url: str = 'http://asr:9000'
+    asr_language: str = 'vi'  # auto | vi | en ...
+
+    # Preferred answer language for chatbot/summary/minutes generation.
+    # Supported values are free text (e.g. "vi", "Vietnamese", "en").
+    llm_output_language: str = 'vi'
 
     # Realtime AV pipeline (batch ASR + slide change detection + recap windows)
     realtime_av_record_ms: int = 30000

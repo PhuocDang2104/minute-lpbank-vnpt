@@ -562,12 +562,38 @@ def update_risk_item(db: Session, item_id: str, data: RiskItemUpdate) -> Optiona
     
     result = db.execute(query, params)
     db.commit()
-    
+
     if not result.fetchone():
         return None
-    
-    # Get full item with owner name
-    return list_risk_items(db, item_id).items[0] if list_risk_items(db, item_id).items else None
+
+    fetch_query = text("""
+        SELECT
+            ri.id::text, ri.meeting_id::text, ri.description, ri.severity,
+            ri.mitigation, ri.source_chunk_id::text, ri.source_text,
+            ri.status, ri.owner_user_id::text, ri.created_at,
+            u.display_name as owner_name
+        FROM risk_item ri
+        LEFT JOIN user_account u ON ri.owner_user_id = u.id
+        WHERE ri.id = :item_id
+        LIMIT 1
+    """)
+    row = db.execute(fetch_query, {'item_id': item_id}).fetchone()
+    if not row:
+        return None
+
+    return RiskItemResponse(
+        id=row[0],
+        meeting_id=row[1],
+        description=row[2],
+        severity=row[3],
+        mitigation=row[4],
+        source_chunk_id=row[5],
+        source_text=row[6],
+        status=row[7],
+        owner_user_id=row[8],
+        created_at=row[9],
+        owner_name=row[10]
+    )
 
 
 def delete_risk_item(db: Session, item_id: str) -> bool:
@@ -576,4 +602,3 @@ def delete_risk_item(db: Session, item_id: str) -> bool:
     result = db.execute(query, {'item_id': item_id})
     db.commit()
     return result.fetchone() is not None
-

@@ -1,4 +1,4 @@
-﻿FROM debian:bookworm AS builder
+FROM debian:bookworm AS builder
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -15,6 +15,9 @@ RUN cmake -B build -S .
 RUN cmake --build build --target whisper-cli -j
 
 FROM python:3.11-slim
+
+ARG WHISPER_MODEL_URL=https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+ARG WHISPER_MODEL_FILE=ggml-base.bin
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -37,10 +40,11 @@ COPY --from=builder /opt/whisper.cpp/build/ggml/src/libggml-cpu.so* /usr/local/l
 RUN ldconfig
 
 RUN mkdir -p /models \
-    && curl -L -o /models/ggml-tiny.en-q5_1.bin \
-        https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en-q5_1.bin
+    && curl -L -o /models/${WHISPER_MODEL_FILE} \
+        ${WHISPER_MODEL_URL}
 
-ENV WHISPER_MODEL=/models/ggml-tiny.en-q5_1.bin
+ENV WHISPER_MODEL=/models/${WHISPER_MODEL_FILE}
+ENV WHISPER_LANGUAGE=vi
 
 WORKDIR /app
 

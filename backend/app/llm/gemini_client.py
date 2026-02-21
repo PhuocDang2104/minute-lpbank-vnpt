@@ -9,6 +9,24 @@ from app.core.config import get_settings
 settings = get_settings()
 
 
+def _output_language_code() -> str:
+    raw = (settings.llm_output_language or "vi").strip().lower()
+    if raw in {"vi", "vi-vn", "vietnamese", "tieng viet", "tiếng việt"}:
+        return "vi"
+    if raw in {"en", "en-us", "en-gb", "english"}:
+        return "en"
+    return raw or "vi"
+
+
+def _output_language_name() -> str:
+    code = _output_language_code()
+    if code == "vi":
+        return "Vietnamese"
+    if code == "en":
+        return "English"
+    return settings.llm_output_language or "Vietnamese"
+
+
 @dataclass
 class LLMConfig:
     provider: str
@@ -336,7 +354,8 @@ Hard rules:
 - Use ONLY the data provided (context/transcript/docs). If data is missing, answer what is supported and state what is unknown.
 - Do not hallucinate or speculate beyond the provided context. Prefer concise, clear answers.
 - If an action or tool call is needed, ask for confirmation first (human-in-the-loop).
-- Respond in English even if the user writes in Vietnamese.
+- Prefer responding in {_output_language_name()} (configured default).
+- If the user explicitly asks for another language, follow the user request.
 """
 
     async def chat(self, message: str, context: Optional[str] = None) -> str:
@@ -555,11 +574,13 @@ Format output JSON:
 
     async def generate_summary_with_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Generate meeting summary with full context and practical guardrails."""
+        language_name = _output_language_name()
+        prefer_vi = _output_language_code() == "vi"
         prompt = f"""You are MINUTE AI, a meeting and study-session copilot.
-Create a rich English summary using ONLY the JSON data below. Do not invent facts.
+Create a rich {language_name} summary using ONLY the JSON data below. Do not invent facts.
 
 Rules:
-- Output language: English only.
+- Output language: {language_name}.
 - Never return an empty summary.
 - Summary target length: 220-420 words, written in 3-6 coherent paragraphs.
 - Cover: objective/context, major discussion threads, concrete outcomes, unresolved questions, risks, and next-step direction.
@@ -609,31 +630,62 @@ Return STRICT JSON only (no extra prose):
             docs = context.get("documents") or []
 
             if desc:
-                summary = (
-                    f"Preliminary summary for '{title}': {desc[:360]}. "
-                    "Additional transcript evidence will improve detail and confidence."
-                )
+                if prefer_vi:
+                    summary = (
+                        f"Tóm tắt sơ bộ cho '{title}': {desc[:360]}. "
+                        "Cần thêm bằng chứng transcript để tăng độ chi tiết và độ tin cậy."
+                    )
+                else:
+                    summary = (
+                        f"Preliminary summary for '{title}': {desc[:360]}. "
+                        "Additional transcript evidence will improve detail and confidence."
+                    )
             elif transcript:
-                summary = (
-                    f"Preliminary summary for '{title}': {transcript[:420]}. "
-                    "This draft should be refined with full transcript context."
-                )
+                if prefer_vi:
+                    summary = (
+                        f"Tóm tắt sơ bộ cho '{title}': {transcript[:420]}. "
+                        "Bản nháp này nên được tinh chỉnh bằng transcript đầy đủ."
+                    )
+                else:
+                    summary = (
+                        f"Preliminary summary for '{title}': {transcript[:420]}. "
+                        "This draft should be refined with full transcript context."
+                    )
             elif actions or decisions or risks:
-                summary = (
-                    f"Preliminary summary for '{title}': captured "
-                    f"{len(actions)} action item(s), {len(decisions)} decision(s), and {len(risks)} risk(s). "
-                    "Detailed narrative requires transcript or richer notes."
-                )
+                if prefer_vi:
+                    summary = (
+                        f"Tóm tắt sơ bộ cho '{title}': đã ghi nhận "
+                        f"{len(actions)} đầu việc, {len(decisions)} quyết định và {len(risks)} rủi ro. "
+                        "Cần transcript hoặc ghi chú đầy đủ để tạo phần tường thuật chi tiết."
+                    )
+                else:
+                    summary = (
+                        f"Preliminary summary for '{title}': captured "
+                        f"{len(actions)} action item(s), {len(decisions)} decision(s), and {len(risks)} risk(s). "
+                        "Detailed narrative requires transcript or richer notes."
+                    )
             elif docs:
-                summary = (
-                    f"Preliminary summary for '{title}': related documents are available. "
-                    "Please add transcript evidence for a deeper and more reliable summary."
-                )
+                if prefer_vi:
+                    summary = (
+                        f"Tóm tắt sơ bộ cho '{title}': đã có tài liệu liên quan. "
+                        "Vui lòng bổ sung transcript để tạo bản tóm tắt sâu và đáng tin cậy hơn."
+                    )
+                else:
+                    summary = (
+                        f"Preliminary summary for '{title}': related documents are available. "
+                        "Please add transcript evidence for a deeper and more reliable summary."
+                    )
             else:
-                summary = (
-                    f"Preliminary summary for '{title}': the session is recorded but content data is still limited. "
-                    "Please provide transcript or notes to generate a full, evidence-based summary."
-                )
+                if prefer_vi:
+                    summary = (
+                        f"Tóm tắt sơ bộ cho '{title}': phiên họp đã được ghi nhận nhưng dữ liệu nội dung còn hạn chế. "
+                        "Vui lòng cung cấp transcript hoặc ghi chú để tạo bản tóm tắt đầy đủ theo bằng chứng."
+                    )
+                else:
+                    summary = (
+                        f"Preliminary summary for '{title}': the session is recorded but content data is still limited. "
+                        "Please provide transcript or notes to generate a full, evidence-based summary."
+                    )
 
         if not key_points:
             fallback_points: List[str] = []
@@ -642,20 +694,38 @@ Return STRICT JSON only (no extra prose):
             risks = context.get("risks") or []
             docs = context.get("documents") or []
             if actions:
-                fallback_points.append(f"{len(actions)} action item(s) were captured and should be tracked.")
+                if prefer_vi:
+                    fallback_points.append(f"Đã ghi nhận {len(actions)} đầu việc cần theo dõi.")
+                else:
+                    fallback_points.append(f"{len(actions)} action item(s) were captured and should be tracked.")
             if decisions:
-                fallback_points.append(f"{len(decisions)} decision(s) were identified in this session.")
+                if prefer_vi:
+                    fallback_points.append(f"Đã xác định {len(decisions)} quyết định trong phiên họp.")
+                else:
+                    fallback_points.append(f"{len(decisions)} decision(s) were identified in this session.")
             if risks:
-                fallback_points.append(f"{len(risks)} risk(s) or blockers were flagged.")
+                if prefer_vi:
+                    fallback_points.append(f"Đã ghi nhận {len(risks)} rủi ro hoặc blocker.")
+                else:
+                    fallback_points.append(f"{len(risks)} risk(s) or blockers were flagged.")
             if docs:
-                fallback_points.append(f"{len(docs)} related document(s) are linked to this session.")
+                if prefer_vi:
+                    fallback_points.append(f"Có {len(docs)} tài liệu liên quan được gắn với phiên họp.")
+                else:
+                    fallback_points.append(f"{len(docs)} related document(s) are linked to this session.")
             if not fallback_points:
-                fallback_points.append("Add transcript or notes to increase summary depth and reliability.")
+                if prefer_vi:
+                    fallback_points.append("Bổ sung transcript hoặc ghi chú để tăng độ sâu và độ tin cậy cho tóm tắt.")
+                else:
+                    fallback_points.append("Add transcript or notes to increase summary depth and reliability.")
             key_points = fallback_points[:8]
         return {"summary": summary, "key_points": key_points}
     
     async def generate_minutes_json(self, transcript: str) -> Dict[str, Any]:
         """Generate comprehensive minutes in strict JSON format with rich content"""
+        language_name = _output_language_name()
+        prefer_vi = _output_language_code() == "vi"
+        unknown_placeholder = "Không rõ" if prefer_vi else "Unknown"
         prompt = f"""You are MINUTE AI, generating professional meeting minutes for business teams.
 Analyze the transcript below and produce a detailed, factual minutes JSON.
 
@@ -664,9 +734,9 @@ TRANSCRIPT:
 
 OUTPUT REQUIREMENTS (Strict JSON Mode):
 - Return exactly ONE JSON object only (no markdown code fence, no commentary).
-- Output language: English only.
+- Output language: {language_name}.
 - Be specific, evidence-based, and avoid hallucinations.
-- If a field is unknown, use "Unknown" or null instead of omitting required structure.
+- If a field is unknown, use "{unknown_placeholder}" or null instead of omitting required structure.
 
 Required JSON schema:
 {{
@@ -677,18 +747,18 @@ Required JSON schema:
   "action_items": [
     {{
       "description": "Detailed action",
-      "owner": "Responsible person from transcript, else 'Unknown'",
+      "owner": "Responsible person from transcript, else '{unknown_placeholder}'",
       "deadline": "YYYY-MM-DD if explicit, otherwise null",
       "priority": "high/medium/low",
-      "created_by": "Who requested or initiated it, else 'Unknown'"
+      "created_by": "Who requested or initiated it, else '{unknown_placeholder}'"
     }}
   ],
   "decisions": [
     {{
       "description": "Clear decision statement",
       "rationale": "Why this decision was made",
-      "decided_by": "Final decision maker if known, else 'Unknown'",
-      "approved_by": "Approver(s) if mentioned, else 'Unknown'"
+      "decided_by": "Final decision maker if known, else '{unknown_placeholder}'",
+      "approved_by": "Approver(s) if mentioned, else '{unknown_placeholder}'"
     }}
   ],
   "risks": [
@@ -696,7 +766,7 @@ Required JSON schema:
       "description": "Risk or issue",
       "severity": "critical/high/medium/low",
       "mitigation": "Mitigation discussed, else empty string",
-      "raised_by": "Who raised it, else 'Unknown'"
+      "raised_by": "Who raised it, else '{unknown_placeholder}'"
     }}
   ],
   "next_steps": [
@@ -751,7 +821,8 @@ Guidance:
     
     async def generate_summary(self, transcript: str) -> str:
         """Generate meeting summary"""
-        prompt = f"""Create a detailed English meeting summary from the transcript below.
+        language_name = _output_language_name()
+        prompt = f"""Create a detailed {language_name} meeting summary from the transcript below.
 Use only transcript evidence and do not hallucinate.
 Never return an empty response.
 If transcript is short, still provide a useful preliminary summary and clearly list missing context.

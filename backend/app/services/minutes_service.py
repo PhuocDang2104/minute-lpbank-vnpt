@@ -12,6 +12,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
+from app.core.config import get_settings
 from app.schemas.minutes import (
     MeetingMinutesCreate, MeetingMinutesUpdate,
     MeetingMinutesResponse, MeetingMinutesList,
@@ -25,6 +26,7 @@ from pathlib import Path
 from datetime import timezone
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 
 # Transcript windowing settings (character-based)
@@ -32,6 +34,15 @@ MAX_DIRECT_TRANSCRIPT_CHARS = 15000
 WINDOW_CHAR_SIZE = 8000
 WINDOW_CHAR_OVERLAP = 200
 MAX_WINDOWS = 12
+
+
+def _prefer_vietnamese_output() -> bool:
+    raw = (settings.llm_output_language or "vi").strip().lower()
+    return raw in {"vi", "vi-vn", "vietnamese", "tieng viet", "tiếng việt", ""}
+
+
+def _output_language_name() -> str:
+    return "Vietnamese" if _prefer_vietnamese_output() else "English"
 
 
 def _table_exists(db: Session, table_name: str) -> bool:
@@ -143,9 +154,10 @@ async def _summarize_transcript_windows(
 
     chunks = list(_chunk_text(transcript, window_size, WINDOW_CHAR_OVERLAP))
     summaries: List[str] = []
+    output_language = _output_language_name()
     for idx, chunk in enumerate(chunks, start=1):
         prompt = (
-            "Summarize the following transcript window in English into 6-10 concise bullets. "
+            f"Summarize the following transcript window in {output_language} into 6-10 concise bullets. "
             "Use only provided evidence, do not hallucinate. "
             "If data is sparse, still provide a preliminary summary instead of leaving it empty. "
             "Call out notable timestamps, participants, and any action/decision/risk signals.\n\n"
@@ -1019,38 +1031,79 @@ async def generate_minutes_with_ai(
         if str(item).strip()
     ]
     if not summary_result["summary"]:
+        prefer_vi = _prefer_vietnamese_output()
         if meeting_desc:
-            summary_result["summary"] = (
-                f"Preliminary summary for '{meeting_title}': {meeting_desc[:360]}. "
-                "Add transcript evidence for deeper and more reliable minutes."
-            )
+            if prefer_vi:
+                summary_result["summary"] = (
+                    f"Tóm tắt sơ bộ cho '{meeting_title}': {meeting_desc[:360]}. "
+                    "Vui lòng bổ sung transcript để tạo biên bản sâu và đáng tin cậy hơn."
+                )
+            else:
+                summary_result["summary"] = (
+                    f"Preliminary summary for '{meeting_title}': {meeting_desc[:360]}. "
+                    "Add transcript evidence for deeper and more reliable minutes."
+                )
         elif llm_fallback_transcript:
-            summary_result["summary"] = (
-                f"Preliminary summary for '{meeting_title}': {llm_fallback_transcript[:420]}. "
-                "This draft should be refined with full transcript context."
-            )
+            if prefer_vi:
+                summary_result["summary"] = (
+                    f"Tóm tắt sơ bộ cho '{meeting_title}': {llm_fallback_transcript[:420]}. "
+                    "Bản nháp này nên được tinh chỉnh bằng transcript đầy đủ."
+                )
+            else:
+                summary_result["summary"] = (
+                    f"Preliminary summary for '{meeting_title}': {llm_fallback_transcript[:420]}. "
+                    "This draft should be refined with full transcript context."
+                )
         elif related_docs:
-            summary_result["summary"] = (
-                f"Preliminary summary for '{meeting_title}': related documents are available. "
-                "Please add transcript data to generate detailed minutes."
-            )
+            if prefer_vi:
+                summary_result["summary"] = (
+                    f"Tóm tắt sơ bộ cho '{meeting_title}': đã có tài liệu liên quan. "
+                    "Vui lòng bổ sung dữ liệu transcript để tạo biên bản chi tiết."
+                )
+            else:
+                summary_result["summary"] = (
+                    f"Preliminary summary for '{meeting_title}': related documents are available. "
+                    "Please add transcript data to generate detailed minutes."
+                )
         else:
-            summary_result["summary"] = (
-                f"Preliminary summary for '{meeting_title}': this session is recorded, "
-                "but content evidence is currently limited."
-            )
+            if prefer_vi:
+                summary_result["summary"] = (
+                    f"Tóm tắt sơ bộ cho '{meeting_title}': phiên họp đã được ghi nhận, "
+                    "nhưng bằng chứng nội dung hiện còn hạn chế."
+                )
+            else:
+                summary_result["summary"] = (
+                    f"Preliminary summary for '{meeting_title}': this session is recorded, "
+                    "but content evidence is currently limited."
+                )
     if not summary_result["key_points"]:
         fallback_points: List[str] = []
+        prefer_vi = _prefer_vietnamese_output()
         if action_rows:
-            fallback_points.append(f"{len(action_rows)} action item(s) were captured.")
+            if prefer_vi:
+                fallback_points.append(f"Đã ghi nhận {len(action_rows)} đầu việc.")
+            else:
+                fallback_points.append(f"{len(action_rows)} action item(s) were captured.")
         if decision_rows:
-            fallback_points.append(f"{len(decision_rows)} decision(s) were captured.")
+            if prefer_vi:
+                fallback_points.append(f"Đã ghi nhận {len(decision_rows)} quyết định.")
+            else:
+                fallback_points.append(f"{len(decision_rows)} decision(s) were captured.")
         if risk_rows:
-            fallback_points.append(f"{len(risk_rows)} risk(s) were captured.")
+            if prefer_vi:
+                fallback_points.append(f"Đã ghi nhận {len(risk_rows)} rủi ro.")
+            else:
+                fallback_points.append(f"{len(risk_rows)} risk(s) were captured.")
         if related_docs:
-            fallback_points.append(f"{len(related_docs)} reference document(s) are linked.")
+            if prefer_vi:
+                fallback_points.append(f"Có {len(related_docs)} tài liệu tham chiếu liên quan.")
+            else:
+                fallback_points.append(f"{len(related_docs)} reference document(s) are linked.")
         if not fallback_points:
-            fallback_points.append("Add transcript evidence to improve summary depth and accuracy.")
+            if prefer_vi:
+                fallback_points.append("Vui lòng bổ sung transcript để tăng độ sâu và độ chính xác của tóm tắt.")
+            else:
+                fallback_points.append("Add transcript evidence to improve summary depth and accuracy.")
         summary_result["key_points"] = fallback_points[:5]
 
     actions = [row.get("description", "") for row in action_rows if row.get("description")]

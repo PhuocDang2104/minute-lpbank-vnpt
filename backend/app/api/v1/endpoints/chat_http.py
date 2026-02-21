@@ -11,6 +11,7 @@ from typing import Optional
 import json
 import hashlib
 
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.schemas.chat import (
     ChatRequest,
@@ -30,6 +31,7 @@ from app.services import summary_service
 from app.services import user_service
 
 router = APIRouter()
+settings = get_settings()
 
 HOME_ASK_CONTEXT = """MINUTE | Tro ly thong minh cho meetings va study sessions
 (Web app + Multimodal Companion Agent + LightRAG + Tool-calling)
@@ -70,7 +72,7 @@ Quy tac bat buoc:
 - Neu cau hoi khong nam trong context hoac qua chuyen sau/ngoai pham vi, tra loi: "I don't have that information in the current MINUTE context. You can ask me about MINUTE, its features, and the user journey."
 - Neu nguoi dung chao hoi, cam on, chia se cam xuc hoac hoi dap giao tiep co ban, hay phan hoi than thien va goi y co the hoi ve MINUTE.
 - Khong bịa, khong suy doan ngoai context, khong dua thong tin moi.
-- Respond in English, natural tone, 1-5 sentences, no markdown.
+- Respond in Vietnamese by default (or in user's language if they explicitly ask), natural tone, 1-5 sentences, no markdown.
 
 <context>
 {HOME_ASK_CONTEXT}
@@ -78,9 +80,9 @@ Quy tac bat buoc:
 """
 
 HOME_ASK_MOCK_RESPONSE = (
-    "MINUTE is an intelligent copilot for meetings and study sessions. "
-    "It supports live recap, context-grounded Q&A, and post-session minutes. "
-    "You can upload recordings to generate transcript + summary + actions/quizzes and ask questions grounded in related documents."
+    "MINUTE la tro ly thong minh cho hop va hoc. "
+    "He thong ho tro live recap, hoi dap co ngu canh, va tao bien ban sau cuoc hop. "
+    "Ban co the upload ban ghi de tao transcript + summary + action/quiz va hoi dap dua tren tai lieu lien quan."
 )
 
 
@@ -172,7 +174,10 @@ async def test_llm():
         return {"success": False, "error": "No API key configured", "status": status}
     try:
         chat = GeminiChat()
-        response = await chat.chat("Say hello in English.")
+        test_message = "Say hello in one short sentence."
+        if (settings.llm_output_language or "vi").strip().lower() in {"vi", "vi-vn", "vietnamese", "tieng viet", "tiếng việt"}:
+            test_message = "Hay chao bang mot cau ngan."
+        response = await chat.chat(test_message)
         return {
             "success": True,
             "response": response,
