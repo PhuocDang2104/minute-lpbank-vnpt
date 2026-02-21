@@ -80,7 +80,7 @@ BEGIN
     v_meeting_id := gen_random_uuid();
     INSERT INTO meeting (
         id, title, description, organizer_id, project_id, 
-        start_time, end_time, meeting_type, location, teams_link, phase,
+        session_date, start_time, end_time, meeting_type, location, teams_link, phase,
         created_at
     ) VALUES (
         v_meeting_id,
@@ -88,6 +88,7 @@ BEGIN
         'Trình và quyết nghị các nội dung giai đoạn 1 của ORION: trần ngân sách, phương án đưa dự toán về đúng trần, điều kiện tuân thủ bắt buộc và cơ chế giám sát/báo cáo.',
         v_quan_id,
         v_project_id,
+        '2025-12-01',
         '2025-12-01 09:00:00+07',
         '2025-12-01 11:30:00+07',
         'STEERING COMMITTEE',

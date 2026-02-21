@@ -43,8 +43,10 @@ export const MeetingDetail = () => {
   const [editForm, setEditForm] = useState({
     title: '',
     description: '',
+    session_date: '',
     start_time: '',
     end_time: '',
+    is_instant: false,
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -144,18 +146,34 @@ export const MeetingDetail = () => {
   const handleOpenEdit = () => {
     if (!meeting) return;
 
-    // Format datetime for input fields
-    const formatDateTimeLocal = (dateStr: string | undefined) => {
+    const formatDateInput = (dateStr: string | null | undefined) => {
+      if (!dateStr) return '';
+      return String(dateStr).slice(0, 10);
+    };
+    const formatDateFromIso = (dateStr: string | null | undefined) => {
       if (!dateStr) return '';
       const date = new Date(dateStr);
-      return date.toISOString().slice(0, 16);
+      if (Number.isNaN(date.getTime())) return '';
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     };
+    const formatTimeInput = (dateStr: string | null | undefined) => {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      if (Number.isNaN(date.getTime())) return '';
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    };
+    const nextSessionDate = formatDateInput(meeting.session_date) || formatDateFromIso(meeting.start_time);
 
     setEditForm({
       title: meeting.title || '',
       description: meeting.description || '',
-      start_time: formatDateTimeLocal(meeting.start_time),
-      end_time: formatDateTimeLocal(meeting.end_time),
+      session_date: nextSessionDate,
+      start_time: formatTimeInput(meeting.start_time),
+      end_time: formatTimeInput(meeting.end_time),
+      is_instant: !nextSessionDate,
     });
     setShowEditModal(true);
   };
@@ -164,13 +182,43 @@ export const MeetingDetail = () => {
   const handleSaveEdit = async () => {
     if (!meetingId) return;
 
+    const title = editForm.title.trim();
+    if (!title) {
+      alert(lt('Vui long nhap tieu de phien.', 'Please enter the session title.'));
+      return;
+    }
+
+    let startIso: string | null = null;
+    let endIso: string | null = null;
+    if (!editForm.is_instant) {
+      if (!editForm.session_date || !editForm.start_time || !editForm.end_time) {
+        alert(lt('Vui long dien du ngay va gio.', 'Please provide session date and time.'));
+        return;
+      }
+      const startDate = new Date(`${editForm.session_date}T${editForm.start_time}`);
+      const endDate = new Date(`${editForm.session_date}T${editForm.end_time}`);
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+        alert(lt('Ngay gio khong hop le.', 'Invalid date/time.'));
+        return;
+      }
+      if (endDate.getTime() <= startDate.getTime()) {
+        alert(lt('Gio ket thuc phai sau gio bat dau.', 'End time must be after start time.'));
+        return;
+      }
+      startIso = startDate.toISOString();
+      endIso = endDate.toISOString();
+    }
+
     setIsSaving(true);
     try {
       const updateData: MeetingUpdate = {
-        title: editForm.title || undefined,
+        title,
         description: editForm.description || undefined,
-        start_time: editForm.start_time ? new Date(editForm.start_time).toISOString() : undefined,
-        end_time: editForm.end_time ? new Date(editForm.end_time).toISOString() : undefined,
+        session_date: editForm.is_instant
+          ? null
+          : (editForm.session_date || null),
+        start_time: editForm.is_instant ? null : startIso,
+        end_time: editForm.is_instant ? null : endIso,
       };
 
       await meetingsApi.update(meetingId, updateData);
@@ -223,6 +271,8 @@ export const MeetingDetail = () => {
   }
 
   const startTime = meeting.start_time ? new Date(meeting.start_time) : null;
+  const sessionDateRaw = meeting.session_date || (meeting.start_time ? meeting.start_time.slice(0, 10) : null);
+  const sessionDate = sessionDateRaw ? new Date(`${sessionDateRaw}T00:00:00`) : null;
   const sessionIdValue = streamSessionId || meeting.id;
 
   return (
@@ -247,16 +297,18 @@ export const MeetingDetail = () => {
 
         <div className="meeting-detail-v2__header-right">
           <div className="meeting-detail-v2__meta-compact">
-            {startTime && (
+            {(sessionDate || startTime) && (
               <>
                 <span className="meta-item">
                   <Calendar size={14} />
-                  {startTime.toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit' })}
+                  {(sessionDate || startTime)?.toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit' })}
                 </span>
-                <span className="meta-item">
-                  <Clock size={14} />
-                  {startTime.toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                {startTime && (
+                  <span className="meta-item">
+                    <Clock size={14} />
+                    {startTime.toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
               </>
             )}
           </div>
@@ -356,6 +408,38 @@ export const MeetingDetail = () => {
                 />
               </div>
 
+              <div className="form-group">
+                <label className="form-label">{lt('Ngay dien ra', 'Session date')}</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={editForm.session_date}
+                  onChange={e => setEditForm({ ...editForm, session_date: e.target.value })}
+                  disabled={editForm.is_instant}
+                />
+                <label className="checkbox-label" style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={editForm.is_instant}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      const now = new Date();
+                      const plusHour = new Date(now.getTime() + (60 * 60 * 1000));
+                      const fallbackDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                      const fallbackStart = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                      const fallbackEnd = `${String(plusHour.getHours()).padStart(2, '0')}:${String(plusHour.getMinutes()).padStart(2, '0')}`;
+                      setEditForm(prev => ({
+                        ...prev,
+                        is_instant: checked,
+                        session_date: checked ? '' : (prev.session_date || fallbackDate),
+                        start_time: checked ? '' : (prev.start_time || fallbackStart),
+                        end_time: checked ? '' : (prev.end_time || fallbackEnd),
+                      }));
+                    }}
+                  />
+                  <span>{lt('Phien tuc thi (N/A)', 'Instant session (N/A)')}</span>
+                </label>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-base)' }}>
                 <div className="form-group">
                   <label className="form-label">
@@ -363,10 +447,11 @@ export const MeetingDetail = () => {
                     {lt('Thời gian bắt đầu', 'Start time')}
                   </label>
                   <input
-                    type="datetime-local"
+                    type="time"
                     className="form-input"
                     value={editForm.start_time}
                     onChange={e => setEditForm({ ...editForm, start_time: e.target.value })}
+                    disabled={editForm.is_instant}
                   />
                 </div>
 
@@ -376,10 +461,11 @@ export const MeetingDetail = () => {
                     {lt('Thời gian kết thúc', 'End time')}
                   </label>
                   <input
-                    type="datetime-local"
+                    type="time"
                     className="form-input"
                     value={editForm.end_time}
                     onChange={e => setEditForm({ ...editForm, end_time: e.target.value })}
+                    disabled={editForm.is_instant}
                   />
                 </div>
               </div>
@@ -526,3 +612,4 @@ export const MeetingDetail = () => {
 };
 
 export default MeetingDetail;
+

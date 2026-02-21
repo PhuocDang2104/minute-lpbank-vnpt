@@ -49,6 +49,14 @@ def _table_has_column(db: Session, table_name: str, column_name: str) -> bool:
         return False
 
 
+def _field_is_set(payload: object, field_name: str) -> bool:
+    """Support both Pydantic v1 (__fields_set__) and v2 (model_fields_set)."""
+    fields_set = getattr(payload, "model_fields_set", None)
+    if fields_set is None:
+        fields_set = getattr(payload, "__fields_set__", set())
+    return field_name in fields_set
+
+
 def _collect_assets_by_scope(
     db: Session,
     table_name: str,
@@ -163,6 +171,7 @@ def list_meetings(
     query = """
         SELECT 
             id::text, title, description, 
+            session_date,
             organizer_id::text, 
             start_time, end_time, 
             meeting_type, phase,
@@ -190,7 +199,12 @@ def list_meetings(
         count_query += " AND project_id = :project_id"
         params['project_id'] = project_id
     
-    query += " ORDER BY start_time DESC NULLS LAST LIMIT :limit OFFSET :skip"
+    query += """
+        ORDER BY
+            COALESCE(session_date, start_time::date) DESC NULLS LAST,
+            start_time DESC NULLS LAST
+        LIMIT :limit OFFSET :skip
+    """
     params['limit'] = limit
     params['skip'] = skip
     
@@ -207,17 +221,18 @@ def list_meetings(
             id=row[0],
             title=row[1],
             description=row[2],
-            organizer_id=row[3],
-            start_time=row[4],
-            end_time=row[5],
-            meeting_type=row[6] or 'weekly_status',
-            phase=row[7] or 'pre',
-            project_id=row[8],
-            department_id=row[9],
-            location=row[10],
-            teams_link=row[11],
-            recording_url=row[12],
-            created_at=row[13],
+            session_date=row[3],
+            organizer_id=row[4],
+            start_time=row[5],
+            end_time=row[6],
+            meeting_type=row[7] or 'weekly_status',
+            phase=row[8] or 'pre',
+            project_id=row[9],
+            department_id=row[10],
+            location=row[11],
+            teams_link=row[12],
+            recording_url=row[13],
+            created_at=row[14],
         ))
     
     return meetings, total
@@ -248,19 +263,25 @@ def create_meeting(db: Session, payload: MeetingCreate) -> Meeting:
         if check_project.fetchone():
             project_id = payload.project_id
     
+    session_date = payload.session_date
+    if session_date is None and payload.start_time is not None:
+        session_date = payload.start_time.date()
+
     query = text("""
         INSERT INTO meeting (
             id, title, description, organizer_id,
+            session_date,
             start_time, end_time, meeting_type, phase,
             project_id, department_id, location, teams_link,
             created_at
         ) VALUES (
             :id, :title, :description, :organizer_id,
+            :session_date,
             :start_time, :end_time, :meeting_type, 'pre',
             :project_id, :department_id, :location, :teams_link,
             :created_at
         )
-        RETURNING id::text, title, description, organizer_id::text,
+        RETURNING id::text, title, description, session_date, organizer_id::text,
                   start_time, end_time, meeting_type, phase,
                   project_id::text, department_id::text, location, teams_link,
                   created_at
@@ -271,6 +292,7 @@ def create_meeting(db: Session, payload: MeetingCreate) -> Meeting:
         'title': payload.title,
         'description': payload.description,
         'organizer_id': organizer_id,
+        'session_date': session_date,
         'start_time': payload.start_time,
         'end_time': payload.end_time,
         'meeting_type': payload.meeting_type,
@@ -296,16 +318,17 @@ def create_meeting(db: Session, payload: MeetingCreate) -> Meeting:
         id=row[0],
         title=row[1],
         description=row[2],
-        organizer_id=row[3],
-        start_time=row[4],
-        end_time=row[5],
-        meeting_type=row[6],
-        phase=row[7],
-        project_id=row[8],
-        department_id=row[9],
-        location=row[10],
-        teams_link=row[11],
-        created_at=row[12],
+        session_date=row[3],
+        organizer_id=row[4],
+        start_time=row[5],
+        end_time=row[6],
+        meeting_type=row[7],
+        phase=row[8],
+        project_id=row[9],
+        department_id=row[10],
+        location=row[11],
+        teams_link=row[12],
+        created_at=row[13],
     )
 
 
@@ -316,6 +339,7 @@ def get_meeting(db: Session, meeting_id: str) -> Optional[MeetingWithParticipant
     query = text("""
         SELECT 
             m.id::text, m.title, m.description, 
+            m.session_date,
             m.organizer_id::text, 
             m.start_time, m.end_time, 
             m.meeting_type, m.phase,
@@ -336,17 +360,18 @@ def get_meeting(db: Session, meeting_id: str) -> Optional[MeetingWithParticipant
         id=row[0],
         title=row[1],
         description=row[2],
-        organizer_id=row[3],
-        start_time=row[4],
-        end_time=row[5],
-        meeting_type=row[6] or 'weekly_status',
-        phase=row[7] or 'pre',
-        project_id=row[8],
-        department_id=row[9],
-        location=row[10],
-        teams_link=row[11],
-        recording_url=row[12],
-        created_at=row[13],
+        session_date=row[3],
+        organizer_id=row[4],
+        start_time=row[5],
+        end_time=row[6],
+        meeting_type=row[7] or 'weekly_status',
+        phase=row[8] or 'pre',
+        project_id=row[9],
+        department_id=row[10],
+        location=row[11],
+        teams_link=row[12],
+        recording_url=row[13],
+        created_at=row[14],
         participants=[]
     )
     
@@ -388,13 +413,25 @@ def update_meeting(db: Session, meeting_id: str, payload: MeetingUpdate) -> Opti
         update_fields.append("description = :description")
         params['description'] = payload.description
     
-    if payload.start_time is not None:
+    if _field_is_set(payload, "session_date"):
+        update_fields.append("session_date = :session_date")
+        params['session_date'] = payload.session_date
+
+    if _field_is_set(payload, "start_time"):
         update_fields.append("start_time = :start_time")
         params['start_time'] = payload.start_time
     
-    if payload.end_time is not None:
+    if _field_is_set(payload, "end_time"):
         update_fields.append("end_time = :end_time")
         params['end_time'] = payload.end_time
+
+    if (
+        _field_is_set(payload, "start_time")
+        and not _field_is_set(payload, "session_date")
+        and payload.start_time is not None
+    ):
+        update_fields.append("session_date = :derived_session_date")
+        params['derived_session_date'] = payload.start_time.date()
     
     if payload.meeting_type is not None:
         update_fields.append("meeting_type = :meeting_type")
@@ -427,7 +464,7 @@ def update_meeting(db: Session, meeting_id: str, payload: MeetingUpdate) -> Opti
         UPDATE meeting 
         SET {', '.join(update_fields)}
         WHERE id = :meeting_id
-        RETURNING id::text, title, description, organizer_id::text,
+        RETURNING id::text, title, description, session_date, organizer_id::text,
                   start_time, end_time, meeting_type, phase,
                   project_id::text, department_id::text, location, teams_link,
                   recording_url, created_at
@@ -444,17 +481,18 @@ def update_meeting(db: Session, meeting_id: str, payload: MeetingUpdate) -> Opti
         id=row[0],
         title=row[1],
         description=row[2],
-        organizer_id=row[3],
-        start_time=row[4],
-        end_time=row[5],
-        meeting_type=row[6],
-        phase=row[7],
-        project_id=row[8],
-        department_id=row[9],
-        location=row[10],
-        teams_link=row[11],
-        recording_url=row[12],
-        created_at=row[13],
+        session_date=row[3],
+        organizer_id=row[4],
+        start_time=row[5],
+        end_time=row[6],
+        meeting_type=row[7],
+        phase=row[8],
+        project_id=row[9],
+        department_id=row[10],
+        location=row[11],
+        teams_link=row[12],
+        recording_url=row[13],
+        created_at=row[14],
     )
 
 

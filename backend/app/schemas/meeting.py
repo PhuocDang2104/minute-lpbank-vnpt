@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, List
 from uuid import UUID
 
@@ -25,6 +25,7 @@ class Participant(ParticipantBase):
 class MeetingBase(BaseModel):
     title: str
     description: Optional[str] = None
+    session_date: Optional[date] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     meeting_type: str = 'weekly_status'  # steering / weekly_status / risk_review / workshop / daily
@@ -42,6 +43,7 @@ class MeetingCreate(MeetingBase):
 class MeetingUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    session_date: Optional[date] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     meeting_type: Optional[str] = None
