@@ -61,6 +61,7 @@ CREATE TABLE meeting (
     external_event_id TEXT, -- sync từ Outlook/Teams
     title TEXT NOT NULL,
     description TEXT,
+    session_date DATE,
     organizer_id UUID REFERENCES user_account(id),
     start_time TIMESTAMPTZ,
     end_time TIMESTAMPTZ,
@@ -76,6 +77,7 @@ CREATE TABLE meeting (
 );
 
 CREATE INDEX idx_meeting_organizer ON meeting(organizer_id);
+CREATE INDEX idx_meeting_session_date ON meeting(session_date);
 CREATE INDEX idx_meeting_start ON meeting(start_time);
 CREATE INDEX idx_meeting_project ON meeting(project_id);
 CREATE INDEX idx_meeting_type ON meeting(meeting_type);

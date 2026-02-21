@@ -75,7 +75,7 @@ function formatDateString(date: Date): string {
   return date.toISOString().split('T')[0]
 }
 
-function parseDateTime(dateStr: string | undefined, fallback: Date): Date {
+function parseDateTime(dateStr: string | null | undefined, fallback: Date): Date {
   if (!dateStr) return fallback
   try {
     return new Date(dateStr)
@@ -108,20 +108,27 @@ function determineMeetingStatus(meeting: { phase: string, startTime: Date, endTi
  */
 function transformApiMeeting(meeting: Meeting): NormalizedMeeting {
   const now = new Date()
-  const startTime = parseDateTime(meeting.start_time, now)
-  const endTime = parseDateTime(meeting.end_time, new Date(now.getTime() + 60 * 60 * 1000))
+  const hasSchedule = Boolean(meeting.start_time || meeting.session_date)
+  const startFallback = meeting.session_date
+    ? new Date(`${meeting.session_date}T09:00:00`)
+    : new Date(0)
+  const startTime = parseDateTime(meeting.start_time, startFallback)
+  const endTime = parseDateTime(meeting.end_time, new Date(startTime.getTime() + 60 * 60 * 1000))
+  const status = hasSchedule
+    ? determineMeetingStatus({ phase: meeting.phase, startTime, endTime })
+    : (meeting.phase === 'post' ? 'completed' : meeting.phase === 'in' ? 'in_progress' : 'upcoming')
   
   return {
     id: meeting.id,
     title: meeting.title,
     description: meeting.description,
-    date: formatDateString(startTime),
-    start: formatTimeString(startTime),
-    end: formatTimeString(endTime),
+    date: meeting.session_date || (meeting.start_time ? formatDateString(startTime) : ''),
+    start: hasSchedule ? formatTimeString(startTime) : '',
+    end: hasSchedule ? formatTimeString(endTime) : '',
     startTime,
     endTime,
     participants: 0, // API doesn't return this yet, fallback to 0
-    status: determineMeetingStatus({ phase: meeting.phase, startTime, endTime }),
+    status,
     phase: meeting.phase,
     meetingType: meeting.meeting_type,
     location: meeting.location,

@@ -29,7 +29,8 @@ CREATE INDEX IF NOT EXISTS idx_project_member_user ON project_member(user_id);
 
 -- Ensure project_id linkage exists on related tables
 ALTER TABLE meeting
-    ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES project(id);
+    ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES project(id),
+    ADD COLUMN IF NOT EXISTS session_date DATE;
 
 ALTER TABLE action_item
     ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES project(id);
@@ -44,6 +45,7 @@ ALTER TABLE knowledge_document
 CREATE INDEX IF NOT EXISTS idx_project_owner ON project(owner_id);
 CREATE INDEX IF NOT EXISTS idx_project_department ON project(department_id);
 CREATE INDEX IF NOT EXISTS idx_meeting_project ON meeting(project_id);
+CREATE INDEX IF NOT EXISTS idx_meeting_session_date ON meeting(session_date);
 CREATE INDEX IF NOT EXISTS idx_action_item_project ON action_item(project_id);
 CREATE INDEX IF NOT EXISTS idx_document_project ON document(project_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_document_project ON knowledge_document(project_id);

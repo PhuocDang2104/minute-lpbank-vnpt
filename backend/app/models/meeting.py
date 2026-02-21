@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, ForeignKey, Text, Boolean, DateTime, Float
+from sqlalchemy import Column, String, ForeignKey, Text, Boolean, DateTime, Float, Date
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.models.base import Base, TimestampMixin, UUIDMixin
@@ -12,6 +12,7 @@ class Meeting(Base, UUIDMixin, TimestampMixin):
     external_event_id = Column(String)  # sync từ Outlook/Teams
     title = Column(String, nullable=False)
     description = Column(Text)
+    session_date = Column(Date, nullable=True)
     organizer_id = Column(UUID(as_uuid=True), ForeignKey('user_account.id'))
     start_time = Column(DateTime(timezone=True))
     end_time = Column(DateTime(timezone=True))

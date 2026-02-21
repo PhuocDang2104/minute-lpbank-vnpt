@@ -24,8 +24,9 @@ export interface Meeting {
   description?: string;
   meeting_type: MeetingType;
   phase: MeetingPhase;
-  start_time: string; // ISO string
-  end_time: string; // ISO string
+  session_date?: string | null; // YYYY-MM-DD
+  start_time?: string | null; // ISO string
+  end_time?: string | null; // ISO string
   location?: string;
   teams_link?: string;
   project_id?: string;
@@ -37,6 +38,7 @@ export interface Meeting {
 export interface MeetingCreate {
   title: string;
   description?: string;
+  session_date?: string;
   start_time?: string;
   end_time?: string;
   meeting_type?: MeetingType;
@@ -51,8 +53,9 @@ export interface MeetingCreate {
 export interface MeetingUpdate {
   title?: string;
   description?: string;
-  start_time?: string;
-  end_time?: string;
+  session_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
   meeting_type?: MeetingType;
   phase?: MeetingPhase;
   project_id?: string;

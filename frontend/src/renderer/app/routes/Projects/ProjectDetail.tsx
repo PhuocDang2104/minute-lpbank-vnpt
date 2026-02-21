@@ -8,6 +8,10 @@ import {
   Plus,
   MoreVertical,
   ChevronRight,
+  ChevronLeft,
+  CalendarDays,
+  List,
+  Clock3,
   Edit3,
   Upload,
   AlertCircle,
@@ -26,6 +30,19 @@ import { USE_API } from '../../../config/env'
 import { useLocaleText } from '../../../i18n/useLocaleText'
 
 type TabKey = 'overview' | 'meetings' | 'documents'
+type SessionsViewMode = 'table' | 'calendar'
+
+const isValidDate = (value: Date) => !Number.isNaN(value.getTime())
+
+const sameCalendarDay = (a: Date, b: Date) => (
+  a.getFullYear() === b.getFullYear()
+  && a.getMonth() === b.getMonth()
+  && a.getDate() === b.getDate()
+)
+
+const toDayKey = (date: Date) => (
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+)
 
 const ProjectDetail = () => {
   const { projectId } = useParams<{ projectId: string }>()
@@ -48,6 +65,8 @@ const ProjectDetail = () => {
   const [renameMeetingError, setRenameMeetingError] = useState<string | null>(null)
   const [isRenamingMeeting, setIsRenamingMeeting] = useState(false)
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null)
+  const [sessionsViewMode, setSessionsViewMode] = useState<SessionsViewMode>('table')
+  const [calendarDate, setCalendarDate] = useState(() => new Date())
 
   const [editForm, setEditForm] = useState({
     name: '',
@@ -113,6 +132,105 @@ const ProjectDetail = () => {
     meetings: project?.meeting_count ?? meetings.length,
     documents: project?.document_count ?? documents.length,
   }), [project, meetings, documents])
+
+  const resolveSessionDate = (meeting: Meeting): Date | null => {
+    if (meeting.session_date) {
+      const value = new Date(`${String(meeting.session_date).slice(0, 10)}T00:00:00`)
+      if (isValidDate(value)) return value
+    }
+    if (meeting.start_time) {
+      const value = new Date(meeting.start_time)
+      if (isValidDate(value)) return value
+    }
+    return null
+  }
+
+  const resolveSessionTimeRange = (meeting: Meeting): { start: Date; end: Date } | null => {
+    if (!meeting.start_time) return null
+    const start = new Date(meeting.start_time)
+    if (!isValidDate(start)) return null
+    const end = meeting.end_time ? new Date(meeting.end_time) : new Date(start.getTime() + 60 * 60 * 1000)
+    if (!isValidDate(end)) return { start, end: new Date(start.getTime() + 60 * 60 * 1000) }
+    return { start, end }
+  }
+
+  const formatSessionDate = (meeting: Meeting) => {
+    const date = resolveSessionDate(meeting)
+    return date ? date.toLocaleDateString(dateLocale) : 'N/A'
+  }
+
+  const formatSessionDateTime = (meeting: Meeting) => {
+    const date = resolveSessionDate(meeting)
+    const range = resolveSessionTimeRange(meeting)
+    if (!date) return 'N/A'
+    if (!range) return date.toLocaleDateString(dateLocale)
+    return `${date.toLocaleDateString(dateLocale)} · ${range.start.toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' })}`
+  }
+
+  const sortedMeetings = useMemo(() => (
+    [...meetings].sort((a, b) => {
+      const aDate = resolveSessionDate(a)?.getTime() ?? 0
+      const bDate = resolveSessionDate(b)?.getTime() ?? 0
+      if (aDate !== bDate) return bDate - aDate
+      const aStart = a.start_time ? new Date(a.start_time).getTime() : 0
+      const bStart = b.start_time ? new Date(b.start_time).getTime() : 0
+      return bStart - aStart
+    })
+  ), [meetings])
+
+  const calendarMonth = useMemo(
+    () => new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1),
+    [calendarDate],
+  )
+
+  const calendarGridDays = useMemo(() => {
+    const firstDayIndex = calendarMonth.getDay()
+    const daysInMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate()
+    const prevMonthDays = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 0).getDate()
+    const cells: { date: Date; inMonth: boolean }[] = []
+
+    for (let i = firstDayIndex - 1; i >= 0; i -= 1) {
+      cells.push({
+        date: new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, prevMonthDays - i),
+        inMonth: false,
+      })
+    }
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      cells.push({ date: new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day), inMonth: true })
+    }
+    while (cells.length % 7 !== 0) {
+      const nextDay = cells.length - (firstDayIndex + daysInMonth) + 1
+      cells.push({
+        date: new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, nextDay),
+        inMonth: false,
+      })
+    }
+    return cells
+  }, [calendarMonth])
+
+  const dayMeetings = useMemo(() => (
+    sortedMeetings.filter(meeting => {
+      const date = resolveSessionDate(meeting)
+      return date ? sameCalendarDay(date, calendarDate) : false
+    })
+  ), [calendarDate, sortedMeetings])
+
+  const unscheduledMeetings = useMemo(() => (
+    sortedMeetings.filter(meeting => !resolveSessionDate(meeting))
+  ), [sortedMeetings])
+
+  const meetingCountByDay = useMemo(() => {
+    const map = new Map<string, number>()
+    sortedMeetings.forEach((meeting) => {
+      const date = resolveSessionDate(meeting)
+      if (!date) return
+      const key = toDayKey(date)
+      map.set(key, (map.get(key) || 0) + 1)
+    })
+    return map
+  }, [sortedMeetings])
+
+  const dayHours = useMemo(() => Array.from({ length: 17 }, (_, index) => index + 6), [])
 
   const handleCreateMeetingSuccess = (meetingId: string) => {
     setShowCreateMeetingModal(false)
@@ -317,9 +435,7 @@ const ProjectDetail = () => {
                     <div>
                       <div className="project-list__title">{meeting.title}</div>
                       <div className="project-list__meta">
-                        {meeting.start_time
-                          ? `${new Date(meeting.start_time).toLocaleDateString(dateLocale)} · ${new Date(meeting.start_time).toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' })}`
-                          : lt('Chưa có thời gian', 'No schedule yet')}
+                        {formatSessionDateTime(meeting)}
                       </div>
                     </div>
                     <div className="project-list__actions">
@@ -396,30 +512,64 @@ const ProjectDetail = () => {
       )}
 
       {activeTab === 'meetings' && (
-        <div className="project-panel">
-          <div className="project-panel__header">
-            <h3>{lt('Danh sách phiên họp', 'Session list')}</h3>
-            <button className="btn btn--secondary" onClick={() => setShowCreateMeetingModal(true)}>
-              <Plus size={14} />
-              {lt('Tạo phiên', 'Create session')}
-            </button>
+        <div className="project-panel project-panel--sessions">
+          <div className="project-panel__header project-panel__header--sessions">
+            <h3>{lt('Danh sach phien hop/hoc', 'Session list')}</h3>
+            <div className="project-panel__header-actions">
+              <div className="project-view-switch" role="tablist" aria-label={lt('Kieu hien thi phien', 'Session display mode')}>
+                <button
+                  type="button"
+                  className={sessionsViewMode === 'table' ? 'active' : ''}
+                  onClick={() => setSessionsViewMode('table')}
+                >
+                  <List size={14} />
+                  {lt('Bang', 'Table')}
+                </button>
+                <button
+                  type="button"
+                  className={sessionsViewMode === 'calendar' ? 'active' : ''}
+                  onClick={() => setSessionsViewMode('calendar')}
+                >
+                  <CalendarDays size={14} />
+                  {lt('Calendar ngay', 'Day calendar')}
+                </button>
+              </div>
+              <button className="btn btn--secondary" onClick={() => setShowCreateMeetingModal(true)}>
+                <Plus size={14} />
+                {lt('Tao phien', 'Create session')}
+              </button>
+            </div>
           </div>
+
           {meetings.length === 0 ? (
-            <div className="project-empty">{lt('Chưa có phiên nào.', 'No sessions yet.')}</div>
-          ) : (
-            <div className="project-table">
-              {meetings.map(meeting => (
-                <Link key={meeting.id} to={`/app/meetings/${meeting.id}/detail`} className="project-table__row">
-                  <div>
+            <div className="project-empty">{lt('Chua co phien nao.', 'No sessions yet.')}</div>
+          ) : sessionsViewMode === 'table' ? (
+            <div className="project-table project-table--grid">
+              <div className="project-table__header">
+                <div>{lt('Phien', 'Session')}</div>
+                <div>{lt('Loai', 'Type')}</div>
+                <div>{lt('Ngay dien ra', 'Session date')}</div>
+                <div>{lt('Trang thai', 'Status')}</div>
+                <div></div>
+              </div>
+              {sortedMeetings.map(meeting => (
+                <Link key={meeting.id} to={`/app/meetings/${meeting.id}/detail`} className="project-table__row project-table__row--grid">
+                  <div className="project-table__cell project-table__cell--title">
                     <div className="project-table__title">{meeting.title}</div>
-                    <div className="project-table__meta">
-                      {meeting.start_time
-                        ? `${new Date(meeting.start_time).toLocaleDateString(dateLocale)} · ${new Date(meeting.start_time).toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' })}`
-                        : lt('Chưa có thời gian', 'No schedule yet')}
-                    </div>
+                    <div className="project-table__meta">{formatSessionDateTime(meeting)}</div>
                   </div>
-                  <div className="project-table__actions">
+                  <div className="project-table__cell">
+                    {meeting.meeting_type === 'study_session' ? lt('Hoc', 'Study') : lt('Hop', 'Meeting')}
+                  </div>
+                  <div className="project-table__cell">
+                    <span className={`project-table__date-pill ${formatSessionDate(meeting) === 'N/A' ? 'project-table__date-pill--na' : ''}`}>
+                      {formatSessionDate(meeting)}
+                    </span>
+                  </div>
+                  <div className="project-table__cell">
                     <span className="project-table__status">{meeting.phase}</span>
+                  </div>
+                  <div className="project-table__cell project-table__cell--menu">
                     <div
                       className="drive-menu-wrapper"
                       onClick={(e) => {
@@ -430,7 +580,7 @@ const ProjectDetail = () => {
                       <button
                         type="button"
                         className="drive-menu-trigger"
-                        aria-label={lt('Menu phiên', 'Session menu')}
+                        aria-label={lt('Menu phien', 'Session menu')}
                         onClick={(e) => {
                           e.preventDefault()
                           e.stopPropagation()
@@ -451,10 +601,145 @@ const ProjectDetail = () => {
                 </Link>
               ))}
             </div>
+          ) : (
+            <div className="project-sessions-calendar">
+              <aside className="project-sessions-calendar__sidebar">
+                <div className="project-sessions-calendar__month-nav">
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--icon btn--sm"
+                    onClick={() => setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <strong>
+                    {calendarMonth.toLocaleDateString(dateLocale, { month: 'long', year: 'numeric' })}
+                  </strong>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--icon btn--sm"
+                    onClick={() => setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+
+                <div className="project-sessions-calendar__weekdays">
+                  {[lt('CN', 'Sun'), lt('T2', 'Mon'), lt('T3', 'Tue'), lt('T4', 'Wed'), lt('T5', 'Thu'), lt('T6', 'Fri'), lt('T7', 'Sat')].map(day => (
+                    <span key={day}>{day}</span>
+                  ))}
+                </div>
+
+                <div className="project-sessions-calendar__grid">
+                  {calendarGridDays.map(({ date, inMonth }) => {
+                    const key = toDayKey(date)
+                    const count = meetingCountByDay.get(key) || 0
+                    const isSelected = sameCalendarDay(date, calendarDate)
+                    const isToday = sameCalendarDay(date, new Date())
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`project-sessions-calendar__day ${inMonth ? '' : 'is-outside'} ${isSelected ? 'is-selected' : ''} ${isToday ? 'is-today' : ''}`}
+                        onClick={() => setCalendarDate(new Date(date))}
+                      >
+                        <span>{date.getDate()}</span>
+                        {count > 0 && <small>{count}</small>}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {unscheduledMeetings.length > 0 && (
+                  <div className="project-sessions-calendar__unscheduled">
+                    <div className="project-sessions-calendar__unscheduled-title">
+                      {lt('Phien N/A', 'N/A sessions')}
+                    </div>
+                    {unscheduledMeetings.slice(0, 4).map(meeting => (
+                      <Link key={meeting.id} to={`/app/meetings/${meeting.id}/detail`} className="project-sessions-calendar__unscheduled-item">
+                        <span>{meeting.title}</span>
+                        <span>N/A</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </aside>
+
+              <section className="project-sessions-day">
+                <header className="project-sessions-day__header">
+                  <div>
+                    <h4>{calendarDate.toLocaleDateString(dateLocale, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</h4>
+                    <p>{dayMeetings.length} {lt('phien', 'sessions')}</p>
+                  </div>
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => setCalendarDate(new Date())}>
+                    {lt('Hom nay', 'Today')}
+                  </button>
+                </header>
+
+                <div className="project-sessions-day__timeline">
+                  <div className="project-sessions-day__grid">
+                    {dayHours.map(hour => (
+                      <div key={hour} className="project-sessions-day__hour-row">
+                        <span>{`${String(hour).padStart(2, '0')}:00`}</span>
+                        <div />
+                      </div>
+                    ))}
+                  </div>
+
+                  {dayMeetings.length === 0 && (
+                    <div className="project-sessions-day__empty">
+                      <CalendarDays size={22} />
+                      <p>{lt('Khong co phien nao trong ngay nay.', 'No sessions on this day.')}</p>
+                    </div>
+                  )}
+
+                  {dayMeetings.map(meeting => {
+                    const range = resolveSessionTimeRange(meeting)
+                    if (!range) {
+                      return (
+                        <Link key={meeting.id} to={`/app/meetings/${meeting.id}/detail`} className="project-sessions-day__event project-sessions-day__event--all-day">
+                          <strong>{meeting.title}</strong>
+                          <span>N/A</span>
+                        </Link>
+                      )
+                    }
+
+                    const dayStartMinutes = dayHours[0] * 60
+                    const dayEndMinutes = (dayHours[dayHours.length - 1] + 1) * 60
+                    const startMinutes = (range.start.getHours() * 60) + range.start.getMinutes()
+                    const endMinutes = Math.max(startMinutes + 30, (range.end.getHours() * 60) + range.end.getMinutes())
+                    const clampedStart = Math.max(dayStartMinutes, startMinutes)
+                    const clampedEnd = Math.min(dayEndMinutes, endMinutes)
+                    if (clampedEnd <= dayStartMinutes || clampedStart >= dayEndMinutes) {
+                      return null
+                    }
+
+                    const top = ((clampedStart - dayStartMinutes) / 60) * 56
+                    const height = Math.max(((clampedEnd - clampedStart) / 60) * 56, 36)
+
+                    return (
+                      <Link
+                        key={meeting.id}
+                        to={`/app/meetings/${meeting.id}/detail`}
+                        className="project-sessions-day__event"
+                        style={{ top, height }}
+                      >
+                        <strong>{meeting.title}</strong>
+                        <span>
+                          <Clock3 size={12} />
+                          {range.start.toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' })}
+                          {' - '}
+                          {range.end.toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </section>
+            </div>
           )}
         </div>
       )}
-
       {activeTab === 'documents' && (
         <div className="project-panel">
           <div className="project-panel__header">
@@ -650,3 +935,5 @@ const ProjectMeetingMenu = ({ onRename, onRemove, onClose }: { onRename: () => v
 }
 
 export default ProjectDetail
+
+

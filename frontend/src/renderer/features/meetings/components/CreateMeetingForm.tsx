@@ -16,17 +16,16 @@ interface FormData {
   description: string;
   meeting_type: MeetingType;
   project_id: string;
-  start_date: string;
+  session_date: string;
   start_time: string;
-  end_date: string;
   end_time: string;
+  is_instant: boolean;
 }
 
 interface FormErrors {
   title?: string;
-  start_date?: string;
+  session_date?: string;
   start_time?: string;
-  end_date?: string;
   end_time?: string;
 }
 
@@ -61,10 +60,10 @@ const buildDefaultFormData = (
     description: '',
     meeting_type: type,
     project_id: projectId || '',
-    start_date: formatDateInput(now),
+    session_date: formatDateInput(now),
     start_time: formatTimeInput(now),
-    end_date: formatDateInput(end),
     end_time: formatTimeInput(end),
+    is_instant: false,
   };
 };
 
@@ -97,24 +96,24 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
     if (!formData.title.trim()) {
       nextErrors.title = lt('Vui long nhap tieu de phien.', 'Please enter a session title.');
     }
-    if (!formData.start_date) {
-      nextErrors.start_date = lt('Vui long chon ngay bat dau.', 'Please select a start date.');
-    }
-    if (!formData.start_time) {
-      nextErrors.start_time = lt('Vui long chon gio bat dau.', 'Please select a start time.');
-    }
-    if (!formData.end_date) {
-      nextErrors.end_date = lt('Vui long chon ngay ket thuc.', 'Please select an end date.');
-    }
-    if (!formData.end_time) {
-      nextErrors.end_time = lt('Vui long chon gio ket thuc.', 'Please select an end time.');
-    }
 
-    if (!nextErrors.start_date && !nextErrors.start_time && !nextErrors.end_date && !nextErrors.end_time) {
-      const start = new Date(`${formData.start_date}T${formData.start_time}`);
-      const end = new Date(`${formData.end_date}T${formData.end_time}`);
-      if (end.getTime() <= start.getTime()) {
-        nextErrors.end_time = lt('Gio ket thuc phai sau gio bat dau.', 'End time must be after start time.');
+    if (!formData.is_instant) {
+      if (!formData.session_date) {
+        nextErrors.session_date = lt('Vui long chon ngay dien ra.', 'Please select the session date.');
+      }
+      if (!formData.start_time) {
+        nextErrors.start_time = lt('Vui long chon gio bat dau.', 'Please select a start time.');
+      }
+      if (!formData.end_time) {
+        nextErrors.end_time = lt('Vui long chon gio ket thuc.', 'Please select an end time.');
+      }
+
+      if (!nextErrors.session_date && !nextErrors.start_time && !nextErrors.end_time) {
+        const start = new Date(`${formData.session_date}T${formData.start_time}`);
+        const end = new Date(`${formData.session_date}T${formData.end_time}`);
+        if (end.getTime() <= start.getTime()) {
+          nextErrors.end_time = lt('Gio ket thuc phai sau gio bat dau.', 'End time must be after start time.');
+        }
       }
     }
 
@@ -131,19 +130,23 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
       return;
     }
 
-    const start = new Date(`${formData.start_date}T${formData.start_time}`);
-    const end = new Date(`${formData.end_date}T${formData.end_time}`);
-
     setIsSubmitting(true);
     setStep('creating');
 
     try {
+      const start = formData.is_instant || !formData.session_date || !formData.start_time
+        ? undefined
+        : new Date(`${formData.session_date}T${formData.start_time}`);
+      const end = formData.is_instant || !formData.session_date || !formData.end_time
+        ? undefined
+        : new Date(`${formData.session_date}T${formData.end_time}`);
       const payload: MeetingCreate = {
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
         meeting_type: formData.meeting_type,
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
+        session_date: formData.is_instant ? undefined : (formData.session_date || undefined),
+        start_time: start?.toISOString(),
+        end_time: end?.toISOString(),
       };
 
       const selectedProjectId = projectId || formData.project_id;
@@ -342,55 +345,60 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-base)' }}>
-        <div className="form-group">
-          <label className="form-label">{lt('Ngay bat dau *', 'Start date *')}</label>
+      <div className="form-group">
+        <label className="form-label">{lt('Ngay dien ra', 'Session date')}</label>
+        <input
+          type="date"
+          className={`form-input ${errors.session_date ? 'form-input--error' : ''}`}
+          value={formData.session_date}
+          onChange={(e) => handleChange('session_date', e.target.value)}
+          disabled={isSubmitting || formData.is_instant}
+        />
+        {errors.session_date && <span className="form-field__error">{errors.session_date}</span>}
+        <label className="checkbox-label" style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <input
-            type="date"
-            className={`form-input ${errors.start_date ? 'form-input--error' : ''}`}
-            value={formData.start_date}
-            onChange={(e) => handleChange('start_date', e.target.value)}
+            type="checkbox"
+            checked={formData.is_instant}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setFormData(prev => ({
+                ...prev,
+                is_instant: checked,
+                session_date: checked ? '' : (prev.session_date || formatDateInput(new Date())),
+              }));
+            }}
             disabled={isSubmitting}
           />
-          {errors.start_date && <span className="form-field__error">{errors.start_date}</span>}
-        </div>
-        <div className="form-group">
-          <label className="form-label">{lt('Gio bat dau *', 'Start time *')}</label>
-          <input
-            type="time"
-            className={`form-input ${errors.start_time ? 'form-input--error' : ''}`}
-            value={formData.start_time}
-            onChange={(e) => handleChange('start_time', e.target.value)}
-            disabled={isSubmitting}
-          />
-          {errors.start_time && <span className="form-field__error">{errors.start_time}</span>}
-        </div>
+          <span>{lt('Phien tuc thi (khong co ngay dien ra - N/A)', 'Instant session (no session date - N/A)')}</span>
+        </label>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-base)' }}>
-        <div className="form-group">
-          <label className="form-label">{lt('Ngay ket thuc *', 'End date *')}</label>
-          <input
-            type="date"
-            className={`form-input ${errors.end_date ? 'form-input--error' : ''}`}
-            value={formData.end_date}
-            onChange={(e) => handleChange('end_date', e.target.value)}
-            disabled={isSubmitting}
-          />
-          {errors.end_date && <span className="form-field__error">{errors.end_date}</span>}
+      {!formData.is_instant && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-base)' }}>
+          <div className="form-group">
+            <label className="form-label">{lt('Gio bat dau *', 'Start time *')}</label>
+            <input
+              type="time"
+              className={`form-input ${errors.start_time ? 'form-input--error' : ''}`}
+              value={formData.start_time}
+              onChange={(e) => handleChange('start_time', e.target.value)}
+              disabled={isSubmitting}
+            />
+            {errors.start_time && <span className="form-field__error">{errors.start_time}</span>}
+          </div>
+          <div className="form-group">
+            <label className="form-label">{lt('Gio ket thuc *', 'End time *')}</label>
+            <input
+              type="time"
+              className={`form-input ${errors.end_time ? 'form-input--error' : ''}`}
+              value={formData.end_time}
+              onChange={(e) => handleChange('end_time', e.target.value)}
+              disabled={isSubmitting}
+            />
+            {errors.end_time && <span className="form-field__error">{errors.end_time}</span>}
+          </div>
         </div>
-        <div className="form-group">
-          <label className="form-label">{lt('Gio ket thuc *', 'End time *')}</label>
-          <input
-            type="time"
-            className={`form-input ${errors.end_time ? 'form-input--error' : ''}`}
-            value={formData.end_time}
-            onChange={(e) => handleChange('end_time', e.target.value)}
-            disabled={isSubmitting}
-          />
-          {errors.end_time && <span className="form-field__error">{errors.end_time}</span>}
-        </div>
-      </div>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 20 }}>
         <button

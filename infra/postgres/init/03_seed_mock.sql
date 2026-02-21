@@ -60,13 +60,14 @@ ON CONFLICT (id) DO NOTHING;
 -- 3. MEETINGS (Various types PMO handles daily)
 -- ============================================
 
-INSERT INTO meeting (id, external_event_id, title, description, organizer_id, start_time, end_time, meeting_type, phase, project_id, department_id, location, teams_link) VALUES
+INSERT INTO meeting (id, external_event_id, title, description, organizer_id, session_date, start_time, end_time, meeting_type, phase, project_id, department_id, location, teams_link) VALUES
     -- Meeting 1: Steering Committee (POST phase - đã họp xong, có transcript)
     ('m0000001-0000-0000-0000-000000000001', 
      'outlook-event-001', 
      'Steering Committee - Core Banking Q4 2024', 
      'Họp chỉ đạo dự án Core Banking: Review tiến độ, budget, risks, và quyết định các milestone quan trọng.',
      'u0000001-0000-0000-0000-000000000001',
+     (NOW() - INTERVAL '2 hours')::date,
      NOW() - INTERVAL '2 hours',
      NOW() - INTERVAL '1 hour',
      'steering',
@@ -82,6 +83,7 @@ INSERT INTO meeting (id, external_event_id, title, description, organizer_id, st
      'Weekly Project Status - Mobile Banking Sprint 23',
      'Review sprint 23, demo features, discuss blockers.',
      'u0000002-0000-0000-0000-000000000002',
+     (NOW() - INTERVAL '30 minutes')::date,
      NOW() - INTERVAL '30 minutes',
      NOW() + INTERVAL '30 minutes',
      'weekly_status',
@@ -97,6 +99,7 @@ INSERT INTO meeting (id, external_event_id, title, description, organizer_id, st
      'Risk Review - LOS Integration với Core Banking',
      'Đánh giá rủi ro tích hợp LOS với Core Banking mới, compliance requirements.',
      'u0000009-0000-0000-0000-000000000009',
+     (NOW() + INTERVAL '2 hours')::date,
      NOW() + INTERVAL '2 hours',
      NOW() + INTERVAL '3 hours',
      'risk_review',
@@ -112,6 +115,7 @@ INSERT INTO meeting (id, external_event_id, title, description, organizer_id, st
      'Workshop: KYC Enhancement - Business Requirements',
      'Workshop cross-functional để finalize BRD cho module eKYC mới.',
      'u0000007-0000-0000-0000-000000000007',
+     (NOW() + INTERVAL '1 day')::date,
      NOW() + INTERVAL '1 day',
      NOW() + INTERVAL '1 day' + INTERVAL '2 hours',
      'workshop',
@@ -127,6 +131,7 @@ INSERT INTO meeting (id, external_event_id, title, description, organizer_id, st
      'Daily Standup - Core Banking Team',
      'Daily standup 15 phút: Yesterday, Today, Blockers.',
      'u0000005-0000-0000-0000-000000000005',
+     (NOW() - INTERVAL '4 hours')::date,
      NOW() - INTERVAL '4 hours',
      NOW() - INTERVAL '3 hours 45 minutes',
      'daily',
