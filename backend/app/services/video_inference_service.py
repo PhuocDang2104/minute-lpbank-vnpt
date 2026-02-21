@@ -12,11 +12,13 @@ from sqlalchemy import text
 from sqlalchemy.sql.elements import TextClause
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.services import audio_processing, transcript_service, asr_service
 from app.services import minutes_service
 from app.schemas.transcript import TranscriptChunkCreate
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 
 def _load_visual_override(db: Session, meeting_id: str) -> Optional[Dict[str, str]]:
@@ -311,7 +313,7 @@ async def process_meeting_video(
                 asr_result.get("language")
                 or (asr_result.get("result") or {}).get("language")
                 or (asr_result.get("params") or {}).get("language")
-                or "en"
+                or (settings.asr_language or "vi")
             )
             logger.info(f"Transcription completed: {len(segments)} segments")
             

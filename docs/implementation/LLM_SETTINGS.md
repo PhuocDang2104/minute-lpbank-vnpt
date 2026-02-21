@@ -167,6 +167,7 @@ Hoặc xoá key:
 - **Không lưu key ở client**. Frontend chỉ giữ tạm trong state.
 - **Server lưu key mã hoá** bằng `SECRET_KEY`. Cần set `SECRET_KEY` ổn định ở môi trường production.
 - Nếu đổi `SECRET_KEY` -> key cũ không giải mã được.
+- Đặt `LLM_OUTPUT_LANGUAGE=vi` nếu muốn chatbot/summary/minutes mặc định trả lời tiếng Việt.
 - Biến model Groq cho chatbot đã đổi tên sang `LLM_GROQ_CHAT_MODEL`.
 - Có thể khai báo thêm `LLM_GROQ_VISION_MODEL` nếu tách model vision riêng.
 - Alias cũ vẫn hỗ trợ: `LLM_GROQ_MODEL`, `GROQ_MODEL`.

@@ -434,6 +434,27 @@
   min-width: 0;
 }
 
+.notion-list-item__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.notion-list-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.notion-list-item:hover .notion-list-item__actions,
+.notion-checklist-item:hover .notion-list-item__actions {
+  opacity: 1;
+}
+
 .notion-list-item__title {
   font-size: 14px;
   font-weight: 500;
@@ -639,6 +660,10 @@
   .notion-add-item__row {
     grid-template-columns: 1fr;
   }
+
+  .notion-list-item__actions {
+    opacity: 1;
+  }
 }
 
 /* ==================== Dark Mode Support ==================== */
@@ -649,4 +674,3 @@
 .dark .notion-empty-hint:hover {
   background: rgba(59, 130, 246, 0.05);
 }
-

@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 import httpx
 
 from app.core.config import get_settings
@@ -10,7 +10,10 @@ settings = get_settings()
 
 
 @router.post('/transcribe')
-async def transcribe(file: UploadFile = File(...)):
+async def transcribe(
+    file: UploadFile = File(...),
+    language: str = Form(default=""),
+):
     if not settings.asr_url:
         raise HTTPException(status_code=503, detail="ASR_URL not configured")
 
@@ -22,12 +25,19 @@ async def transcribe(file: UploadFile = File(...)):
             file.content_type or 'application/octet-stream',
         )
     }
+    form_data = {
+        "language": (language or settings.asr_language or "").strip(),
+    }
 
     # TODO: For long-running jobs, move to async queue and return job_id.
     timeout = httpx.Timeout(connect=10.0, read=900.0, write=900.0, pool=10.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
-            resp = await client.post(f"{settings.asr_url.rstrip('/')}/transcribe", files=files)
+            resp = await client.post(
+                f"{settings.asr_url.rstrip('/')}/transcribe",
+                data=form_data,
+                files=files,
+            )
         except httpx.HTTPError as exc:
             raise HTTPException(status_code=502, detail=f"ASR request failed: {exc}") from exc
 

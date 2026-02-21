@@ -1,8 +1,7 @@
 services:
   - type: web
-    name: meetmate-api
+    name: minute-api
     runtime: python
-    repo: https://github.com/PhuocDang2104/minute_google_gemini_hackathon
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -10,11 +9,39 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
+      - key: DB_POOL_SIZE
+        value: "5"
+      - key: DB_MAX_OVERFLOW
+        value: "5"
+      - key: ENV
+        value: production
+      - key: CORS_ORIGINS
+        sync: false
       - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash-lite
+      - key: LLM_OUTPUT_LANGUAGE
+        value: vi
+      - key: AI_TEMPERATURE
+        value: "0.2"
+      - key: AI_MAX_TOKENS
+        value: "4096"
+      - key: ASR_URL
+        sync: false
+      - key: ASR_LANGUAGE
+        value: vi
+      - key: SUPABASE_S3_ENDPOINT
+        sync: false
+      - key: SUPABASE_S3_REGION
+        value: ap-southeast-1
+      - key: SUPABASE_S3_BUCKET
+        sync: false
+      - key: SUPABASE_S3_ACCESS_KEY
+        sync: false
+      - key: SUPABASE_S3_SECRET_KEY
         sync: false
       - key: SECRET_KEY
         generateValue: true
-      - key: CORS_ORIGINS
-        value: "*"
-
-

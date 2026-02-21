@@ -17,10 +17,11 @@ from fastapi.responses import JSONResponse
 
 app = FastAPI(title="Minute ASR Service", version="1.1.0")
 
-WHISPER_MODEL = os.getenv("WHISPER_MODEL", "/models/ggml-base.en-q5_1.bin")
+WHISPER_MODEL = os.getenv("WHISPER_MODEL", "/models/ggml-base.bin")
 WHISPER_BIN = os.getenv("WHISPER_BIN", "whisper-cli")
 FFMPEG_BIN = os.getenv("FFMPEG_BIN", "ffmpeg")
 WHISPER_THREADS = os.getenv("WHISPER_THREADS", "1")
+WHISPER_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "vi")
 SCENE_THRESHOLD = float(os.getenv("SCENE_THRESHOLD", "0.35"))
 MAX_KEYFRAMES = int(os.getenv("MAX_KEYFRAMES", "60"))
 FALLBACK_FRAME_STEP_SEC = int(os.getenv("FALLBACK_FRAME_STEP_SEC", "5"))
@@ -258,7 +259,10 @@ def _extract_pseudo_objects(ocr_text: str, caption: str, timestamp: float) -> Li
 
 
 @app.post("/transcribe")
-async def transcribe(file: UploadFile = File(...)) -> JSONResponse:
+async def transcribe(
+    file: UploadFile = File(...),
+    language: str = Form(default=WHISPER_LANGUAGE),
+) -> JSONResponse:
     # TODO: For very long audio, move this to async job queue and return job_id.
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="file is required")
@@ -297,8 +301,7 @@ async def transcribe(file: UploadFile = File(...)) -> JSONResponse:
         except Exception as exc:
             raise HTTPException(status_code=500, detail={"stage": "ffmpeg", "error": str(exc)}) from exc
 
-        try:
-            _run([
+        whisper_cmd = [
                 WHISPER_BIN,
                 "-m",
                 str(model_path),
@@ -309,7 +312,13 @@ async def transcribe(file: UploadFile = File(...)) -> JSONResponse:
                 "-oj",
                 "-t",
                 str(WHISPER_THREADS),
-            ])
+            ]
+        active_language = (language or WHISPER_LANGUAGE or "").strip().lower()
+        if active_language and active_language not in {"auto", "detect"}:
+            whisper_cmd.extend(["-l", active_language])
+
+        try:
+            _run(whisper_cmd)
         except Exception as exc:
             raise HTTPException(status_code=500, detail={"stage": "whisper", "error": str(exc)}) from exc
 
