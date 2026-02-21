@@ -964,6 +964,45 @@
   overflow-wrap: break-word;
 }
 
+.fireflies-summary-notice {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid #f59e0b55;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.fireflies-summary-points {
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.fireflies-summary-points__title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fireflies-summary-points__list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.fireflies-summary-points__item {
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
 .fireflies-bullet-point {
   display: flex;
   gap: 12px;
@@ -1415,4 +1454,3 @@
     justify-content: flex-start;
   }
 }
-

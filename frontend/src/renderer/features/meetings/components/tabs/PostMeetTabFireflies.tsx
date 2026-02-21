@@ -1742,9 +1742,11 @@ const SummaryContent = ({
 }) => {
   const { lt } = useLocaleText();
   const summary = minutes.executive_summary || minutes.minutes_markdown || '';
+  const normalizedSummary = normalizeSummaryContent(summary);
+  const keywordSource = [normalizedSummary.summaryText, ...normalizedSummary.keyPoints].join(' ');
 
-  // Extract keywords (simple)
-  const keywords = extractKeywords(summary);
+  // Extract keywords from cleaned summary text
+  const keywords = extractKeywords(keywordSource);
 
   return (
     <div className="fireflies-summary">
@@ -1754,9 +1756,19 @@ const SummaryContent = ({
           <span className="fireflies-keywords__title">{lt('Từ khóa', 'Keywords')}:</span>
           {keywords.map((kw, i) => (
             <span key={i} className="fireflies-keyword">
-              "{kw}"
+              {kw}
             </span>
           ))}
+        </div>
+      )}
+
+      {normalizedSummary.hasLanguageWarning && (
+        <div className="fireflies-summary-notice">
+          <strong>{lt('Lưu ý chất lượng nội dung', 'Content quality notice')}:</strong>{' '}
+          {lt(
+            'Bản chép lời hiện chưa đủ rõ hoặc sai ngôn ngữ nên tóm tắt có thể thiếu chính xác. Bạn nên kiểm tra lại ASR và tạo lại biên bản.',
+            'Transcript quality/language looks inconsistent, so this summary may be inaccurate. Please recheck ASR and regenerate.'
+          )}
         </div>
       )}
 
@@ -1782,9 +1794,24 @@ const SummaryContent = ({
           </div>
         </div>
       ) : (
-        <div className="fireflies-summary-content">
-          {formatSummaryWithBullets(summary)}
-        </div>
+        <>
+          <div className="fireflies-summary-content">
+            {formatSummaryWithBullets(normalizedSummary.summaryText)}
+          </div>
+
+          {normalizedSummary.keyPoints.length > 0 && (
+            <div className="fireflies-summary-points">
+              <h4 className="fireflies-summary-points__title">{lt('Điểm chính', 'Key points')}</h4>
+              <ul className="fireflies-summary-points__list">
+                {normalizedSummary.keyPoints.map((point, idx) => (
+                  <li key={`${idx}-${point}`} className="fireflies-summary-points__item">
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -1914,15 +1941,199 @@ const EmptyAIContent = ({ onGenerate, isGenerating }: { onGenerate: () => void; 
 
 // ==================== Helper Functions ====================
 
+type StructuredSummaryObject = Record<string, unknown>;
+
+interface NormalizedSummaryContent {
+  summaryText: string;
+  keyPoints: string[];
+  hasLanguageWarning: boolean;
+}
+
+const STRUCTURED_SUMMARY_KEYS = [
+  'summary',
+  'executive_summary',
+  'overview',
+  'meeting_summary',
+] as const;
+
+const STRUCTURED_POINTS_KEYS = [
+  'key_points',
+  'keypoints',
+  'highlights',
+  'main_points',
+  'takeaways',
+  'bullet_points',
+] as const;
+
+const stripCodeFences = (input: string): string => {
+  const trimmed = input.trim();
+  if (!trimmed.startsWith('```')) return trimmed;
+  return trimmed
+    .replace(/^```(?:json|text|md|markdown)?\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim();
+};
+
+const extractJsonCandidate = (input: string): string => {
+  const start = input.indexOf('{');
+  const end = input.lastIndexOf('}');
+  if (start >= 0 && end > start) {
+    return input.slice(start, end + 1);
+  }
+  return input;
+};
+
+const parseStructuredSummaryObject = (input: string): StructuredSummaryObject | null => {
+  const cleaned = stripCodeFences(input);
+  const smartQuotesNormalized = cleaned.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+  const candidates = [smartQuotesNormalized, extractJsonCandidate(smartQuotesNormalized)];
+
+  for (const candidate of candidates) {
+    const normalized = candidate.trim();
+    if (!normalized) continue;
+
+    try {
+      const parsed = JSON.parse(normalized);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as StructuredSummaryObject;
+      }
+    } catch {
+      const trailingCommaFixed = normalized.replace(/,\s*([}\]])/g, '$1');
+      try {
+        const parsed = JSON.parse(trailingCommaFixed);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as StructuredSummaryObject;
+        }
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  return null;
+};
+
+const pickFirstStringValue = (obj: StructuredSummaryObject, keys: readonly string[]): string => {
+  for (const key of keys) {
+    const value = obj[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return '';
+};
+
+const decodeJsonString = (value: string): string => {
+  return value
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, ' ')
+    .replace(/\\\\/g, '\\')
+    .trim();
+};
+
+const pickStringArrayValue = (obj: StructuredSummaryObject, keys: readonly string[]): string[] => {
+  for (const key of keys) {
+    const value = obj[key];
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => (typeof item === 'string' ? item.trim() : ''))
+        .filter((item) => Boolean(item));
+    }
+    if (typeof value === 'string' && value.trim()) {
+      return value
+        .split('\n')
+        .map((line) => line.replace(/^[-*•\d.\s]+/, '').trim())
+        .filter((line) => Boolean(line));
+    }
+  }
+  return [];
+};
+
+const extractSummaryFieldByRegex = (input: string): string => {
+  const regex = /"(?:summary|executive_summary|overview|meeting_summary)"\s*:\s*"([\s\S]*?)"(?:\s*,\s*"(?:key_points|keypoints|highlights|main_points|takeaways|bullet_points)"|\s*[,}])/i;
+  const match = input.match(regex);
+  if (!match?.[1]) return '';
+  return decodeJsonString(match[1]);
+};
+
+const extractKeyPointsByRegex = (input: string): string[] => {
+  const regex = /"(?:key_points|keypoints|highlights|main_points|takeaways|bullet_points)"\s*:\s*\[([\s\S]*?)\]/i;
+  const match = input.match(regex);
+  if (!match?.[1]) return [];
+  return Array.from(match[1].matchAll(/"([\s\S]*?)"/g))
+    .map((m) => decodeJsonString(m[1] || ''))
+    .filter((item) => Boolean(item));
+};
+
+const detectLanguageWarning = (input: string): boolean => {
+  const warningPatterns = [
+    /provided transcript is in a foreign language/i,
+    /without further information/i,
+    /challenging to determine/i,
+    /insufficient (information|context)/i,
+    /cannot determine/i,
+  ];
+  return warningPatterns.some((pattern) => pattern.test(input));
+};
+
+const normalizeSummaryContent = (input: string): NormalizedSummaryContent => {
+  const raw = (input || '').trim();
+  if (!raw) {
+    return { summaryText: '', keyPoints: [], hasLanguageWarning: false };
+  }
+
+  const parsed = parseStructuredSummaryObject(raw);
+  if (parsed) {
+    let summaryText = pickFirstStringValue(parsed, STRUCTURED_SUMMARY_KEYS);
+    const keyPoints = pickStringArrayValue(parsed, STRUCTURED_POINTS_KEYS);
+
+    // Some payloads nest summary data inside a "data" object.
+    if (!summaryText && parsed.data && typeof parsed.data === 'object' && !Array.isArray(parsed.data)) {
+      summaryText = pickFirstStringValue(parsed.data as StructuredSummaryObject, STRUCTURED_SUMMARY_KEYS);
+    }
+
+    const fallbackSummary = summaryText || raw;
+    return {
+      summaryText: decodeJsonString(fallbackSummary),
+      keyPoints,
+      hasLanguageWarning: detectLanguageWarning(fallbackSummary),
+    };
+  }
+
+  const regexSummary = extractSummaryFieldByRegex(raw);
+  const regexPoints = extractKeyPointsByRegex(raw);
+  if (regexSummary || regexPoints.length > 0) {
+    return {
+      summaryText: regexSummary || raw,
+      keyPoints: regexPoints,
+      hasLanguageWarning: detectLanguageWarning(regexSummary || raw),
+    };
+  }
+
+  return {
+    summaryText: raw,
+    keyPoints: [],
+    hasLanguageWarning: detectLanguageWarning(raw),
+  };
+};
+
 const extractKeywords = (text: string): string[] => {
-  // Simple keyword extraction (can be improved with NLP)
-  const words = text.toLowerCase().split(/\s+/);
-  const commonWords = new Set(['the', 'is', 'at', 'which', 'on', 'and', 'or', 'but', 'in', 'with', 'to', 'for']);
+  const words = text
+    .toLowerCase()
+    .replace(/[\[\]{}":,]/g, ' ')
+    .split(/\s+/);
+  const commonWords = new Set([
+    'the', 'is', 'at', 'which', 'on', 'and', 'or', 'but', 'in', 'with', 'to', 'for', 'this', 'that',
+    'have', 'has', 'been', 'were', 'from', 'into', 'about', 'without', 'would', 'could', 'should',
+    'summary', 'key', 'keys', 'point', 'points', 'key_points', 'keypoints', 'highlights',
+    'cua', 'va', 'la', 'cho', 'voi', 'nhung', 'duoc', 'trong', 'mot', 'nhieu', 'noi', 'dung',
+  ]);
   const wordFreq = new Map<string, number>();
 
   words.forEach((word) => {
-    const clean = word.replace(/[^\w]/g, '');
-    if (clean.length > 4 && !commonWords.has(clean)) {
+    const clean = word.replace(/[^\p{L}\p{N}_-]/gu, '');
+    if (clean.length > 3 && !commonWords.has(clean) && !/^\d+$/.test(clean)) {
       wordFreq.set(clean, (wordFreq.get(clean) || 0) + 1);
     }
   });
