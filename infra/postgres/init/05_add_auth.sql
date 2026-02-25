@@ -44,10 +44,11 @@ END $$;
 -- Password: "demo123" (hashed)
 -- ============================================
 
--- bcrypt hash for "demo123" 
+-- bcrypt hash for "demo123"
+-- generated from passlib bcrypt: $2b$12$BEuFmL3K9sfqUwl7CkwW7.mThK88O/dX1tK3qQB/cqTJgSBQ2L9Ai
 -- In production, users should reset their passwords
 UPDATE user_account 
-SET password_hash = '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewKyNiLXCJJH7pWe'
+SET password_hash = '$2b$12$BEuFmL3K9sfqUwl7CkwW7.mThK88O/dX1tK3qQB/cqTJgSBQ2L9Ai'
 WHERE password_hash IS NULL;
 
 -- ============================================
@@ -90,4 +91,3 @@ COMMENT ON TABLE user_session IS 'Stores refresh tokens for session management';
 COMMENT ON TABLE password_reset_token IS 'Stores password reset tokens';
 COMMENT ON COLUMN user_account.password_hash IS 'bcrypt hashed password';
 COMMENT ON COLUMN user_account.is_active IS 'Account active status for soft disable';
-

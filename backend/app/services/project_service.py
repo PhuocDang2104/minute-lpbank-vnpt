@@ -47,6 +47,24 @@ def _table_has_column(db: Session, table_name: str, column_name: str) -> bool:
         return False
 
 
+def _table_columns(db: Session, table_name: str) -> set[str]:
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = :table_name
+                """
+            ),
+            {"table_name": table_name},
+        ).fetchall()
+        return {str(row[0]) for row in rows if row and row[0]}
+    except Exception:
+        return set()
+
+
 def _collect_assets_by_scope(db: Session, table_name: str, scope_column: str, scope_value: str) -> list[dict]:
     if not _table_exists(db, table_name) or not _table_has_column(db, table_name, scope_column):
         return []
@@ -145,6 +163,38 @@ def _resolve_document_table(db: Session) -> Optional[str]:
     return None
 
 
+def _project_select_sql(project_columns: set[str]) -> str:
+    def has(col: str) -> bool:
+        return col in project_columns
+
+    name_expr = "p.name" if has("name") else "NULL::text"
+    code_expr = "p.code" if has("code") else "NULL::text"
+    description_expr = "p.description" if has("description") else "NULL::text"
+    objective_expr = "p.objective" if has("objective") else "NULL::text"
+    status_expr = "p.status" if has("status") else "NULL::text"
+    owner_id_expr = "p.owner_id::text" if has("owner_id") else "NULL::text"
+    organization_id_expr = "p.organization_id::text" if has("organization_id") else "NULL::text"
+    department_id_expr = "p.department_id::text" if has("department_id") else "NULL::text"
+    created_at_expr = "p.created_at" if has("created_at") else "NULL::timestamptz"
+    updated_at_expr = "p.updated_at" if has("updated_at") else created_at_expr
+
+    return ",\n            ".join(
+        [
+            "p.id::text AS id",
+            f"{name_expr} AS name",
+            f"{code_expr} AS code",
+            f"{description_expr} AS description",
+            f"{objective_expr} AS objective",
+            f"{status_expr} AS status",
+            f"{owner_id_expr} AS owner_id",
+            f"{organization_id_expr} AS organization_id",
+            f"{department_id_expr} AS department_id",
+            f"{created_at_expr} AS created_at",
+            f"{updated_at_expr} AS updated_at",
+        ]
+    )
+
+
 def _row_to_project(row) -> Project:
     return Project(
         id=row.get("id"),
@@ -172,23 +222,32 @@ def list_projects(
     department_id: Optional[str] = None,
     organization_id: Optional[str] = None,
 ) -> ProjectList:
+    project_columns = _table_columns(db, "project")
     doc_table = _resolve_document_table(db)
-    has_project_member = _table_exists(db, "project_member")
+    has_project_member = _table_exists(db, "project_member") and _table_has_column(db, "project_member", "project_id")
+    has_project_id_on_document = bool(doc_table) and _table_has_column(db, doc_table, "project_id")
 
     conditions = ["1=1"]
     params: dict[str, object] = {"skip": skip, "limit": limit}
 
     if search:
-        conditions.append("(p.name ILIKE :search OR p.code ILIKE :search)")
-        params["search"] = f"%{search}%"
-    if department_id:
+        search_conditions: list[str] = []
+        if "name" in project_columns:
+            search_conditions.append("p.name ILIKE :search")
+        if "code" in project_columns:
+            search_conditions.append("p.code ILIKE :search")
+        if search_conditions:
+            conditions.append("(" + " OR ".join(search_conditions) + ")")
+            params["search"] = f"%{search}%"
+    if department_id and "department_id" in project_columns:
         conditions.append("p.department_id = :department_id")
         params["department_id"] = department_id
-    if organization_id:
+    if organization_id and "organization_id" in project_columns:
         conditions.append("p.organization_id = :organization_id")
         params["organization_id"] = organization_id
 
     where_clause = " AND ".join(conditions)
+    project_select = _project_select_sql(project_columns)
 
     doc_join = (
         f"""
@@ -199,7 +258,7 @@ def list_projects(
             GROUP BY project_id
         ) k ON k.project_id = p.id
         """
-        if doc_table
+        if doc_table and has_project_id_on_document
         else """
         LEFT JOIN (
             SELECT NULL::uuid AS project_id, 0::int AS document_count
@@ -226,17 +285,7 @@ def list_projects(
     query = text(
         f"""
         SELECT
-            p.id::text,
-            p.name,
-            p.code,
-            p.description,
-            p.objective,
-            p.status,
-            p.owner_id::text,
-            p.organization_id::text,
-            p.department_id::text,
-            p.created_at,
-            p.updated_at,
+            {project_select},
             COALESCE(m.meeting_count, 0) AS meeting_count,
             COALESCE(k.document_count, 0) AS document_count,
             COALESCE(pm.member_count, 0) AS member_count
@@ -267,8 +316,11 @@ def list_projects(
 
 
 def get_project(db: Session, project_id: str) -> Optional[Project]:
+    project_columns = _table_columns(db, "project")
     doc_table = _resolve_document_table(db)
-    has_project_member = _table_exists(db, "project_member")
+    has_project_member = _table_exists(db, "project_member") and _table_has_column(db, "project_member", "project_id")
+    has_project_id_on_document = bool(doc_table) and _table_has_column(db, doc_table, "project_id")
+    project_select = _project_select_sql(project_columns)
 
     doc_join = (
         f"""
@@ -279,7 +331,7 @@ def get_project(db: Session, project_id: str) -> Optional[Project]:
                 GROUP BY project_id
             ) k ON k.project_id = p.id
         """
-        if doc_table
+        if doc_table and has_project_id_on_document
         else """
             LEFT JOIN (
                 SELECT NULL::uuid AS project_id, 0::int AS document_count
@@ -307,17 +359,7 @@ def get_project(db: Session, project_id: str) -> Optional[Project]:
         text(
             f"""
             SELECT
-                p.id::text,
-                p.name,
-                p.code,
-                p.description,
-                p.objective,
-                p.status,
-                p.owner_id::text,
-                p.organization_id::text,
-                p.department_id::text,
-                p.created_at,
-                p.updated_at,
+                {project_select},
                 COALESCE(m.meeting_count, 0) AS meeting_count,
                 COALESCE(k.document_count, 0) AS document_count,
                 COALESCE(pm.member_count, 0) AS member_count
@@ -344,38 +386,42 @@ def get_project(db: Session, project_id: str) -> Optional[Project]:
 def create_project(db: Session, payload: ProjectCreate) -> Project:
     project_id = str(uuid4())
     now = datetime.utcnow()
+    project_columns = _table_columns(db, "project")
+
+    insert_columns: list[str] = []
+    insert_values: dict[str, object] = {}
+
+    def add_project_insert(column_name: str, value: object) -> None:
+        if column_name in project_columns:
+            insert_columns.append(column_name)
+            insert_values[column_name] = value
+
+    add_project_insert("id", project_id)
+    add_project_insert("name", payload.name)
+    add_project_insert("code", payload.code)
+    add_project_insert("description", payload.description)
+    add_project_insert("objective", payload.objective)
+    add_project_insert("status", payload.status or "active")
+    add_project_insert("owner_id", payload.owner_id)
+    add_project_insert("organization_id", payload.organization_id)
+    add_project_insert("department_id", payload.department_id)
+    add_project_insert("created_at", now)
+    add_project_insert("updated_at", now)
+
+    if "id" not in insert_columns or "name" not in insert_columns:
+        raise RuntimeError("Project schema thiếu cột bắt buộc (id/name).")
 
     db.execute(
         text(
-            """
-            INSERT INTO project (
-                id, name, code, description, objective, status,
-                owner_id, organization_id, department_id,
-                created_at, updated_at
-            )
-            VALUES (
-                :id, :name, :code, :description, :objective, :status,
-                :owner_id, :organization_id, :department_id,
-                :created_at, :updated_at
-            )
+            f"""
+            INSERT INTO project ({', '.join(insert_columns)})
+            VALUES ({', '.join(f':{column}' for column in insert_columns)})
             """
         ),
-        {
-            "id": project_id,
-            "name": payload.name,
-            "code": payload.code,
-            "description": payload.description,
-            "objective": payload.objective,
-            "status": payload.status or "active",
-            "owner_id": payload.owner_id,
-            "organization_id": payload.organization_id,
-            "department_id": payload.department_id,
-            "created_at": now,
-            "updated_at": now,
-        },
+        insert_values,
     )
 
-    if payload.owner_id:
+    if payload.owner_id and _table_exists(db, "project_member"):
         db.execute(
             text(
                 """
@@ -407,38 +453,40 @@ def create_project(db: Session, payload: ProjectCreate) -> Project:
 
 
 def update_project(db: Session, project_id: str, payload: ProjectUpdate) -> Optional[Project]:
+    project_columns = _table_columns(db, "project")
     update_fields = []
     params: dict[str, object] = {"project_id": project_id, "updated_at": datetime.utcnow()}
 
-    if payload.name is not None:
+    if payload.name is not None and "name" in project_columns:
         update_fields.append("name = :name")
         params["name"] = payload.name
-    if payload.code is not None:
+    if payload.code is not None and "code" in project_columns:
         update_fields.append("code = :code")
         params["code"] = payload.code
-    if payload.description is not None:
+    if payload.description is not None and "description" in project_columns:
         update_fields.append("description = :description")
         params["description"] = payload.description
-    if payload.objective is not None:
+    if payload.objective is not None and "objective" in project_columns:
         update_fields.append("objective = :objective")
         params["objective"] = payload.objective
-    if payload.status is not None:
+    if payload.status is not None and "status" in project_columns:
         update_fields.append("status = :status")
         params["status"] = payload.status
-    if payload.owner_id is not None:
+    if payload.owner_id is not None and "owner_id" in project_columns:
         update_fields.append("owner_id = :owner_id")
         params["owner_id"] = payload.owner_id
-    if payload.organization_id is not None:
+    if payload.organization_id is not None and "organization_id" in project_columns:
         update_fields.append("organization_id = :organization_id")
         params["organization_id"] = payload.organization_id
-    if payload.department_id is not None:
+    if payload.department_id is not None and "department_id" in project_columns:
         update_fields.append("department_id = :department_id")
         params["department_id"] = payload.department_id
 
     if not update_fields:
         return get_project(db, project_id)
 
-    update_fields.append("updated_at = :updated_at")
+    if "updated_at" in project_columns:
+        update_fields.append("updated_at = :updated_at")
 
     query = text(
         f"""
@@ -450,7 +498,7 @@ def update_project(db: Session, project_id: str, payload: ProjectUpdate) -> Opti
     db.execute(query, params)
     db.commit()
 
-    if payload.owner_id:
+    if payload.owner_id and _table_exists(db, "project_member"):
         db.execute(
             text(
                 """
@@ -535,6 +583,9 @@ def delete_project(db: Session, project_id: str) -> bool:
 
 
 def list_members(db: Session, project_id: str) -> ProjectMemberList:
+    if not _table_exists(db, "project_member"):
+        return ProjectMemberList(members=[], total=0)
+
     rows = db.execute(
         text(
             """
@@ -569,6 +620,9 @@ def list_members(db: Session, project_id: str) -> ProjectMemberList:
 
 
 def add_member(db: Session, project_id: str, payload: ProjectMemberCreate) -> Optional[ProjectMember]:
+    if not _table_exists(db, "project_member"):
+        return None
+
     now = datetime.utcnow()
     db.execute(
         text(
@@ -620,6 +674,9 @@ def add_member(db: Session, project_id: str, payload: ProjectMemberCreate) -> Op
 
 
 def remove_member(db: Session, project_id: str, user_id: str) -> bool:
+    if not _table_exists(db, "project_member"):
+        return False
+
     result = db.execute(
         text("DELETE FROM project_member WHERE project_id = :project_id AND user_id = :user_id RETURNING user_id"),
         {"project_id": project_id, "user_id": user_id},

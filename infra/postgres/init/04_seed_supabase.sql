@@ -295,8 +295,9 @@ END $$;
 
 -- Set demo password for all users: "demo123"
 -- bcrypt hash for "demo123"
+-- generated from passlib bcrypt: $2b$12$BEuFmL3K9sfqUwl7CkwW7.mThK88O/dX1tK3qQB/cqTJgSBQ2L9Ai
 UPDATE user_account 
-SET password_hash = '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewKyNiLXCJJH7pWe'
+SET password_hash = '$2b$12$BEuFmL3K9sfqUwl7CkwW7.mThK88O/dX1tK3qQB/cqTJgSBQ2L9Ai'
 WHERE password_hash IS NULL;
 
 -- Done!
