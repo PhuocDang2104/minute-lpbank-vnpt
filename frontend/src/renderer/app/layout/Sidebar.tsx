@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Plus,
+  Home,
   LayoutGrid,
   Settings,
   Info,
@@ -20,6 +21,7 @@ interface NavItem {
   path: string
   label: string
   icon: React.ReactNode
+  isActive?: (pathname: string) => boolean
 }
 
 const Sidebar = () => {
@@ -28,6 +30,8 @@ const Sidebar = () => {
   const storedUser = getStoredUser()
   const displayUser = storedUser || currentUser
   const { lt } = useLocaleText()
+  const userName = displayUser.display_name || displayUser.displayName
+  const userRole = String(displayUser.role || lt('Thành viên', 'Member'))
 
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false)
@@ -89,6 +93,12 @@ const Sidebar = () => {
   }
 
   const navItems: NavItem[] = [
+    {
+      path: '/app/home',
+      label: lt('Home', 'Home'),
+      icon: <Home size={20} />,
+      isActive: (pathname: string) => pathname === '/app' || pathname === '/app/home' || pathname === '/app/dashboard',
+    },
     { path: '/app/meetings', label: lt('Workspace', 'Workspace'), icon: <LayoutGrid size={20} /> },
   ]
 
@@ -136,7 +146,9 @@ const Sidebar = () => {
                 <NavLink
                   to={item.path}
                   className={({ isActive }) => {
-                    const active = isActive || location.pathname.startsWith(`${item.path}/`)
+                    const active = item.isActive
+                      ? item.isActive(location.pathname)
+                      : isActive || location.pathname.startsWith(`${item.path}/`)
                     return `sidebar__nav-link ${active ? 'active' : ''}`
                   }}
                 >
@@ -180,8 +192,8 @@ const Sidebar = () => {
             />
           </div>
           <div className="sidebar__user-info">
-            <div className="sidebar__user-name">{displayUser.display_name || displayUser.displayName}</div>
-            <div className="sidebar__user-role">AI Engineer</div>
+            <div className="sidebar__user-name">{userName}</div>
+            <div className="sidebar__user-role">{userRole}</div>
           </div>
         </div>
       </div>

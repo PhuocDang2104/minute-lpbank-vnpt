@@ -20,6 +20,7 @@ const Topbar = () => {
   const routeTitles: Record<string, string> = useMemo(() => ({
     '/': 'Home',
     '/app': 'Home',
+    '/app/home': 'Home',
     '/app/dashboard': 'Home',
     '/app/calendar': lt('Lịch họp', 'Calendar'),
     '/app/meetings': 'Workspace',

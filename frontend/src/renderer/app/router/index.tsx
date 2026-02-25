@@ -43,6 +43,7 @@ const router = createHashRouter([
     ),
     children: [
       { index: true, element: <Dashboard /> },
+      { path: 'home', element: <Dashboard /> },
       { path: 'dashboard', element: <Dashboard /> },
       { path: 'calendar', element: <Calendar /> },
       {
