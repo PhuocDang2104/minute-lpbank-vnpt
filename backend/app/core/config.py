@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     secret_key: str = 'dev-secret-key-change-in-production'
     supabase_jwt_secret: str = ''  # Set to Supabase JWT secret to verify Supabase tokens
     supabase_jwt_aud: str = 'authenticated'  # Supabase default audience
+    google_oauth_client_id: str = ''  # Google Identity Services Web client ID
 
     # CORS - comma separated origins or "*" for all
     cors_origins: str = '*'

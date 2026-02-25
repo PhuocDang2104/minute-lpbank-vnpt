@@ -61,10 +61,12 @@ Mở `http://localhost:5173` để chạy UI.
 
 ## Configuration
 - `VITE_API_URL` để trỏ backend (local hoặc deployed).
+- `VITE_GOOGLE_CLIENT_ID` để bật nút đăng nhập Google (Google Identity Services).
 
 Ví dụ (PowerShell):
 ```powershell
 $env:VITE_API_URL="http://localhost:8000"
+$env:VITE_GOOGLE_CLIENT_ID="xxxxxx.apps.googleusercontent.com"
 ```
 
 ## Build

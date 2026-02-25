@@ -122,6 +122,18 @@ def list_decisions(
     return action_item_service.list_decision_items(db, meeting_id)
 
 
+@router.get('/decisions/item/{item_id}', response_model=DecisionItemResponse)
+def get_decision(
+    item_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get a single decision"""
+    item = action_item_service.get_decision_item(db, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    return item
+
+
 @router.post('/decisions', response_model=DecisionItemResponse)
 def create_decision(
     data: DecisionItemCreate,
@@ -169,6 +181,18 @@ def list_risks(
     return action_item_service.list_risk_items(db, meeting_id)
 
 
+@router.get('/risks/item/{item_id}', response_model=RiskItemResponse)
+def get_risk(
+    item_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get a single risk"""
+    item = action_item_service.get_risk_item(db, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Risk not found")
+    return item
+
+
 @router.post('/risks', response_model=RiskItemResponse)
 def create_risk(
     data: RiskItemCreate,
@@ -201,4 +225,3 @@ def delete_risk(
     if not deleted:
         raise HTTPException(status_code=404, detail="Risk not found")
     return {'status': 'deleted'}
-

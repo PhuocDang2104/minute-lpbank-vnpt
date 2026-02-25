@@ -40,6 +40,7 @@
 | [RAG Architecture](architecture/rag_architecture.md) | RAG implementation |
 | [ASR Docker](ASR_DOCKER.md) | ASR service (whisper.cpp) setup |
 | [In-Meeting Video Capture Handoff](implementation/IN_MEETING_VIDEO_CAPTURE_API_HANDOFF.md) | API handoff for video capture -> transcript + visual RAG context |
+| [Auth Session Handoff 2026-02-24](implementation/2026-02-24_AUTH_SESSION_HANDOFF.md) | Current auth/session implementation handoff (backend + frontend + env) |
 | [Deployment](implementation/DEPLOYMENT.md) | Deploy guide |
 
 ## 🚀 Quick Start

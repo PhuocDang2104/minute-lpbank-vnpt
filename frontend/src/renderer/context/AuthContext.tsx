@@ -7,11 +7,13 @@ import {
   CurrentUser,
   getStoredUser,
   getAccessToken,
+  getRefreshToken,
   clearAuth,
   storeUser,
   login as apiLogin,
   logout as apiLogout,
   getCurrentUser,
+  refreshAccessToken,
   UserLogin
 } from '../lib/api/auth';
 
@@ -38,20 +40,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initAuth = async () => {
     try {
       const token = getAccessToken();
-      if (token) {
+      const refreshToken = getRefreshToken();
+      if (token || refreshToken) {
         // Try to get user from storage first
         const storedUser = getStoredUser();
         if (storedUser) {
           setUser(storedUser);
         }
-        
-        // Then try to refresh from API
+
+        // Then refresh from API
         try {
+          if (!token && refreshToken) {
+            await refreshAccessToken(refreshToken);
+          }
           const freshUser = await getCurrentUser();
           setUser(freshUser);
           storeUser(freshUser);
         } catch {
-          // Token might be expired, clear auth
+          // Fallback: try refresh token once if access token expired
+          if (refreshToken) {
+            try {
+              await refreshAccessToken(refreshToken);
+              const freshUser = await getCurrentUser();
+              setUser(freshUser);
+              storeUser(freshUser);
+              return;
+            } catch {
+              // no-op
+            }
+          }
           clearAuth();
           setUser(null);
         }
@@ -79,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(user);
       storeUser(user);
     } catch {
+      clearAuth();
       setUser(null);
     }
   };

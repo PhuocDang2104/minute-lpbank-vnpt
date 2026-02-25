@@ -107,6 +107,7 @@ export const PostMeetTabV2 = ({ meeting, onRefresh }: PostMeetTabV2Props) => {
         include_actions: true,
         include_decisions: true,
         include_risks: true,
+        prompt_strategy: 'structured_json',
         include_quiz: false,
         include_knowledge_table: false,
         format: 'markdown',

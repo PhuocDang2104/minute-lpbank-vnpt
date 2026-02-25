@@ -38,11 +38,146 @@ MAX_WINDOWS = 12
 
 def _prefer_vietnamese_output() -> bool:
     raw = (settings.llm_output_language or "vi").strip().lower()
-    return raw in {"vi", "vi-vn", "vietnamese", "tieng viet", "tiếng việt", ""}
+    return raw in {"vi", "vi-vn", "vn", "vietnamese", "vietnam", "tieng viet", "tiếng việt", ""}
 
 
 def _output_language_name() -> str:
     return "Vietnamese" if _prefer_vietnamese_output() else "English"
+
+
+SUMMARY_FIELD_KEYS: Tuple[str, ...] = (
+    "summary",
+    "executive_summary",
+    "overview",
+    "meeting_summary",
+)
+
+KEY_POINTS_FIELD_KEYS: Tuple[str, ...] = (
+    "key_points",
+    "keypoints",
+    "highlights",
+    "main_points",
+    "takeaways",
+    "bullet_points",
+)
+
+
+def _decode_jsonish_text(value: str) -> str:
+    return (
+        (value or "")
+        .replace('\\"', '"')
+        .replace("\\'", "'")
+        .replace("\\n", "\n")
+        .replace("\\t", " ")
+        .replace("\\\\", "\\")
+        .strip()
+    )
+
+
+def _extract_embedded_summary_payload(raw_text: str) -> Tuple[str, List[str]]:
+    text_value = (raw_text or "").strip()
+    if not text_value:
+        return "", []
+
+    cleaned = (
+        text_value.replace("“", '"')
+        .replace("”", '"')
+        .replace("‘", "'")
+        .replace("’", "'")
+    )
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json|text|md|markdown)?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+        cleaned = cleaned.strip()
+
+    candidates = [cleaned]
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if 0 <= start < end:
+        candidates.append(cleaned[start : end + 1])
+
+    for candidate in candidates:
+        quoted_keys = re.sub(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_-]*)\s*:', r'\1"\2":', candidate)
+        single_to_double = re.sub(
+            r"'([^'\\]*(?:\\.[^'\\]*)*)'",
+            lambda m: '"' + m.group(1).replace('"', '\\"') + '"',
+            quoted_keys,
+        )
+        variants = [
+            candidate,
+            re.sub(r",\s*([}\]])", r"\1", candidate),
+            quoted_keys,
+            single_to_double,
+        ]
+        for variant in variants:
+            try:
+                parsed = json.loads(variant)
+            except Exception:
+                continue
+            if not isinstance(parsed, dict):
+                continue
+
+            summary = ""
+            for key in SUMMARY_FIELD_KEYS:
+                value = parsed.get(key)
+                if isinstance(value, str) and value.strip():
+                    summary = value.strip()
+                    break
+
+            if not summary and isinstance(parsed.get("data"), dict):
+                nested_payload = parsed.get("data") or {}
+                for key in SUMMARY_FIELD_KEYS:
+                    value = nested_payload.get(key)
+                    if isinstance(value, str) and value.strip():
+                        summary = value.strip()
+                        break
+
+            key_points: List[str] = []
+            for key in KEY_POINTS_FIELD_KEYS:
+                value = parsed.get(key)
+                if isinstance(value, list):
+                    key_points = [str(item).strip() for item in value if str(item).strip()]
+                    break
+
+            if not key_points and isinstance(parsed.get("data"), dict):
+                nested_payload = parsed.get("data") or {}
+                for key in KEY_POINTS_FIELD_KEYS:
+                    value = nested_payload.get(key)
+                    if isinstance(value, list):
+                        key_points = [str(item).strip() for item in value if str(item).strip()]
+                        break
+
+            if summary or key_points:
+                return _decode_jsonish_text(summary), [_decode_jsonish_text(item) for item in key_points]
+
+    summary = ""
+    key_pattern = "|".join(re.escape(k) for k in SUMMARY_FIELD_KEYS)
+    summary_patterns = [
+        rf'["\']?(?:{key_pattern})["\']?\s*:\s*"([\s\S]*?)"(?=\s*,\s*["\']?[A-Za-z_][A-Za-z0-9_-]*["\']?\s*:|\s*[}}])',
+        rf'["\']?(?:{key_pattern})["\']?\s*:\s*\'([\s\S]*?)\'(?=\s*,\s*["\']?[A-Za-z_][A-Za-z0-9_-]*["\']?\s*:|\s*[}}])',
+    ]
+    for pattern in summary_patterns:
+        match = re.search(pattern, cleaned, flags=re.IGNORECASE)
+        if match and match.group(1).strip():
+            summary = _decode_jsonish_text(match.group(1))
+            break
+
+    points: List[str] = []
+    points_key_pattern = "|".join(re.escape(k) for k in KEY_POINTS_FIELD_KEYS)
+    points_match = re.search(
+        rf'["\']?(?:{points_key_pattern})["\']?\s*:\s*\[([\s\S]*?)\]',
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    if points_match and points_match.group(1):
+        body = points_match.group(1)
+        for item_match in re.finditer(r'"((?:\\.|[^"\\])*)"|\'((?:\\.|[^\'\\])*)\'', body):
+            candidate = item_match.group(1) if item_match.group(1) is not None else (item_match.group(2) or "")
+            decoded = _decode_jsonish_text(candidate)
+            if decoded:
+                points.append(decoded)
+
+    return summary, points
 
 
 def _table_exists(db: Session, table_name: str) -> bool:
@@ -535,7 +670,9 @@ def render_minutes_full_page(db: Session, minutes_id: str) -> str:
     template_html = template_path.read_text(encoding="utf-8")
 
     content_html = render_minutes_html_content(minutes)
-    exec_summary_html = minutes.executive_summary or "<p>No summary available.</p>"
+    exec_summary_html = minutes.executive_summary or (
+        "<p>Chưa có tóm tắt.</p>" if _prefer_vietnamese_output() else "<p>No summary available.</p>"
+    )
 
     filled = (
         template_html
@@ -1004,9 +1141,14 @@ async def generate_minutes_with_ai(
             summary_result = await assistant.generate_summary_with_context(context_payload)
     except Exception as exc:
         logger.warning("AI summary generation failed for meeting %s: %s", meeting_id, exc)
+        prefer_vi = _prefer_vietnamese_output()
         fallback_summary = (
             meeting_desc
-            or "No meeting description is available yet. Please add context for a richer summary."
+            or (
+                "Chưa có mô tả cuộc họp. Vui lòng bổ sung ngữ cảnh để tạo tóm tắt đầy đủ hơn."
+                if prefer_vi
+                else "No meeting description is available yet. Please add context for a richer summary."
+            )
         )
         summary_result = {
             "summary": fallback_summary,
@@ -1024,7 +1166,13 @@ async def generate_minutes_with_ai(
         }
         if not isinstance(summary_result["key_points"], list):
             summary_result["key_points"] = [str(summary_result["key_points"])]
-    summary_result["summary"] = str(summary_result.get("summary", "") or "").strip()
+
+    raw_summary_text = str(summary_result.get("summary", "") or "").strip()
+    extracted_summary_text, extracted_key_points = _extract_embedded_summary_payload(raw_summary_text)
+    summary_result["summary"] = extracted_summary_text or _decode_jsonish_text(raw_summary_text)
+    if extracted_key_points and not summary_result.get("key_points"):
+        summary_result["key_points"] = extracted_key_points
+
     summary_result["key_points"] = [
         str(item).strip()
         for item in (summary_result.get("key_points") or [])
@@ -1231,7 +1379,7 @@ def format_minutes(
     lines.append("")
 
     lines.append("## Tóm tắt điều hành")
-    lines.append(summary or "No summary available.")
+    lines.append(summary or ("Chưa có tóm tắt." if _prefer_vietnamese_output() else "No summary available."))
     lines.append("")
 
     if key_points:

@@ -185,6 +185,7 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
         include_actions: true,
         include_decisions: true,
         include_risks: true,
+        prompt_strategy: 'structured_json',
         include_quiz: false,
         include_knowledge_table: false,
         format: 'markdown',
@@ -932,8 +933,20 @@ const CenterPanel = ({
     }
   };
 
+  const buildNormalizedSummaryText = () => {
+    const raw = minutes?.executive_summary || minutes?.minutes_markdown || '';
+    const normalized = normalizeSummaryContent(raw);
+    const body = normalized.summaryText.trim();
+    if (!normalized.keyPoints.length) {
+      return body;
+    }
+    const pointsTitle = lt('Điểm chính', 'Key points');
+    const points = normalized.keyPoints.map((point) => `- ${point}`).join('\n');
+    return `${body}\n\n${pointsTitle}:\n${points}`.trim();
+  };
+
   const startEdit = () => {
-    setEditContent(minutes?.executive_summary || '');
+    setEditContent(buildNormalizedSummaryText());
     setIsEditingSummary(true);
   };
 
@@ -1096,7 +1109,7 @@ const CenterPanel = ({
               <button
                 className="fireflies-icon-btn"
                 onClick={() => {
-                  navigator.clipboard.writeText(minutes.executive_summary || '');
+                  navigator.clipboard.writeText(buildNormalizedSummaryText());
                   alert(lt('Đã sao chép!', 'Copied!'));
                 }}
                 title={lt('Sao chép', 'Copy')}
@@ -1974,6 +1987,12 @@ const stripCodeFences = (input: string): string => {
     .trim();
 };
 
+const quoteBareObjectKeys = (input: string): string =>
+  input.replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_-]*)\s*:/g, '$1"$2":');
+
+const normalizeSingleQuotedJson = (input: string): string =>
+  input.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_match, inner: string) => `"${inner.replace(/"/g, '\\"')}"`);
+
 const extractJsonCandidate = (input: string): string => {
   const start = input.indexOf('{');
   const end = input.lastIndexOf('}');
@@ -1989,18 +2008,21 @@ const parseStructuredSummaryObject = (input: string): StructuredSummaryObject | 
   const candidates = [smartQuotesNormalized, extractJsonCandidate(smartQuotesNormalized)];
 
   for (const candidate of candidates) {
-    const normalized = candidate.trim();
-    if (!normalized) continue;
+    const normalized = candidate.trim().replace(/,\s*([}\]])/g, '$1');
+    if (!normalized) {
+      continue;
+    }
 
-    try {
-      const parsed = JSON.parse(normalized);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        return parsed as StructuredSummaryObject;
-      }
-    } catch {
-      const trailingCommaFixed = normalized.replace(/,\s*([}\]])/g, '$1');
+    const variants = [
+      normalized,
+      quoteBareObjectKeys(normalized),
+      normalizeSingleQuotedJson(quoteBareObjectKeys(normalized)),
+      normalizeSingleQuotedJson(normalized),
+    ];
+
+    for (const variant of variants) {
       try {
-        const parsed = JSON.parse(trailingCommaFixed);
+        const parsed = JSON.parse(variant);
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
           return parsed as StructuredSummaryObject;
         }
@@ -2026,10 +2048,19 @@ const pickFirstStringValue = (obj: StructuredSummaryObject, keys: readonly strin
 const decodeJsonString = (value: string): string => {
   return value
     .replace(/\\"/g, '"')
+    .replace(/\\'/g, "'")
     .replace(/\\n/g, '\n')
     .replace(/\\t/g, ' ')
     .replace(/\\\\/g, '\\')
     .trim();
+};
+
+const cleanupSummaryText = (value: string): string => {
+  let text = stripCodeFences(decodeJsonString(value || ''));
+  text = text.replace(/^\{\s*/, '').replace(/\s*\}\s*$/, '').trim();
+  text = text.replace(/^["']?(?:summary|executive_summary|overview|meeting_summary)["']?\s*:\s*/i, '');
+  text = text.replace(/^["']|["']$/g, '').trim();
+  return text;
 };
 
 const pickStringArrayValue = (obj: StructuredSummaryObject, keys: readonly string[]): string[] => {
@@ -2051,19 +2082,39 @@ const pickStringArrayValue = (obj: StructuredSummaryObject, keys: readonly strin
 };
 
 const extractSummaryFieldByRegex = (input: string): string => {
-  const regex = /"(?:summary|executive_summary|overview|meeting_summary)"\s*:\s*"([\s\S]*?)"(?:\s*,\s*"(?:key_points|keypoints|highlights|main_points|takeaways|bullet_points)"|\s*[,}])/i;
-  const match = input.match(regex);
-  if (!match?.[1]) return '';
-  return decodeJsonString(match[1]);
+  const summaryKeyPattern = '(?:summary|executive_summary|overview|meeting_summary)';
+  const boundaryPattern = '(?=\\s*,\\s*["\']?[A-Za-z_][A-Za-z0-9_-]*["\']?\\s*:|\\s*[}])';
+  const patterns = [
+    new RegExp(`["']?${summaryKeyPattern}["']?\\s*:\\s*"([\\s\\S]*?)"${boundaryPattern}`, 'i'),
+    new RegExp(`["']?${summaryKeyPattern}["']?\\s*:\\s*'([\\s\\S]*?)'${boundaryPattern}`, 'i'),
+  ];
+
+  for (const regex of patterns) {
+    const match = input.match(regex);
+    if (match?.[1]) {
+      return cleanupSummaryText(match[1]);
+    }
+  }
+  return '';
 };
 
 const extractKeyPointsByRegex = (input: string): string[] => {
-  const regex = /"(?:key_points|keypoints|highlights|main_points|takeaways|bullet_points)"\s*:\s*\[([\s\S]*?)\]/i;
+  const regex = /["']?(?:key_points|keypoints|highlights|main_points|takeaways|bullet_points)["']?\s*:\s*\[([\s\S]*?)\]/i;
   const match = input.match(regex);
   if (!match?.[1]) return [];
-  return Array.from(match[1].matchAll(/"([\s\S]*?)"/g))
-    .map((m) => decodeJsonString(m[1] || ''))
+
+  const quotedItems = Array.from(match[1].matchAll(/"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'/g))
+    .map((m) => decodeJsonString((m[1] || m[2] || '').trim()))
     .filter((item) => Boolean(item));
+
+  if (quotedItems.length > 0) {
+    return quotedItems;
+  }
+
+  return match[1]
+    .split(/[\n,;]+/)
+    .map((segment) => segment.replace(/^[-*•\d.\s]+/, '').trim())
+    .filter((segment) => Boolean(segment));
 };
 
 const detectLanguageWarning = (input: string): boolean => {
@@ -2073,6 +2124,10 @@ const detectLanguageWarning = (input: string): boolean => {
     /challenging to determine/i,
     /insufficient (information|context)/i,
     /cannot determine/i,
+    /không đủ (thông tin|ngữ cảnh)/i,
+    /không thể xác định/i,
+    /bản chép lời.*(sai ngôn ngữ|không rõ|thiếu)/i,
+    /cần thêm (thông tin|ngữ cảnh)/i,
   ];
   return warningPatterns.some((pattern) => pattern.test(input));
 };
@@ -2086,16 +2141,19 @@ const normalizeSummaryContent = (input: string): NormalizedSummaryContent => {
   const parsed = parseStructuredSummaryObject(raw);
   if (parsed) {
     let summaryText = pickFirstStringValue(parsed, STRUCTURED_SUMMARY_KEYS);
-    const keyPoints = pickStringArrayValue(parsed, STRUCTURED_POINTS_KEYS);
+    let keyPoints = pickStringArrayValue(parsed, STRUCTURED_POINTS_KEYS);
 
     // Some payloads nest summary data inside a "data" object.
     if (!summaryText && parsed.data && typeof parsed.data === 'object' && !Array.isArray(parsed.data)) {
       summaryText = pickFirstStringValue(parsed.data as StructuredSummaryObject, STRUCTURED_SUMMARY_KEYS);
+      if (!keyPoints.length) {
+        keyPoints = pickStringArrayValue(parsed.data as StructuredSummaryObject, STRUCTURED_POINTS_KEYS);
+      }
     }
 
-    const fallbackSummary = summaryText || raw;
+    const fallbackSummary = cleanupSummaryText(summaryText || raw);
     return {
-      summaryText: decodeJsonString(fallbackSummary),
+      summaryText: fallbackSummary,
       keyPoints,
       hasLanguageWarning: detectLanguageWarning(fallbackSummary),
     };
@@ -2105,14 +2163,14 @@ const normalizeSummaryContent = (input: string): NormalizedSummaryContent => {
   const regexPoints = extractKeyPointsByRegex(raw);
   if (regexSummary || regexPoints.length > 0) {
     return {
-      summaryText: regexSummary || raw,
+      summaryText: cleanupSummaryText(regexSummary || raw),
       keyPoints: regexPoints,
       hasLanguageWarning: detectLanguageWarning(regexSummary || raw),
     };
   }
 
   return {
-    summaryText: raw,
+    summaryText: cleanupSummaryText(raw),
     keyPoints: [],
     hasLanguageWarning: detectLanguageWarning(raw),
   };

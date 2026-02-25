@@ -15877,3 +15877,120 @@ a {
     align-items: flex-start;
   }
 }
+
+/* ============================================
+   AUTH PAGES
+   ============================================ */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(20px, 4vw, 44px);
+  background:
+    radial-gradient(circle at 12% 15%, rgba(247, 167, 69, 0.16), transparent 42%),
+    radial-gradient(circle at 90% 84%, rgba(30, 64, 175, 0.12), transparent 36%),
+    linear-gradient(160deg, #fcfcfb 0%, #f4f5f7 100%);
+}
+
+.auth-card {
+  width: min(460px, 100%);
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
+  padding: clamp(20px, 3.4vw, 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-brand__logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.auth-brand h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.auth-brand p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.auth-google-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.auth-google-wrap > div {
+  display: flex;
+  justify-content: center;
+}
+
+.auth-google-fallback {
+  width: 100%;
+}
+
+.auth-footer {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.auth-footer a {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+@media (max-width: 560px) {
+  .auth-card {
+    border-radius: 16px;
+    padding: 20px 16px;
+  }
+
+  .auth-brand h1 {
+    font-size: 20px;
+  }
+}

@@ -175,7 +175,7 @@ async def test_llm():
     try:
         chat = GeminiChat()
         test_message = "Say hello in one short sentence."
-        if (settings.llm_output_language or "vi").strip().lower() in {"vi", "vi-vn", "vietnamese", "tieng viet", "tiếng việt"}:
+        if (settings.llm_output_language or "vi").strip().lower() in {"vi", "vi-vn", "vn", "vietnamese", "vietnam", "tieng viet", "tiếng việt"}:
             test_message = "Hay chao bang mot cau ngan."
         response = await chat.chat(test_message)
         return {

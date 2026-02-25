@@ -39,9 +39,19 @@ from app.services.storage_client import (
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 # In-memory storage for mock knowledge documents
 _mock_knowledge_docs: dict[str, KnowledgeDocument] = {}
+
+
+def _prefer_vietnamese_output() -> bool:
+    raw = (settings.llm_output_language or "vi").strip().lower()
+    return raw in {"vi", "vi-vn", "vn", "vietnamese", "tieng viet", "tiếng việt", ""}
+
+
+def _output_language_name() -> str:
+    return "Vietnamese" if _prefer_vietnamese_output() else "English"
 
 
 def _init_mock_knowledge_docs():
@@ -1294,6 +1304,8 @@ async def query_knowledge_ai(
     citations: List[str] = []
     best_score = None
     meeting_id_str = str(request.meeting_id) if request.meeting_id else None
+    prefer_vi = _prefer_vietnamese_output()
+    output_language = _output_language_name()
 
     if is_jina_available():
         try:
@@ -1449,20 +1461,31 @@ async def query_knowledge_ai(
         # Try giving a gentle, generic answer using LLM (no RAG context)
         if is_gemini_available():
             try:
-                chat = GeminiChat(
-                    system_prompt=(
-                        "You are MINUTE Knowledge Assistant. Respond concisely in English. "
-                        "Respond in English even if the question is in Vietnamese. "
-                        "Do not hallucinate; if evidence is missing, say so clearly and ask for more context."
-                    ),
-                    llm_config=llm_config,
+                no_context_system_prompt = (
+                    "Bạn là MINUTE Knowledge Assistant. Trả lời ngắn gọn bằng tiếng Việt. "
+                    "Không bịa thông tin; nếu thiếu bằng chứng thì nói rõ và đề nghị người dùng bổ sung ngữ cảnh."
+                    if prefer_vi
+                    else "You are MINUTE Knowledge Assistant. Respond concisely in English. "
+                    "Do not hallucinate; if evidence is missing, say so clearly and ask for more context."
                 )
-                prompt = f"""Question: {request.query}
+                no_context_user_prompt = (
+                    f"""Câu hỏi: {request.query}
+Hiện chưa tìm thấy tài liệu, transcript hoặc visual context phù hợp trong phiên này.
+Yêu cầu:
+- Nói rõ là chưa có bằng chứng khớp và đề nghị người dùng cung cấp thêm chi tiết hoặc tải tài liệu liên quan.
+- Sau đó đưa 1 gợi ý ngắn ở mức tổng quát (không khẳng định như dữ liệu thật của phiên)."""
+                    if prefer_vi
+                    else f"""Question: {request.query}
 No relevant documents, transcript, or visual context were found for this session.
 Please:
 - Clearly state that there is no matching evidence yet, and ask the user to provide more details or upload relevant materials.
 - Then provide a brief, general suggestion (high-level background that may not be specific to this session)."""
-                answer = await chat.chat(prompt)
+                )
+                chat = GeminiChat(
+                    system_prompt=no_context_system_prompt,
+                    llm_config=llm_config,
+                )
+                answer = await chat.chat(no_context_user_prompt)
                 return KnowledgeQueryResponse(
                     answer=answer,
                     relevant_documents=[],
@@ -1471,8 +1494,15 @@ Please:
                 )
             except Exception as exc:
                 logger.error("LLM generic fallback failed: %s", exc)
+        no_context_answer = (
+            "Mình chưa tìm thấy ngữ cảnh phù hợp trong phiên này (tài liệu/transcript/visual). "
+            "Bạn mô tả rõ hơn hoặc tải lên tài liệu liên quan để mình trả lời chính xác hơn."
+            if prefer_vi
+            else "I couldn't find relevant context in this session (docs/transcript/visual). "
+            "Please describe what you need or upload the relevant materials."
+        )
         return KnowledgeQueryResponse(
-            answer="I couldn't find relevant context in this session (docs/transcript/visual). Please describe what you need or upload the relevant materials.",
+            answer=no_context_answer,
             relevant_documents=[],
             confidence=0.3,
             citations=[],
@@ -1481,26 +1511,43 @@ Please:
     # Call LLM
     if is_gemini_available():
         try:
-            chat = GeminiChat(
-                system_prompt=(
-                    "You are MINUTE RAG Assistant. Respond concisely in English. "
-                    "Respond in English even if the question is in Vietnamese. "
-                    "Use ONLY the information inside Context (docs, transcript, visual). "
-                    "If Context covers only part of a meeting/session, answer what is supported and clearly state the scope."
-                ),
-                llm_config=llm_config,
+            rag_system_prompt = (
+                "Bạn là MINUTE RAG Assistant. Trả lời ngắn gọn bằng tiếng Việt. "
+                "Chỉ dùng thông tin trong Context (tài liệu, transcript, visual). "
+                "Nếu Context chỉ bao phủ một phần cuộc họp, hãy nói rõ phạm vi bằng chứng hiện có."
+                if prefer_vi
+                else "You are MINUTE RAG Assistant. Respond concisely in English. "
+                "Use ONLY the information inside Context (docs, transcript, visual). "
+                "If Context covers only part of a meeting/session, answer what is supported and clearly state the scope."
             )
-            prompt = f"""Question: {request.query}
+            rag_user_prompt = (
+                f"""Question: {request.query}
 
 Context (top chunks):
 {context}
 
 Requirements:
-- Respond concisely, no markdown.
+- Respond in {output_language}, concise, no markdown.
+- When using evidence, cite the source in brackets [] (document title, transcript chunk, or visual event).
+- If data only covers a subset, briefly summarize what is covered, then state: \"bằng chứng hiện tại chỉ bao gồm ...\".
+- Only say \"insufficient evidence\" when Context is truly empty or meaningless."""
+                if prefer_vi
+                else f"""Question: {request.query}
+
+Context (top chunks):
+{context}
+
+Requirements:
+- Respond in {output_language}, concise, no markdown.
 - When using evidence, cite the source in brackets [] (document title, transcript chunk, or visual event).
 - If the data only covers a subset, briefly summarize what is covered, then state: \"current evidence only includes ...\".
 - Only say \"insufficient evidence\" when Context is truly empty or meaningless."""
-            answer = await chat.chat(prompt)
+            )
+            chat = GeminiChat(
+                system_prompt=rag_system_prompt,
+                llm_config=llm_config,
+            )
+            answer = await chat.chat(rag_user_prompt)
             confidence = 0.90 if relevant_docs else 0.60
             if best_score is not None:
                 confidence = max(0.5, min(0.98, 1 - float(best_score)))

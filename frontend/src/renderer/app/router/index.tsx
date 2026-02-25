@@ -20,18 +20,27 @@ import { MeetingDetail } from '../../features/meetings/components/MeetingDetail'
 import Landing from '../routes/Landing'
 import AdminConsole from '../routes/AdminConsole'
 import TemplateManagement from '../routes/TemplateManagement'
+import Login from '../routes/Login'
+import Register from '../routes/Register'
+import { RequireAuth } from '../../context/AuthContext'
 
 const router = createHashRouter([
   // Public routes
   { path: '/', element: <Landing /> },
+  { path: '/login', element: <Login /> },
+  { path: '/register', element: <Register /> },
   { path: '/about', element: <About /> },
   { path: '/roadmap/*', element: <Roadmap /> },
   { path: '/pricing/*', element: <Pricing /> },
 
-  // App routes (with shell) - No auth required
+  // App routes (with shell) - Auth required
   {
     path: '/app',
-    element: <AppShell />,
+    element: (
+      <RequireAuth>
+        <AppShell />
+      </RequireAuth>
+    ),
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'dashboard', element: <Dashboard /> },

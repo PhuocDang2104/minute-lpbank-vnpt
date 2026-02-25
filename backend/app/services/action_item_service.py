@@ -346,6 +346,36 @@ def list_decision_items(db: Session, meeting_id: str) -> DecisionItemList:
     return DecisionItemList(items=items, total=len(items))
 
 
+def get_decision_item(db: Session, item_id: str) -> Optional[DecisionItemResponse]:
+    """Get a single decision item by id"""
+    query = text("""
+        SELECT
+            id::text, meeting_id::text, description, rationale,
+            source_chunk_id::text, source_text, status,
+            confirmed_by::text, confirmed_at, created_at
+        FROM decision_item
+        WHERE id = :item_id
+        LIMIT 1
+    """)
+
+    row = db.execute(query, {'item_id': item_id}).fetchone()
+    if not row:
+        return None
+
+    return DecisionItemResponse(
+        id=row[0],
+        meeting_id=row[1],
+        description=row[2],
+        rationale=row[3],
+        source_chunk_id=row[4],
+        source_text=row[5],
+        status=row[6],
+        confirmed_by=row[7],
+        confirmed_at=row[8],
+        created_at=row[9]
+    )
+
+
 def create_decision_item(db: Session, data: DecisionItemCreate) -> DecisionItemResponse:
     """Create a new decision item"""
     item_id = str(uuid4())
@@ -484,6 +514,39 @@ def list_risk_items(db: Session, meeting_id: str) -> RiskItemList:
         ))
     
     return RiskItemList(items=items, total=len(items))
+
+
+def get_risk_item(db: Session, item_id: str) -> Optional[RiskItemResponse]:
+    """Get a single risk item by id"""
+    query = text("""
+        SELECT
+            ri.id::text, ri.meeting_id::text, ri.description, ri.severity,
+            ri.mitigation, ri.source_chunk_id::text, ri.source_text,
+            ri.status, ri.owner_user_id::text, ri.created_at,
+            u.display_name as owner_name
+        FROM risk_item ri
+        LEFT JOIN user_account u ON ri.owner_user_id = u.id
+        WHERE ri.id = :item_id
+        LIMIT 1
+    """)
+
+    row = db.execute(query, {'item_id': item_id}).fetchone()
+    if not row:
+        return None
+
+    return RiskItemResponse(
+        id=row[0],
+        meeting_id=row[1],
+        description=row[2],
+        severity=row[3],
+        mitigation=row[4],
+        source_chunk_id=row[5],
+        source_text=row[6],
+        status=row[7],
+        owner_user_id=row[8],
+        created_at=row[9],
+        owner_name=row[10]
+    )
 
 
 def create_risk_item(db: Session, data: RiskItemCreate) -> RiskItemResponse:

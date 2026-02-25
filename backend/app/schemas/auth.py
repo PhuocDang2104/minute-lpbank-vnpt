@@ -35,11 +35,19 @@ class UserLogin(BaseModel):
     password: str
 
 
+class GoogleLogin(BaseModel):
+    id_token: str = Field(..., min_length=20)
+
+
 class Token(BaseModel):
     access_token: str
     refresh_token: Optional[str] = None
     token_type: str = 'bearer'
     expires_in: int = 3600  # seconds
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 
 class TokenPayload(BaseModel):
@@ -66,6 +74,17 @@ class PasswordReset(BaseModel):
 class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str = Field(..., min_length=6)
+
+
+class MessageResponse(BaseModel):
+    message: str
+
+
+class VerifyResponse(BaseModel):
+    valid: bool
+    user_id: str
+    email: Optional[str] = None
+    role: Optional[str] = None
 
 
 # ============================================

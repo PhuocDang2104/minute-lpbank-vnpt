@@ -1,21 +1,24 @@
 import asyncio
 import json
+import logging
+import re
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 from groq import Groq
 from app.core.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 def _output_language_code() -> str:
     raw = (settings.llm_output_language or "vi").strip().lower()
-    if raw in {"vi", "vi-vn", "vietnamese", "tieng viet", "tiếng việt"}:
+    if raw in {"vi", "vi-vn", "vn", "vietnamese", "vietnam", "tieng viet", "tiếng việt"}:
         return "vi"
     if raw in {"en", "en-us", "en-gb", "english"}:
         return "en"
-    return raw or "vi"
+    return "vi" if not raw else raw
 
 
 def _output_language_name() -> str:
@@ -24,7 +27,178 @@ def _output_language_name() -> str:
         return "Vietnamese"
     if code == "en":
         return "English"
-    return settings.llm_output_language or "Vietnamese"
+    return "Vietnamese"
+
+
+SUMMARY_FIELD_KEYS: Tuple[str, ...] = (
+    "summary",
+    "executive_summary",
+    "overview",
+    "meeting_summary",
+)
+
+KEY_POINTS_FIELD_KEYS: Tuple[str, ...] = (
+    "key_points",
+    "keypoints",
+    "highlights",
+    "main_points",
+    "takeaways",
+    "bullet_points",
+)
+
+
+def _strip_code_fences(raw: str) -> str:
+    text = (raw or "").strip()
+    if not text.startswith("```"):
+        return text
+    text = re.sub(r"^```(?:json|javascript|js|text|markdown)?\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s*```$", "", text)
+    return text.strip()
+
+
+def _decode_json_like_string(value: str) -> str:
+    return (
+        (value or "")
+        .replace('\\"', '"')
+        .replace("\\'", "'")
+        .replace("\\n", "\n")
+        .replace("\\t", " ")
+        .replace("\\\\", "\\")
+        .strip()
+    )
+
+
+def _dedupe_keep_order(values: List[str]) -> List[str]:
+    seen = set()
+    deduped: List[str] = []
+    for item in values:
+        if item in seen:
+            continue
+        seen.add(item)
+        deduped.append(item)
+    return deduped
+
+
+def _json_object_candidates(raw: str) -> List[str]:
+    cleaned = _strip_code_fences(raw).replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
+    candidates = [cleaned]
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if 0 <= start < end:
+        candidates.append(cleaned[start : end + 1])
+    return [c.strip() for c in candidates if c and c.strip()]
+
+
+def _json_candidate_variants(candidate: str) -> List[str]:
+    variants = [candidate]
+
+    no_trailing_comma = re.sub(r",\s*([}\]])", r"\1", candidate)
+    variants.append(no_trailing_comma)
+
+    quoted_keys = re.sub(
+        r'([{,]\s*)([A-Za-z_][A-Za-z0-9_-]*)\s*:',
+        r'\1"\2":',
+        no_trailing_comma,
+    )
+    variants.append(quoted_keys)
+
+    single_quote_to_double = re.sub(
+        r"'([^'\\]*(?:\\.[^'\\]*)*)'",
+        lambda m: '"' + m.group(1).replace('"', '\\"') + '"',
+        quoted_keys,
+    )
+    variants.append(single_quote_to_double)
+
+    return _dedupe_keep_order([v.strip() for v in variants if v and v.strip()])
+
+
+def _parse_json_object_relaxed(raw: str) -> Optional[Dict[str, Any]]:
+    for candidate in _json_object_candidates(raw):
+        for variant in _json_candidate_variants(candidate):
+            try:
+                parsed = json.loads(variant)
+            except Exception:
+                continue
+            if isinstance(parsed, dict):
+                return parsed
+    return None
+
+
+def _pick_first_string_value(obj: Dict[str, Any], keys: Tuple[str, ...]) -> str:
+    for key in keys:
+        value = obj.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _pick_string_list_value(obj: Dict[str, Any], keys: Tuple[str, ...]) -> List[str]:
+    for key in keys:
+        value = obj.get(key)
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        if isinstance(value, str) and value.strip():
+            return [
+                line.strip()
+                for line in value.splitlines()
+                if line.strip()
+            ]
+    return []
+
+
+def _extract_summary_and_points_from_payload(payload: Dict[str, Any]) -> Tuple[str, List[str]]:
+    summary = _pick_first_string_value(payload, SUMMARY_FIELD_KEYS)
+    key_points = _pick_string_list_value(payload, KEY_POINTS_FIELD_KEYS)
+
+    nested = payload.get("data")
+    if isinstance(nested, dict):
+        if not summary:
+            summary = _pick_first_string_value(nested, SUMMARY_FIELD_KEYS)
+        if not key_points:
+            key_points = _pick_string_list_value(nested, KEY_POINTS_FIELD_KEYS)
+
+    return _decode_json_like_string(summary), [_decode_json_like_string(item) for item in key_points if item.strip()]
+
+
+def _extract_summary_field_by_regex(raw: str) -> str:
+    text = _strip_code_fences(raw)
+    key_pattern = "|".join(re.escape(key) for key in SUMMARY_FIELD_KEYS)
+    patterns = [
+        rf'["\']?(?:{key_pattern})["\']?\s*:\s*"([\s\S]*?)"(?=\s*,\s*["\']?[A-Za-z_][A-Za-z0-9_-]*["\']?\s*:|\s*[}}])',
+        rf'["\']?(?:{key_pattern})["\']?\s*:\s*\'([\s\S]*?)\'(?=\s*,\s*["\']?[A-Za-z_][A-Za-z0-9_-]*["\']?\s*:|\s*[}}])',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match and match.group(1).strip():
+            return _decode_json_like_string(match.group(1))
+    return ""
+
+
+def _extract_key_points_by_regex(raw: str) -> List[str]:
+    text = _strip_code_fences(raw)
+    key_pattern = "|".join(re.escape(key) for key in KEY_POINTS_FIELD_KEYS)
+    pattern = rf'["\']?(?:{key_pattern})["\']?\s*:\s*\[([\s\S]*?)\]'
+    match = re.search(pattern, text, flags=re.IGNORECASE)
+    if not match or not match.group(1):
+        return []
+
+    body = match.group(1)
+    points: List[str] = []
+    for item_match in re.finditer(r'"((?:\\.|[^"\\])*)"|\'((?:\\.|[^\'\\])*)\'', body):
+        candidate = item_match.group(1) if item_match.group(1) is not None else (item_match.group(2) or "")
+        decoded = _decode_json_like_string(candidate)
+        if decoded:
+            points.append(decoded)
+
+    if points:
+        return points
+
+    fallback = [
+        segment.strip(" \t\r\n-•\"'")
+        for segment in re.split(r"[\n,;]+", body)
+        if segment.strip(" \t\r\n-•\"'")
+    ]
+    return fallback
 
 
 @dataclass
@@ -354,7 +528,7 @@ Hard rules:
 - Use ONLY the data provided (context/transcript/docs). If data is missing, answer what is supported and state what is unknown.
 - Do not hallucinate or speculate beyond the provided context. Prefer concise, clear answers.
 - If an action or tool call is needed, ask for confirmation first (human-in-the-loop).
-- Prefer responding in {_output_language_name()} (configured default).
+- Respond in Vietnamese by default, naturally and professionally.
 - If the user explicitly asks for another language, follow the user request.
 """
 
@@ -576,11 +750,17 @@ Format output JSON:
         """Generate meeting summary with full context and practical guardrails."""
         language_name = _output_language_name()
         prefer_vi = _output_language_code() == "vi"
+        language_guard = (
+            "- Write fully in natural Vietnamese (Tiếng Việt). Do not switch to English unless user explicitly asks."
+            if prefer_vi
+            else "- Write fully in English unless user explicitly asks for another language."
+        )
         prompt = f"""You are MINUTE AI, a meeting and study-session copilot.
 Create a rich {language_name} summary using ONLY the JSON data below. Do not invent facts.
 
 Rules:
 - Output language: {language_name}.
+- {language_guard}
 - Never return an empty summary.
 - Summary target length: 220-420 words, written in 3-6 coherent paragraphs.
 - Cover: objective/context, major discussion threads, concrete outcomes, unresolved questions, risks, and next-step direction.
@@ -590,35 +770,24 @@ Rules:
 - key_points must contain 8-12 concise, specific, actionable bullets (plain strings).
 - No markdown in summary or key_points.
 
-Data:
+        Data:
 {json.dumps(context, ensure_ascii=False)}
 
 Return STRICT JSON only (no extra prose):
 {{"summary": "...", "key_points": ["...", "..."]}}"""
         response = await self.chat.chat(prompt)
-        result: Dict[str, Any] = {}
-        try:
-            result = json.loads(response)
-        except Exception:
-            import re
-            match = re.search(r'\{.*\}', response, re.DOTALL)
-            if match:
-                try:
-                    result = json.loads(match.group(0))
-                except Exception:
-                    result = {}
-
+        result = _parse_json_object_relaxed(response) or {}
         summary = ""
         key_points: List[str] = []
-        if isinstance(result, dict):
-            summary = str(result.get("summary", "") or "")
-            raw_points = result.get("key_points", [])
-            if isinstance(raw_points, list):
-                key_points = [str(item) for item in raw_points if str(item).strip()]
-            elif raw_points:
-                key_points = [str(raw_points)]
+        if result:
+            summary, key_points = _extract_summary_and_points_from_payload(result)
+
+        if not summary:
+            summary = _extract_summary_field_by_regex(response)
+        if not key_points:
+            key_points = _extract_key_points_by_regex(response)
         if not summary and not key_points:
-            summary = response.strip()
+            summary = _strip_code_fences(response).strip()
 
         if not summary.strip():
             title = str(context.get("title") or "Meeting").strip()
@@ -726,6 +895,11 @@ Return STRICT JSON only (no extra prose):
         language_name = _output_language_name()
         prefer_vi = _output_language_code() == "vi"
         unknown_placeholder = "Không rõ" if prefer_vi else "Unknown"
+        language_guard = (
+            "Write all text values in natural Vietnamese. Do not output English sentences unless user explicitly asks."
+            if prefer_vi
+            else "Write all text values in natural English unless user explicitly asks another language."
+        )
         prompt = f"""You are MINUTE AI, generating professional meeting minutes for business teams.
 Analyze the transcript below and produce a detailed, factual minutes JSON.
 
@@ -735,6 +909,7 @@ TRANSCRIPT:
 OUTPUT REQUIREMENTS (Strict JSON Mode):
 - Return exactly ONE JSON object only (no markdown code fence, no commentary).
 - Output language: {language_name}.
+- {language_guard}
 - Be specific, evidence-based, and avoid hallucinations.
 - If a field is unknown, use "{unknown_placeholder}" or null instead of omitting required structure.
 
@@ -777,61 +952,75 @@ Required JSON schema:
   ]
 }}
 
-Guidance:
+        Guidance:
 - Extract as much useful detail as possible from transcript content.
 - Do not repeat near-duplicate bullets; merge similar points.
 - If visual signals appear (e.g., [VISUAL], [SCREEN], slide references), reflect them in executive_summary and key_points.
 """
         
         response = await self.chat.chat(prompt)
-        
-        # Robust JSON extraction
-        try:
-            return json.loads(response)
-        except json.JSONDecodeError:
-            import re
-            # Try to find JSON block match
-            json_match = re.search(r'\{[\s\S]*\}', response)
-            if json_match:
-                try:
-                    return json.loads(json_match.group(0))
-                except:
-                    pass
-            
-            # Extract markdown code block if present  
-            code_block = re.search(r'```(?:json)?\s*([\s\S]*?)```', response)
-            if code_block:
-                try:
-                    return json.loads(code_block.group(1))
-                except:
-                    pass
-            
-            # Fallback structure with raw response as summary
-            print(f"[AI] Failed to parse JSON minutes, using fallback")
-            return {
-                "executive_summary": response[:1000],
-                "key_points": [],
-                "action_items": [],
-                "decisions": [],
-                "risks": [],
-                "next_steps": [],
-                "attendees_mentioned": [],
-                "study_pack": None
-            }
+
+        payload = _parse_json_object_relaxed(response)
+        if payload:
+            # Backfill summary/key points in case model used alternative key names.
+            summary, key_points = _extract_summary_and_points_from_payload(payload)
+            if summary and not str(payload.get("executive_summary") or "").strip():
+                payload["executive_summary"] = summary
+            if key_points and not isinstance(payload.get("key_points"), list):
+                payload["key_points"] = key_points
+            if key_points and isinstance(payload.get("key_points"), list) and not payload.get("key_points"):
+                payload["key_points"] = key_points
+
+            for key in ("action_items", "decisions", "risks", "next_steps", "attendees_mentioned"):
+                value = payload.get(key)
+                if not isinstance(value, list):
+                    payload[key] = []
+            payload.setdefault("study_pack", None)
+            return payload
+
+        summary = _extract_summary_field_by_regex(response)
+        key_points = _extract_key_points_by_regex(response)
+        if not summary:
+            summary = _strip_code_fences(response).strip()[:1200]
+
+        logger.warning("[AI] Failed to parse strict minutes JSON; returning sanitized fallback payload.")
+        return {
+            "executive_summary": summary,
+            "key_points": key_points,
+            "action_items": [],
+            "decisions": [],
+            "risks": [],
+            "next_steps": [],
+            "attendees_mentioned": [],
+            "study_pack": None,
+        }
     
     async def generate_summary(self, transcript: str) -> str:
         """Generate meeting summary"""
         language_name = _output_language_name()
-        prompt = f"""Create a detailed {language_name} meeting summary from the transcript below.
-Use only transcript evidence and do not hallucinate.
-Never return an empty response.
-If transcript is short, still provide a useful preliminary summary and clearly list missing context.
+        prefer_vi = _output_language_code() == "vi"
+        format_block = """## Tóm tắt cuộc họp
 
-Transcript:
-{transcript[:3000]}
+### Tường thuật điều hành
+- 2-4 đoạn ngắn, rõ ràng, bám bằng chứng
 
-Format:
-## Meeting Summary
+### Điểm chính
+- 8-12 ý cụ thể
+
+### Quyết định
+- ...
+
+### Việc cần làm
+- nêu người phụ trách, deadline (nếu có), người giao việc (nếu có)
+
+### Rủi ro và trở ngại
+- ...
+
+### Bước tiếp theo
+- ...
+
+### Câu hỏi cần follow-up
+- ...""" if prefer_vi else """## Meeting Summary
 
 ### Executive Narrative
 - 2-4 compact paragraphs, concrete and evidence-based
@@ -852,7 +1041,23 @@ Format:
 - ...
 
 ### Follow-up Questions
-- ...
+- ..."""
+        language_guard = (
+            "Write in natural Vietnamese (Tiếng Việt). Do not switch to English unless user explicitly asks."
+            if prefer_vi
+            else "Write in natural English unless user explicitly asks another language."
+        )
+        prompt = f"""Create a detailed {language_name} meeting summary from the transcript below.
+Use only transcript evidence and do not hallucinate.
+Never return an empty response.
+If transcript is short, still provide a useful preliminary summary and clearly list missing context.
+{language_guard}
+
+Transcript:
+{transcript[:3000]}
+
+Format:
+{format_block}
 """
         
         return await self.chat.chat(prompt)

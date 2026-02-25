@@ -45,3 +45,5 @@ services:
         sync: false
       - key: SECRET_KEY
         generateValue: true
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false

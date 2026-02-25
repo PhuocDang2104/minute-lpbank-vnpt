@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from app.core.config import get_settings
 from app.api.v1.endpoints import (
+    auth,
     admin,
     users,
     sessions,
@@ -56,6 +57,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router, prefix=f"{settings.api_v1_prefix}/health", tags=['health'])
+app.include_router(auth.router, prefix=f"{settings.api_v1_prefix}/auth", tags=['auth'])
 app.include_router(admin.router, prefix=f"{settings.api_v1_prefix}/admin", tags=['admin'])
 app.include_router(users.router, prefix=f"{settings.api_v1_prefix}/users", tags=['users'])
 app.include_router(sessions.router, prefix=f"{settings.api_v1_prefix}/sessions", tags=['sessions'])
@@ -90,4 +92,3 @@ app.mount("/files", StaticFiles(directory=str(upload_path)), name="files")
 @app.get('/')
 def root():
     return {"message": "Minute API v2 running"}
-

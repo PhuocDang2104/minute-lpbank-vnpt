@@ -8,6 +8,8 @@ import { API_URL } from '../config/env';
 const API_BASE_URL = API_URL;
 const API_PREFIX = '/api/v1';
 const ACCESS_TOKEN_KEY = 'minute_access_token';
+const REFRESH_TOKEN_KEY = 'minute_refresh_token';
+const USER_STORAGE_KEY = 'minute_user';
 
 export class ApiError extends Error {
   constructor(
@@ -31,6 +33,63 @@ interface RequestOptions extends RequestInit {
 function getAccessToken(): string | null {
   if (typeof localStorage === 'undefined') return null;
   return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+function getRefreshToken(): string | null {
+  if (typeof localStorage === 'undefined') return null;
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+function storeTokens(accessToken: string, refreshToken?: string): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  if (refreshToken) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  }
+}
+
+function clearStoredAuth(): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(USER_STORAGE_KEY);
+}
+
+interface RefreshResponse {
+  access_token: string;
+  refresh_token?: string;
+}
+
+async function tryRefreshAccessToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+
+  try {
+    const refreshResponse = await fetch(`${API_BASE_URL}${API_PREFIX}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+
+    if (!refreshResponse.ok) {
+      clearStoredAuth();
+      return null;
+    }
+
+    const tokens = (await refreshResponse.json()) as RefreshResponse;
+    if (!tokens.access_token) {
+      clearStoredAuth();
+      return null;
+    }
+
+    storeTokens(tokens.access_token, tokens.refresh_token);
+    return tokens.access_token;
+  } catch {
+    clearStoredAuth();
+    return null;
+  }
 }
 
 async function request<T>(
@@ -75,14 +134,37 @@ async function request<T>(
     headers,
   });
 
-  // Handle 401 - could trigger re-login
-  if (response.status === 401) {
-    // Clear token if it's invalid
-    if (typeof localStorage !== 'undefined') {
-      // Don't clear on login endpoint
-      if (!endpoint.includes('/auth/login')) {
-        console.warn('[API] Token expired or invalid');
+  const canAttemptRefresh =
+    response.status === 401 &&
+    !skipAuth &&
+    !endpoint.includes('/auth/login') &&
+    !endpoint.includes('/auth/refresh') &&
+    !endpoint.includes('/auth/google');
+
+  if (canAttemptRefresh) {
+    const newAccessToken = await tryRefreshAccessToken();
+    if (newAccessToken) {
+      const retryHeaders = new Headers(headers);
+      retryHeaders.set('Authorization', `Bearer ${newAccessToken}`);
+      const retryResponse = await fetch(url, {
+        ...init,
+        headers: retryHeaders,
+      });
+
+      if (!retryResponse.ok) {
+        let retryData;
+        try {
+          retryData = await retryResponse.json();
+        } catch {
+          retryData = null;
+        }
+        throw new ApiError(retryResponse.status, retryResponse.statusText, retryData);
       }
+
+      if (retryResponse.status === 204) {
+        return null as T;
+      }
+      return retryResponse.json();
     }
   }
 
