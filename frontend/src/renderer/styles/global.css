@@ -16395,11 +16395,13 @@ a {
 
 .home-hub-ai__shell {
   width: min(760px, 100%);
-  margin: 0 auto;
+  margin: 18px auto 26px;
   border-radius: 18px;
-  border: 1px solid rgba(145, 101, 31, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0);
   background: #ffffff;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+  box-shadow:
+    0 20px 44px -30px rgba(241, 118, 50, 0.72),
+    0 12px 30px -24px rgba(236, 192, 95, 0.9);
   position: relative;
   isolation: isolate;
   overflow: visible;
@@ -16414,18 +16416,19 @@ a {
 .home-hub-ai__shell::after {
   content: '';
   position: absolute;
-  left: 8%;
-  right: 8%;
-  bottom: -14px;
-  height: 28px;
+  left: 6%;
+  right: 6%;
+  bottom: -16px;
+  height: 34px;
   border-radius: 999px;
   background: linear-gradient(
-    90deg,
-    rgba(203, 142, 35, 0) 0%,
-    rgba(232, 176, 74, 0.44) 50%,
-    rgba(203, 142, 35, 0) 100%
+    100deg,
+    rgba(244, 126, 32, 0) 8%,
+    rgba(244, 126, 32, 0.5) 46%,
+    rgba(252, 209, 119, 0.6) 62%,
+    rgba(252, 209, 119, 0) 92%
   );
-  filter: blur(10px);
+  filter: blur(12px);
   pointer-events: none;
   z-index: -1;
 }
@@ -17099,6 +17102,7 @@ a {
     min-height: 90px;
     padding: 9px 10px;
     border-radius: 14px;
+    margin: 14px auto 20px;
     gap: 8px;
   }
 
