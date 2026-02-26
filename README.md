@@ -330,6 +330,30 @@ Core entities:
 - MVP cloud: Vercel (frontend) + Render/FastAPI + Postgres/pgvector storage (see docs).
 - Production orientation: private networking, secure storage, audit + retention enforcement.
 
+### Single-VM production (recommended for self-hosting)
+This repository now includes a production stack for one VM:
+- App stack: `infra/docker-compose.prod.yml`
+- Env template: `infra/env.prod.example` -> copy to `infra/.env.prod`
+- HTTPS reverse proxy: `infra/caddy-compose.yml` + `infra/Caddyfile.example`
+
+Characteristics:
+- Postgres is internal only (no published host port).
+- Backend runs without source mount and without `--reload`.
+- ASR is internal (`expose 9000`) and consumed by backend over compose network.
+- Caddy reverse proxy reaches backend via Docker network (`minute_backend:8000`).
+- Backend host port is still bound to `127.0.0.1:8000` for local health checks.
+
+Quick run:
+```bash
+cd infra
+cp env.prod.example .env.prod
+# edit .env.prod with real values
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+
+Full guide:
+- `docs/DEPLOY_VM_COMPOSE.md`
+
 ### End-to-end packaging & run guide
 Quick reviewer setup to run the full product (Postgres + FastAPI + Frontend):
 1) Clone the repo and enter the project folder:

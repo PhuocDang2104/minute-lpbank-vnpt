@@ -1,0 +1,73 @@
+services:
+  postgres:
+    build: ./postgres
+    container_name: minute_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: minute
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: minute
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U minute -d minute"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - minute_internal
+
+  asr:
+    build:
+      context: ../services/asr
+      dockerfile: Dockerfile
+      args:
+        WHISPER_MODEL_URL: ${WHISPER_MODEL_URL:-https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin}
+        WHISPER_MODEL_FILE: ${WHISPER_MODEL_FILE:-ggml-base.bin}
+    container_name: minute_asr
+    restart: unless-stopped
+    environment:
+      WHISPER_THREADS: ${WHISPER_THREADS:-2}
+      WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-vi}
+      WHISPER_MODEL: ${WHISPER_MODEL:-/models/ggml-base.bin}
+    expose:
+      - "9000"
+    networks:
+      - minute_internal
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: minute_backend
+    restart: unless-stopped
+    environment:
+      ENV: production
+      DATABASE_URL: postgresql+psycopg2://minute:${POSTGRES_PASSWORD}@postgres:5432/minute
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      ASR_URL: http://asr:9000
+      ASR_LANGUAGE: ${ASR_LANGUAGE:-vi}
+      LLM_OUTPUT_LANGUAGE: ${LLM_OUTPUT_LANGUAGE:-vi}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://your-project.vercel.app}
+      PYTHONPATH: /app
+      WATCHFILES_FORCE_POLLING: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      asr:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8000:8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    networks:
+      - minute_internal
+
+volumes:
+  postgres_data:
+
+networks:
+  minute_internal:
+    name: minute_internal

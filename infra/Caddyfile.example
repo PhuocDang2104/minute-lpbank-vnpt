@@ -1,0 +1,4 @@
+api.yourdomain.com {
+  encode zstd gzip
+  reverse_proxy minute_backend:8000
+}
