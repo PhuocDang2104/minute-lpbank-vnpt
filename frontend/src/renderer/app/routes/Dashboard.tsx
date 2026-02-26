@@ -1,12 +1,14 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  ArrowUp,
+  BookOpenCheck,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   Clock,
   RefreshCw,
-  Send,
+  SlidersHorizontal,
   Sparkles,
   Video,
 } from 'lucide-react'
@@ -123,6 +125,13 @@ const getYoutubeThumbnail = (url: string) => {
   return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null
 }
 
+const getDisplayName = (fullName: string) => {
+  const trimmed = fullName.trim()
+  if (!trimmed) return 'there'
+  const parts = trimmed.split(/\s+/)
+  return parts.length > 1 ? parts.slice(-2).join(' ') : parts[0]
+}
+
 const Dashboard = () => {
   const { lt, dateLocale, language } = useLocaleText()
   const storedUser = getStoredUser()
@@ -136,6 +145,7 @@ const Dashboard = () => {
   const [askResponse, setAskResponse] = useState<string | null>(null)
   const [askError, setAskError] = useState<string | null>(null)
   const [askLoading, setAskLoading] = useState(false)
+  const [currentTime, setCurrentTime] = useState(() => new Date())
 
   const [viewMonth, setViewMonth] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState(() => toStartOfDay(new Date()))
@@ -174,18 +184,45 @@ const Dashboard = () => {
   const todayKey = getDayKey(new Date())
   const selectedKey = getDayKey(selectedDate)
 
-  const quickPrompts = [
-    lt('Tóm tắt các session cần ưu tiên hôm nay', 'Summarize sessions I should prioritize today'),
-    lt('Chuẩn bị agenda cho phiên gần nhất', 'Prepare an agenda for my next session'),
-    lt('Nhắc tôi các deadline có rủi ro trễ', 'Highlight deadlines that are at risk'),
-  ]
-
   const videosForRole = useMemo(() => {
     const scoped = VIDEO_SUGGESTIONS.filter(item => item.roles.includes(userRole))
     return scoped.length > 0 ? scoped : VIDEO_SUGGESTIONS.slice(0, 5)
   }, [userRole])
 
   const carouselRef = useRef<HTMLDivElement | null>(null)
+  const askInputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const greetingMessage = useMemo(() => {
+    const hour = currentTime.getHours()
+    const name = getDisplayName(userDisplayName)
+    if (hour >= 5 && hour < 12) {
+      return lt(
+        'Chuc ban buoi sang hieu qua, ' + name + '.',
+        'Hope your morning\'s going well, ' + name + '.',
+      )
+    }
+    if (hour >= 12 && hour < 17) {
+      return lt(
+        'Chuc ban buoi chieu lam viec suon se, ' + name + '.',
+        'Hope your afternoon\'s going well, ' + name + '.',
+      )
+    }
+    if (hour >= 17 && hour < 22) {
+      return lt(
+        'Chuc ban buoi toi lam viec nhe nhang, ' + name + '.',
+        'Hope your evening\'s going well, ' + name + '.',
+      )
+    }
+    return lt(
+      'Chuc ban dem lam viec tap trung, ' + name + '.',
+      'Hope your night is productive, ' + name + '.',
+    )
+  }, [currentTime, lt, userDisplayName])
 
   const shiftCarousel = (direction: 'left' | 'right') => {
     const node = carouselRef.current
@@ -227,6 +264,17 @@ const Dashboard = () => {
     }
   }
 
+  const handleAskAdvanced = () => {
+    setAskValue((prev) => {
+      if (prev.trim()) return prev
+      return lt(
+        'Tao ke hoach uu tien cho hom nay dua tren lich hop va deadline.',
+        'Build my priority plan for today based on meetings and deadlines.',
+      )
+    })
+    askInputRef.current?.focus()
+  }
+
   return (
     <div className="home-hub">
       <header className="home-hub__header">
@@ -243,14 +291,20 @@ const Dashboard = () => {
         </span>
       </header>
 
+
       <section className="home-hub-ai">
-        <div className="home-hub-ai__bar">
-          <Sparkles size={18} />
+        <h2 className="home-hub-ai__greeting">{greetingMessage}</h2>
+
+        <div className={`home-hub-ai__shell ${askLoading ? 'is-loading' : ''}`}>
           <input
+            ref={askInputRef}
             className="home-hub-ai__input"
             value={askValue}
             onChange={event => setAskValue(event.target.value)}
-            placeholder={lt('Hỏi AI nhanh hoặc yêu cầu trợ giúp một tác vụ...', 'Quickly ask AI or request support for a task...')}
+            placeholder={lt(
+              'Ask MINUTE bat ky dieu gi ve meeting, training course, va project cua ban...',
+              'Ask MINUTE anything about your meetings, training courses, and projects...',
+            )}
             onKeyDown={event => {
               if (event.key === 'Enter') {
                 event.preventDefault()
@@ -259,28 +313,33 @@ const Dashboard = () => {
             }}
             disabled={askLoading}
           />
-          <button
-            type="button"
-            className="home-hub-ai__send"
-            onClick={handleAsk}
-            disabled={askLoading || !askValue.trim()}
-          >
-            <Send size={16} />
-            {askLoading ? lt('Đang gửi', 'Sending') : lt('Gửi', 'Send')}
-          </button>
-        </div>
 
-        <div className="home-hub-ai__prompts">
-          {quickPrompts.map(prompt => (
-            <button
-              key={prompt}
-              type="button"
-              className="home-hub-ai__prompt-chip"
-              onClick={() => setAskValue(prompt)}
-            >
-              {prompt}
-            </button>
-          ))}
+          <div className="home-hub-ai__footer">
+            <div className="home-hub-ai__spark">
+              <Sparkles size={18} />
+            </div>
+
+            <div className="home-hub-ai__actions">
+              <button
+                type="button"
+                className="home-hub-ai__advanced"
+                onClick={handleAskAdvanced}
+              >
+                <SlidersHorizontal size={16} />
+                {lt('Nang cao', 'Advanced')}
+              </button>
+
+              <button
+                type="button"
+                className="home-hub-ai__send"
+                onClick={handleAsk}
+                disabled={askLoading || !askValue.trim()}
+                title={askLoading ? lt('Dang gui', 'Sending') : lt('Gui yeu cau', 'Send request')}
+              >
+                <ArrowUp size={18} />
+              </button>
+            </div>
+          </div>
         </div>
 
         {(askResponse || askError) && (
@@ -398,9 +457,15 @@ const Dashboard = () => {
       <section className="home-hub-videos">
         <header className="home-hub-videos__header">
           <div>
-            <h2>{lt('Video suggestion theo vai trò', 'Role-based video suggestions')}</h2>
+            <h2>
+              <BookOpenCheck size={18} />
+              {lt('Role-aligned training picks', 'Role-aligned training picks')}
+            </h2>
             <p>
-              {lt('Nội dung được gợi ý theo role hiện tại để cải thiện hiệu suất làm việc.', 'Curated by your current role to improve day-to-day performance.')}
+              {lt(
+                'Commercial-grade learning playlists tailored to your role for stronger daily execution.',
+                'Commercial-grade learning playlists tailored to your role for stronger daily execution.',
+              )}
             </p>
           </div>
           <div className="home-hub-videos__controls">
@@ -448,3 +513,5 @@ const Dashboard = () => {
 }
 
 export default Dashboard
+
+
