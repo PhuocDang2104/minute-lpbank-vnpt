@@ -72,12 +72,6 @@ const VIDEO_SUGGESTIONS: VideoSuggestion[] = [
   },
 ]
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  admin: 'Admin',
-  PMO: 'PMO',
-  chair: 'Chair',
-  user: 'Member',
-}
 
 const getDayKey = (date: Date) => {
   const year = date.getFullYear()
@@ -139,7 +133,6 @@ const Dashboard = () => {
   const userRoleRaw = String(displayUser.role || 'user') as UserRole
   const userRole: UserRole = ['admin', 'PMO', 'chair', 'user'].includes(userRoleRaw) ? userRoleRaw : 'user'
   const userDisplayName = displayUser.display_name || displayUser.displayName || 'Minute User'
-  const userDepartment = displayUser.department_name || displayUser.department || ''
 
   const [askValue, setAskValue] = useState('')
   const [askResponse, setAskResponse] = useState<string | null>(null)
@@ -278,17 +271,7 @@ const Dashboard = () => {
   return (
     <div className="home-hub">
       <header className="home-hub__header">
-        <div>
-          <h1>Home</h1>
-          <p>
-            {lt('Không gian điều phối công việc tập trung cho ', 'A focused command center for ')}
-            <strong>{userDisplayName}</strong>
-            {userDepartment ? ` • ${userDepartment}` : ''}
-          </p>
-        </div>
-        <span className="home-hub__role-pill">
-          {lt('Vai trò', 'Role')}: {ROLE_LABELS[userRole]}
-        </span>
+        <h1>Home</h1>
       </header>
 
 
@@ -513,5 +496,4 @@ const Dashboard = () => {
 }
 
 export default Dashboard
-
 
