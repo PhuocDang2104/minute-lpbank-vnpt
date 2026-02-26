@@ -11,12 +11,15 @@ import {
   SlidersHorizontal,
   Sparkles,
   Video,
+  X,
 } from 'lucide-react'
 import aiApi from '../../lib/api/ai'
 import { useCalendarMeetings, type NormalizedMeeting } from '../../services/meeting'
 import { useLocaleText } from '../../i18n/useLocaleText'
 import { currentUser } from '../../store/mockData'
 import { getStoredUser } from '../../lib/api/auth'
+import { usersApi } from '../../lib/api/users'
+import type { LlmProvider } from '../../shared/dto/user'
 
 type UserRole = 'admin' | 'PMO' | 'chair' | 'user'
 
@@ -26,6 +29,8 @@ interface VideoSuggestion {
   url: string
   roles: UserRole[]
 }
+
+type LlmModelOption = { value: string; label: string }
 
 const VIDEO_SUGGESTIONS: VideoSuggestion[] = [
   {
@@ -71,6 +76,20 @@ const VIDEO_SUGGESTIONS: VideoSuggestion[] = [
     roles: ['user', 'PMO', 'admin'],
   },
 ]
+
+const MODEL_OPTIONS: Record<LlmProvider, LlmModelOption[]> = {
+  gemini: [
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+    { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B' },
+  ],
+  groq: [
+    { value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B (Groq)' },
+    { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
+    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
+    { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B 32K' },
+  ],
+}
 
 
 const getDayKey = (date: Date) => {
@@ -130,6 +149,7 @@ const Dashboard = () => {
   const { lt, dateLocale, language } = useLocaleText()
   const storedUser = getStoredUser()
   const displayUser = storedUser || currentUser
+  const activeUserId = String(displayUser.id || '').trim()
   const userRoleRaw = String(displayUser.role || 'user') as UserRole
   const userRole: UserRole = ['admin', 'PMO', 'chair', 'user'].includes(userRoleRaw) ? userRoleRaw : 'user'
   const userDisplayName = displayUser.display_name || displayUser.displayName || 'Minute User'
@@ -138,6 +158,13 @@ const Dashboard = () => {
   const [askResponse, setAskResponse] = useState<string | null>(null)
   const [askError, setAskError] = useState<string | null>(null)
   const [askLoading, setAskLoading] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [advancedProvider, setAdvancedProvider] = useState<LlmProvider>('gemini')
+  const [advancedModel, setAdvancedModel] = useState<string>(MODEL_OPTIONS.gemini[0]?.value || '')
+  const [advancedLoading, setAdvancedLoading] = useState(false)
+  const [advancedSaving, setAdvancedSaving] = useState(false)
+  const [advancedError, setAdvancedError] = useState<string | null>(null)
+  const [advancedNotice, setAdvancedNotice] = useState<string | null>(null)
   const [currentTime, setCurrentTime] = useState(() => new Date())
 
   const [viewMonth, setViewMonth] = useState(() => new Date())
@@ -190,29 +217,79 @@ const Dashboard = () => {
     return () => window.clearInterval(timer)
   }, [])
 
+  useEffect(() => {
+    if (!advancedOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setAdvancedOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [advancedOpen])
+
+  useEffect(() => {
+    if (!advancedOpen) return
+    let isActive = true
+
+    const loadAdvancedSettings = async () => {
+      if (!activeUserId) {
+        setAdvancedError(lt('Không tìm thấy người dùng hiện tại để tải cấu hình.', 'Cannot resolve current user to load settings.'))
+        return
+      }
+
+      setAdvancedLoading(true)
+      setAdvancedError(null)
+      setAdvancedNotice(null)
+
+      try {
+        const response = await usersApi.getLlmSettings(activeUserId)
+        if (!isActive) return
+        const provider: LlmProvider = response.provider === 'groq' ? 'groq' : 'gemini'
+        const options = MODEL_OPTIONS[provider]
+        const fallbackModel = options[0]?.value || ''
+        const nextModel = options.some(item => item.value === response.model) ? response.model : fallbackModel
+        setAdvancedProvider(provider)
+        setAdvancedModel(nextModel)
+      } catch {
+        if (!isActive) return
+        setAdvancedError(lt('Không thể tải cấu hình model. Vui lòng thử lại.', 'Unable to load model settings. Please try again.'))
+      } finally {
+        if (isActive) {
+          setAdvancedLoading(false)
+        }
+      }
+    }
+
+    loadAdvancedSettings()
+    return () => {
+      isActive = false
+    }
+  }, [activeUserId, advancedOpen, lt])
+
   const greetingMessage = useMemo(() => {
     const hour = currentTime.getHours()
     const name = getDisplayName(userDisplayName)
     if (hour >= 5 && hour < 12) {
       return lt(
-        'Chuc ban buoi sang hieu qua, ' + name + '.',
+        'Chúc bạn buổi sáng làm việc hiệu quả, ' + name + '.',
         'Hope your morning\'s going well, ' + name + '.',
       )
     }
     if (hour >= 12 && hour < 17) {
       return lt(
-        'Chuc ban buoi chieu lam viec suon se, ' + name + '.',
+        'Chúc bạn buổi chiều làm việc suôn sẻ, ' + name + '.',
         'Hope your afternoon\'s going well, ' + name + '.',
       )
     }
     if (hour >= 17 && hour < 22) {
       return lt(
-        'Chuc ban buoi toi lam viec nhe nhang, ' + name + '.',
+        'Chúc bạn buổi tối làm việc nhẹ nhàng, ' + name + '.',
         'Hope your evening\'s going well, ' + name + '.',
       )
     }
     return lt(
-      'Chuc ban dem lam viec tap trung, ' + name + '.',
+      'Chúc bạn làm việc tập trung vào đêm nay, ' + name + '.',
       'Hope your night is productive, ' + name + '.',
     )
   }, [currentTime, lt, userDisplayName])
@@ -258,14 +335,39 @@ const Dashboard = () => {
   }
 
   const handleAskAdvanced = () => {
-    setAskValue((prev) => {
-      if (prev.trim()) return prev
-      return lt(
-        'Tao ke hoach uu tien cho hom nay dua tren lich hop va deadline.',
-        'Build my priority plan for today based on meetings and deadlines.',
-      )
-    })
-    askInputRef.current?.focus()
+    setAdvancedOpen(true)
+  }
+
+  const handleProviderChange = (nextProvider: LlmProvider) => {
+    setAdvancedProvider(nextProvider)
+    const options = MODEL_OPTIONS[nextProvider]
+    setAdvancedModel(options[0]?.value || '')
+  }
+
+  const handleSaveAdvanced = async () => {
+    if (!activeUserId || advancedSaving) return
+
+    setAdvancedSaving(true)
+    setAdvancedError(null)
+    setAdvancedNotice(null)
+
+    try {
+      const result = await usersApi.updateLlmSettings(activeUserId, {
+        provider: advancedProvider,
+        model: advancedModel,
+      })
+      const provider: LlmProvider = result.provider === 'groq' ? 'groq' : 'gemini'
+      const options = MODEL_OPTIONS[provider]
+      const fallbackModel = options[0]?.value || ''
+      const nextModel = options.some(item => item.value === result.model) ? result.model : fallbackModel
+      setAdvancedProvider(provider)
+      setAdvancedModel(nextModel)
+      setAdvancedNotice(lt('Đã lưu model mặc định cho Ask AI.', 'Default Ask AI model saved.'))
+    } catch {
+      setAdvancedError(lt('Không thể lưu cấu hình model. Vui lòng thử lại.', 'Unable to save model settings. Please try again.'))
+    } finally {
+      setAdvancedSaving(false)
+    }
   }
 
   return (
@@ -285,7 +387,7 @@ const Dashboard = () => {
             value={askValue}
             onChange={event => setAskValue(event.target.value)}
             placeholder={lt(
-              'Ask MINUTE bat ky dieu gi ve meeting, training course, va project cua ban...',
+              'Hỏi MINUTE bất kỳ điều gì về meeting, training course và project của bạn...',
               'Ask MINUTE anything about your meetings, training courses, and projects...',
             )}
             onKeyDown={event => {
@@ -309,7 +411,7 @@ const Dashboard = () => {
                 onClick={handleAskAdvanced}
               >
                 <SlidersHorizontal size={16} />
-                {lt('Nang cao', 'Advanced')}
+                {lt('Nâng cao', 'Advanced')}
               </button>
 
               <button
@@ -317,7 +419,7 @@ const Dashboard = () => {
                 className="home-hub-ai__send"
                 onClick={handleAsk}
                 disabled={askLoading || !askValue.trim()}
-                title={askLoading ? lt('Dang gui', 'Sending') : lt('Gui yeu cau', 'Send request')}
+                title={askLoading ? lt('Đang gửi', 'Sending') : lt('Gửi yêu cầu', 'Send request')}
               >
                 <ArrowUp size={18} />
               </button>
@@ -332,6 +434,91 @@ const Dashboard = () => {
           </div>
         )}
       </section>
+
+      {advancedOpen && (
+        <div className="modal-overlay" onClick={() => setAdvancedOpen(false)}>
+          <div className="modal home-hub-ai-modal" onClick={event => event.stopPropagation()}>
+            <div className="modal__header">
+              <h3 className="modal__title">{lt('Cài đặt Ask AI', 'Ask AI settings')}</h3>
+              <button type="button" className="modal__close" onClick={() => setAdvancedOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal__body home-hub-ai-modal__body">
+              <p className="home-hub-ai-modal__hint">
+                {lt(
+                  'Chọn provider/model mặc định cho Ask AI. Cấu hình này dùng chung với trang Settings.',
+                  'Choose default provider/model for Ask AI. This uses the same setting as the Settings page.',
+                )}
+              </p>
+
+              {advancedLoading ? (
+                <div className="home-hub-ai-modal__status">
+                  <div className="spinner" style={{ width: 20, height: 20 }} />
+                  <span>{lt('Đang tải cấu hình model...', 'Loading model settings...')}</span>
+                </div>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">{lt('Nhà cung cấp', 'Provider')}</label>
+                    <select
+                      className="form-select"
+                      value={advancedProvider}
+                      onChange={event => handleProviderChange(event.target.value as LlmProvider)}
+                      disabled={advancedSaving}
+                    >
+                      <option value="gemini">Gemini</option>
+                      <option value="groq">Groq</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">{lt('Model', 'Model')}</label>
+                    <select
+                      className="form-select"
+                      value={advancedModel}
+                      onChange={event => setAdvancedModel(event.target.value)}
+                      disabled={advancedSaving}
+                    >
+                      {(MODEL_OPTIONS[advancedProvider] || []).map(item => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {advancedError && <div className="home-hub-ai-modal__error">{advancedError}</div>}
+              {advancedNotice && <div className="home-hub-ai-modal__success">{advancedNotice}</div>}
+
+              <Link to="/app/settings" className="home-hub-ai-modal__link" onClick={() => setAdvancedOpen(false)}>
+                {lt('Mở trang Settings đầy đủ', 'Open full Settings page')}
+              </Link>
+            </div>
+
+            <div className="modal__footer home-hub-ai-modal__footer">
+              <button
+                type="button"
+                className="home-hub-ai-modal__btn home-hub-ai-modal__btn--ghost"
+                onClick={() => setAdvancedOpen(false)}
+              >
+                {lt('Đóng', 'Close')}
+              </button>
+              <button
+                type="button"
+                className="home-hub-ai-modal__btn home-hub-ai-modal__btn--primary"
+                onClick={handleSaveAdvanced}
+                disabled={advancedLoading || advancedSaving}
+              >
+                {advancedSaving ? lt('Đang lưu...', 'Saving...') : lt('Lưu và áp dụng', 'Save & apply')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="home-hub-calendar">
         <div className="home-hub-calendar__header">

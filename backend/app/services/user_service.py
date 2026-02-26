@@ -432,6 +432,11 @@ def get_user_llm_override(db: Session, user_id: str) -> Optional[Dict[str, Any]]
         provider = llm.get("provider") or ""
         model = llm.get("model") or ""
         api_key = decrypt_secret(llm.get("api_key") or "")
+        if not api_key:
+            if provider == "gemini":
+                api_key = settings.gemini_api_key
+            elif provider == "groq":
+                api_key = settings.groq_api_key
         master_prompt = _clean_text(llm.get("master_prompt"), _MAX_MASTER_PROMPT_CHARS)
         behavior = llm.get("behavior") if isinstance(llm.get("behavior"), dict) else {}
         behavior = _normalize_behavior(behavior)

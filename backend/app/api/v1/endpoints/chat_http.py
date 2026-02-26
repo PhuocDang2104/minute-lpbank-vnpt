@@ -29,6 +29,7 @@ from app.llm.gemini_client import GeminiChat, MeetingAIAssistant, LLMConfig, is_
 from app.services import knowledge_service
 from app.services import summary_service
 from app.services import user_service
+from app.core.security import get_current_user_optional
 
 router = APIRouter()
 settings = get_settings()
@@ -91,7 +92,11 @@ chat_sessions: dict = {}
 _DEMO_LLM_USER_ID = "00000000-0000-0000-0000-000000000001"
 
 
-def _load_runtime_llm_config(db: Session, meeting_id: Optional[str]) -> Optional[LLMConfig]:
+def _load_runtime_llm_config(
+    db: Session,
+    meeting_id: Optional[str],
+    user_id: Optional[str] = None,
+) -> Optional[LLMConfig]:
     organizer_id: Optional[str] = None
     if meeting_id:
         try:
@@ -104,7 +109,7 @@ def _load_runtime_llm_config(db: Session, meeting_id: Optional[str]) -> Optional
                 organizer_id = str(row[0])
         except Exception:
             db.rollback()
-    target_user_id = organizer_id or _DEMO_LLM_USER_ID
+    target_user_id = organizer_id or user_id or _DEMO_LLM_USER_ID
     try:
         override = user_service.get_user_llm_override(db, target_user_id)
         if override:
@@ -302,13 +307,15 @@ async def send_message(
 async def home_ask(
     request: HomeAskRequest,
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Lightweight home ask endpoint with strict MINUTE context."""
     message = request.message.strip()
     if not message:
         raise HTTPException(status_code=400, detail="Message is required")
 
-    llm_config = _load_runtime_llm_config(db, meeting_id=None)
+    current_user_id = str((current_user or {}).get("sub") or "").strip() or None
+    llm_config = _load_runtime_llm_config(db, meeting_id=None, user_id=current_user_id)
     chat = GeminiChat(
         system_prompt=HOME_ASK_SYSTEM_PROMPT,
         mock_response=HOME_ASK_MOCK_RESPONSE,
