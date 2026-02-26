@@ -35,6 +35,30 @@ ALLOWED_VIDEO_TYPES = {
 MAX_FILE_SIZE = settings.max_video_file_size_mb * 1024 * 1024
 
 
+def _is_meeting_recording_schema_error(exc: Exception) -> bool:
+    """
+    Detect schema drift around meeting_recording table.
+
+    This protects production deployments where application code was updated
+    but DB migration for meeting_recording has not been applied yet.
+    """
+    original = getattr(exc, "orig", None)
+    pgcode = getattr(original, "pgcode", None)
+    if pgcode in {"42P01", "42703"}:  # undefined_table / undefined_column
+        return True
+
+    msg = str(exc).lower()
+    return (
+        "meeting_recording" in msg
+        and (
+            "does not exist" in msg
+            or "undefined table" in msg
+            or "undefined column" in msg
+            or "no such table" in msg
+        )
+    )
+
+
 async def upload_meeting_video(
     db: Session,
     meeting_id: str,
@@ -148,7 +172,7 @@ async def upload_meeting_video(
                     f"Please compress the video or use a smaller file."
                 )
             )
-        raise HTTPException(status_code=500, detail=f"Failed to upload video: {str(e)}")
+        logger.warning("Falling back to local storage because remote storage upload failed")
     
     # Fallback to local storage if S3 not configured or failed
     if not file_url:
@@ -170,10 +194,37 @@ async def upload_meeting_video(
             logger.error(f"Local save failed: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to save video file")
     
-    # Persist recording metadata and update meeting.recording_url
+    # Persist meeting.recording_url as the source of truth for UI.
+    # Recording metadata table is best-effort because some deployed DBs may not have it yet.
+    recording_id = str(uuid4())
+    now = datetime.utcnow()
     try:
-        recording_id = str(uuid4())
-        now = datetime.utcnow()
+        result = db.execute(
+            text("""
+                UPDATE meeting
+                SET recording_url = :recording_url
+                WHERE id = :meeting_id
+                RETURNING id
+            """),
+            {
+                "recording_url": file_url,
+                "meeting_id": meeting_id,
+            },
+        )
+        if not result.fetchone():
+            raise HTTPException(status_code=500, detail="Failed to update meeting")
+        db.commit()
+        logger.info(f"Meeting {meeting_id} updated with recording_url: {file_url}")
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to update meeting recording_url: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to save uploaded video URL")
+
+    metadata_saved = False
+    try:
         db.execute(
             text("""
                 INSERT INTO meeting_recording (
@@ -203,37 +254,41 @@ async def upload_meeting_video(
                 "updated_at": now,
             },
         )
-        result = db.execute(
-            text("""
-                UPDATE meeting
-                SET recording_url = :recording_url
-                WHERE id = :meeting_id
-                RETURNING id
-            """),
-            {
-                "recording_url": file_url,
-                "meeting_id": meeting_id,
-            },
-        )
-        if not result.fetchone():
-            raise HTTPException(status_code=500, detail="Failed to update meeting")
-
         db.commit()
-        logger.info(f"Meeting {meeting_id} updated with recording_url: {file_url}")
+        metadata_saved = True
+        logger.info(f"Saved meeting_recording metadata for meeting {meeting_id}")
 
         return {
-            "recording_id": recording_id,
+            "recording_id": recording_id if metadata_saved else None,
             "recording_url": file_url,
             "message": "Video uploaded successfully",
             "file_size": file_size,
             "storage_key": recording_storage_key,
             "provider": provider,
+            "metadata_persisted": metadata_saved,
         }
-        
+
     except Exception as e:
         db.rollback()
-        logger.error(f"Failed to update meeting: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to save video metadata")
+        if _is_meeting_recording_schema_error(e):
+            logger.warning(
+                "meeting_recording table/column missing in DB. "
+                "Upload succeeded and meeting.recording_url was updated, but metadata row was skipped."
+            )
+        else:
+            logger.error(
+                "Failed to save meeting_recording metadata; upload still succeeded with meeting.recording_url only.",
+                exc_info=True,
+            )
+        return {
+            "recording_id": None,
+            "recording_url": file_url,
+            "message": "Video uploaded successfully",
+            "file_size": file_size,
+            "storage_key": recording_storage_key,
+            "provider": provider,
+            "metadata_persisted": False,
+        }
 
 
 async def get_video_url(db: Session, meeting_id: str) -> Optional[str]:
