@@ -1,17 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 import type { MeetingWithParticipants } from '../../../../shared/dto/meeting';
 import { minutesApi, type MeetingMinutes } from '../../../../lib/api/minutes';
 import { itemsApi, type ActionItem, type DecisionItem, type RiskItem } from '../../../../lib/api/items';
 import { transcriptsApi } from '../../../../lib/api/transcripts';
 import { meetingsApi } from '../../../../lib/api/meetings';
-
-marked.setOptions({
-  gfm: true,
-  breaks: true,
-  headerIds: false,
-});
+import { renderMarkdownToHtml as renderMarkdown } from '../../../../lib/markdown';
 
 interface PostMeetTabProps {
   meeting: MeetingWithParticipants;
@@ -216,9 +209,7 @@ const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
 
   const renderMarkdownToHtml = (markdown: string) => {
     try {
-      const raw = marked.parse(markdown || '', { gfm: true, breaks: true, headerIds: false, mangle: false }) as string;
-      const sanitized = DOMPurify.sanitize(raw, { ADD_ATTR: ['target'] });
-      return addChapterAnchors(sanitized);
+      return renderMarkdown(markdown, { includeChapterAnchors: true });
     } catch (err) {
       console.error('Markdown render failed', err);
       return markdown;
@@ -459,12 +450,6 @@ const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
       </div>
     </div>
   );
-};
-
-const addChapterAnchors = (html: string): string => {
-  return html
-    .replace(/<h2>(.*?)<\/h2>/gim, '<h2 data-chapter="$1">$1</h2>')
-    .replace(/<h3>(.*?)<\/h3>/gim, '<h3 data-chapter="$1">$1</h3>');
 };
 
 // ------------------ Stats Section ------------------

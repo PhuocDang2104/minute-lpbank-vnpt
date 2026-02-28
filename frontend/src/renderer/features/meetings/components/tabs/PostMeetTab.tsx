@@ -2,10 +2,8 @@
  * Post-Meeting Tab V2 - Notion AI Style
  * Editable, clean, professional meeting minutes editor
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 import {
   Sparkles,
   Edit3,
@@ -25,6 +23,7 @@ import { minutesApi, type MeetingMinutes } from '../../../../lib/api/minutes';
 import { itemsApi, type ActionItem, type DecisionItem, type RiskItem } from '../../../../lib/api/items';
 import { transcriptsApi } from '../../../../lib/api/transcripts';
 import { meetingsApi } from '../../../../lib/api/meetings';
+import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 
 interface PostMeetTabV2Props {
   meeting: MeetingWithParticipants;
@@ -378,7 +377,7 @@ const EditableBlock = ({ title, icon, content, onSave, placeholder, isMarkdown, 
           <div className={`notion-content ${!content ? 'notion-content--empty' : ''}`} onClick={() => !content && setIsEditing(true)}>
             {content ? (
               isMarkdown ? (
-                <MarkdownRenderer content={content} />
+                <MarkdownRenderer content={content} className="notion-markdown" />
               ) : (
                 <p style={{ whiteSpace: 'pre-wrap' }}>{content}</p>
               )
@@ -390,19 +389,6 @@ const EditableBlock = ({ title, icon, content, onSave, placeholder, isMarkdown, 
       </div>
     </div>
   );
-};
-
-const MarkdownRenderer = ({ content }: { content: string }) => {
-  const html = useMemo(() => {
-    const rawHtml = marked.parse(content || '', {
-      gfm: true,
-      breaks: true,
-    }) as string;
-
-    return DOMPurify.sanitize(rawHtml, { ADD_ATTR: ['target'] });
-  }, [content]);
-
-  return <div className="notion-markdown" dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
 interface ActionItemsBlockV2Props {
