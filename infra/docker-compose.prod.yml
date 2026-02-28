@@ -31,6 +31,11 @@ services:
       WHISPER_THREADS: ${WHISPER_THREADS:-2}
       WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-vi}
       WHISPER_MODEL: ${WHISPER_MODEL:-/models/ggml-base.bin}
+      LLM_VISION_PROVIDER: ${LLM_VISION_PROVIDER:-gemini}
+      LLM_VISION_MODEL: ${LLM_VISION_MODEL:-gemini-2.5-flash-lite}
+      LLM_VISION_API_KEY: ${LLM_VISION_API_KEY:-}
+      GEMINI_VISION_MODEL: ${GEMINI_VISION_MODEL:-gemini-2.5-flash-lite}
+      GEMINI_VISION_API_KEY: ${GEMINI_VISION_API_KEY:-}
     expose:
       - "9000"
     networks:
@@ -47,7 +52,19 @@ services:
       DATABASE_URL: postgresql+psycopg2://minute:${POSTGRES_PASSWORD}@postgres:5432/minute
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash-lite}
+      GEMINI_VISION_MODEL: ${GEMINI_VISION_MODEL:-gemini-2.5-flash-lite}
+      GEMINI_VISION_API_KEY: ${GEMINI_VISION_API_KEY:-}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
+      LLM_GROQ_CHAT_MODEL: ${LLM_GROQ_CHAT_MODEL:-meta-llama/llama-4-scout-17b-16e-instruct}
+      LLM_GROQ_VISION_MODEL: ${LLM_GROQ_VISION_MODEL:-meta-llama/llama-4-scout-17b-16e-instruct}
+      LLM_GROQ_MODEL: ${LLM_GROQ_MODEL:-}
+      GROQ_MODEL: ${GROQ_MODEL:-}
+      SUPABASE_S3_ENDPOINT: ${SUPABASE_S3_ENDPOINT:-}
+      SUPABASE_S3_REGION: ${SUPABASE_S3_REGION:-}
+      SUPABASE_S3_BUCKET: ${SUPABASE_S3_BUCKET:-}
+      SUPABASE_S3_ACCESS_KEY: ${SUPABASE_S3_ACCESS_KEY:-}
+      SUPABASE_S3_SECRET_KEY: ${SUPABASE_S3_SECRET_KEY:-}
       ASR_URL: http://asr:9000
       ASR_LANGUAGE: ${ASR_LANGUAGE:-vi}
       LLM_OUTPUT_LANGUAGE: ${LLM_OUTPUT_LANGUAGE:-vi}

@@ -70,10 +70,10 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices('LLM_GROQ_VISION_MODEL'),
     )
     gemini_vision_model: str = Field(
-        default='gemini-1.5-flash',
+        default='gemini-2.5-flash-lite',
         validation_alias=AliasChoices('GEMINI_VISION_MODEL'),
     )
-    gemini_model: str = 'gemini-1.5-flash'
+    gemini_model: str = 'gemini-2.5-flash-lite'
     ai_temperature: float = 0.7
     ai_max_tokens: int = 2048
     

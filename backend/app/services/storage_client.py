@@ -10,6 +10,7 @@ import re
 import uuid
 from functools import lru_cache
 from typing import Optional
+from urllib.parse import urlparse, urlunparse
 
 import boto3
 from botocore.config import Config as BotoConfig
@@ -51,6 +52,10 @@ def _get_s3_client():
     if not is_storage_configured():
         return None
     settings = get_settings()
+    endpoint_url = _normalize_s3_endpoint(
+        settings.supabase_s3_endpoint,
+        settings.supabase_s3_bucket,
+    )
     session = boto3.session.Session(
         aws_access_key_id=settings.supabase_s3_access_key,
         aws_secret_access_key=settings.supabase_s3_secret_key,
@@ -58,9 +63,44 @@ def _get_s3_client():
     )
     return session.client(
         "s3",
-        endpoint_url=settings.supabase_s3_endpoint,
-        config=BotoConfig(signature_version="s3v4"),
+        endpoint_url=endpoint_url,
+        config=BotoConfig(signature_version="s3v4", s3={"addressing_style": "path"}),
     )
+
+
+def _normalize_s3_endpoint(endpoint: str, bucket: str) -> str:
+    """
+    Normalize endpoint for S3-compatible providers.
+
+    If user passes a bucket URL (e.g. https://<bucket>.s3.example.com), strip the
+    bucket prefix so boto3 does not duplicate bucket in host/path.
+    """
+    raw = (endpoint or "").strip()
+    if not raw:
+        return raw
+    try:
+        parsed = urlparse(raw)
+        if not parsed.scheme or not parsed.netloc:
+            return raw
+
+        host = parsed.netloc
+        bucket_prefix = f"{(bucket or '').strip()}."
+        if bucket_prefix != "." and host.lower().startswith(bucket_prefix.lower()):
+            normalized = urlunparse(
+                (
+                    parsed.scheme,
+                    host[len(bucket_prefix):],
+                    parsed.path or "",
+                    "",
+                    "",
+                    "",
+                )
+            )
+            logger.info("Normalized S3 endpoint from bucket URL to service endpoint: %s", normalized)
+            return normalized
+        return raw
+    except Exception:
+        return raw
 
 
 def build_object_key(filename: str, prefix: str = "uploads") -> str:

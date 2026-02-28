@@ -37,7 +37,7 @@ OCR_ENABLED = os.getenv("OCR_ENABLED", "true").strip().lower() in {"1", "true", 
 # - GEMINI_VISION_MODEL
 LLM_VISION_PROVIDER = os.getenv("LLM_VISION_PROVIDER", "gemini").strip().lower()
 LLM_VISION_API_KEY = os.getenv("LLM_VISION_API_KEY", os.getenv("GEMINI_VISION_API_KEY", ""))
-LLM_VISION_MODEL = os.getenv("LLM_VISION_MODEL", os.getenv("GEMINI_VISION_MODEL", "gemini-1.5-flash"))
+LLM_VISION_MODEL = os.getenv("LLM_VISION_MODEL", os.getenv("GEMINI_VISION_MODEL", "gemini-2.5-flash-lite"))
 
 
 @app.get("/health")
@@ -77,7 +77,9 @@ def _extract_keyframes(
 ) -> List[Dict[str, Any]]:
     frames_dir.mkdir(parents=True, exist_ok=True)
 
-    scene_pattern = str(frames_dir / "key_%05d.jpg")
+    # Use PNG instead of JPEG to avoid MJPEG encoder strict-compliance failures
+    # on some ffmpeg builds/providers.
+    scene_pattern = str(frames_dir / "key_%05d.png")
     scene_filter = f"select='gt(scene,{scene_threshold})',scale=1280:-1,showinfo"
     cmd = [
         FFMPEG_BIN,
@@ -93,13 +95,16 @@ def _extract_keyframes(
         "vfr",
         "-frames:v",
         str(max_keyframes),
+        "-c:v",
+        "png",
         scene_pattern,
     ]
     code, _out, err = _run_no_raise(cmd)
+    scene_err = ""
     if code != 0:
-        raise RuntimeError(_tail(err))
+        scene_err = _tail(err)
 
-    frame_paths = sorted(frames_dir.glob("key_*.jpg"))
+    frame_paths = sorted(frames_dir.glob("key_*.png"))
     pts_times = _parse_pts_times(err)
     events: List[Dict[str, Any]] = []
     for idx, frame_path in enumerate(frame_paths):
@@ -114,7 +119,7 @@ def _extract_keyframes(
         return events
 
     # fallback path for low-motion video
-    fallback_pattern = str(frames_dir / "fallback_%05d.jpg")
+    fallback_pattern = str(frames_dir / "fallback_%05d.png")
     fallback_filter = f"fps=1/{max(1, FALLBACK_FRAME_STEP_SEC)},scale=1280:-1,showinfo"
     cmd = [
         FFMPEG_BIN,
@@ -128,13 +133,17 @@ def _extract_keyframes(
         fallback_filter,
         "-frames:v",
         str(max_keyframes),
+        "-c:v",
+        "png",
         fallback_pattern,
     ]
     code, _out, err = _run_no_raise(cmd)
     if code != 0:
-        raise RuntimeError(_tail(err))
+        fallback_err = _tail(err)
+        combined = " | ".join(part for part in [scene_err, fallback_err] if part)
+        raise RuntimeError(combined or "ffmpeg keyframe extraction failed")
 
-    frame_paths = sorted(frames_dir.glob("fallback_*.jpg"))
+    frame_paths = sorted(frames_dir.glob("fallback_*.png"))
     pts_times = _parse_pts_times(err)
     for idx, frame_path in enumerate(frame_paths):
         events.append(
@@ -166,44 +175,65 @@ def _run_ocr(image_path: Path) -> str:
 def _call_gemini_vision(image_path: Path, ocr_text: str, *, model: str, api_key: str) -> str:
     if not api_key:
         return ""
-    try:
-        image_b64 = base64.b64encode(image_path.read_bytes()).decode("utf-8")
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{model}:generateContent?key={api_key}"
-        )
-        prompt = (
-            "Analyze this meeting frame and return one concise sentence about what is shown. "
-            "Prioritize slide content, tables, charts, code, or whiteboard. "
-            f"OCR hint: {ocr_text[:1000]}"
-        )
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": prompt},
-                        {"inline_data": {"mime_type": "image/jpeg", "data": image_b64}},
-                    ]
-                }
-            ]
-        }
-        req = urlrequest.Request(
-            url=url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urlrequest.urlopen(req, timeout=25) as resp:
-            raw = resp.read().decode("utf-8")
-        data = json.loads(raw)
-        candidates = data.get("candidates") or []
-        if not candidates:
+    suffix = image_path.suffix.lower()
+    mime_type = "image/png" if suffix == ".png" else "image/jpeg"
+    models: List[str] = []
+    for candidate in [model, "gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"]:
+        normalized = (candidate or "").strip()
+        if normalized and normalized not in models:
+            models.append(normalized)
+
+    image_b64 = base64.b64encode(image_path.read_bytes()).decode("utf-8")
+    prompt = (
+        "Analyze this meeting frame and return one concise sentence about what is shown. "
+        "Prioritize slide content, tables, charts, code, or whiteboard. "
+        f"OCR hint: {ocr_text[:1000]}"
+    )
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt},
+                    {"inline_data": {"mime_type": mime_type, "data": image_b64}},
+                ]
+            }
+        ]
+    }
+
+    for candidate_model in models:
+        try:
+            url = (
+                f"https://generativelanguage.googleapis.com/v1beta/models/"
+                f"{candidate_model}:generateContent?key={api_key}"
+            )
+            req = urlrequest.Request(
+                url=url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlrequest.urlopen(req, timeout=25) as resp:
+                raw = resp.read().decode("utf-8")
+            data = json.loads(raw)
+            candidates = data.get("candidates") or []
+            if not candidates:
+                return ""
+            parts = candidates[0].get("content", {}).get("parts", [])
+            texts = [p.get("text", "") for p in parts if isinstance(p, dict) and p.get("text")]
+            return " ".join(texts).strip()
+        except urlerror.HTTPError as exc:
+            body = ""
+            try:
+                body = exc.read().decode("utf-8", errors="ignore")
+            except Exception:
+                body = str(exc)
+            text_blob = f"{exc} {body}".lower()
+            if "not found" in text_blob and "model" in text_blob:
+                continue
             return ""
-        parts = candidates[0].get("content", {}).get("parts", [])
-        texts = [p.get("text", "") for p in parts if isinstance(p, dict) and p.get("text")]
-        return " ".join(texts).strip()
-    except (urlerror.URLError, TimeoutError, ValueError, KeyError):
-        return ""
+        except (urlerror.URLError, TimeoutError, ValueError, KeyError):
+            return ""
+    return ""
 
 
 def _call_vision_caption(
@@ -353,7 +383,7 @@ async def visual_ingest(
 
     max_keyframes = max(1, min(max_keyframes, 200))
     active_vision_provider = (vision_provider or LLM_VISION_PROVIDER or "gemini").strip().lower()
-    active_vision_model = (vision_model or LLM_VISION_MODEL or "gemini-1.5-flash").strip()
+    active_vision_model = (vision_model or LLM_VISION_MODEL or "gemini-2.5-flash-lite").strip()
     active_vision_api_key = (vision_api_key or LLM_VISION_API_KEY or "").strip()
 
     with tempfile.TemporaryDirectory(prefix="visual_") as tmpdir:

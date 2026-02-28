@@ -26,6 +26,7 @@ Edit `infra/.env.prod` and set real values:
 - `SECRET_KEY` (random 32+ chars)
 - `GEMINI_API_KEY` (if used)
 - `CORS_ORIGINS` (must include Vercel frontend origin)
+- `SUPABASE_S3_*` if you want object storage for uploaded videos/documents
 
 Example:
 
@@ -36,6 +37,13 @@ GEMINI_API_KEY=...
 ASR_LANGUAGE=vi
 LLM_OUTPUT_LANGUAGE=vi
 CORS_ORIGINS=https://your-project.vercel.app,https://your-frontend-domain.com
+
+# S3-compatible object storage (SmartCloud/Supabase/MinIO...)
+SUPABASE_S3_ENDPOINT=https://s3hn.smartcloud.vn
+SUPABASE_S3_REGION=hn
+SUPABASE_S3_BUCKET=minute-object-storage
+SUPABASE_S3_ACCESS_KEY=...
+SUPABASE_S3_SECRET_KEY=...
 ```
 
 ## 3) Start app stack (postgres + asr + backend)

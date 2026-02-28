@@ -294,6 +294,36 @@ def _get_table_columns(db: Session, table_name: str) -> set[str]:
         return set()
 
 
+def _knowledge_doc_select_sql(db: Session) -> str:
+    """
+    Build a schema-tolerant SELECT projection for knowledge_document.
+    Missing columns are replaced with typed NULL/default aliases.
+    """
+    cols = _get_table_columns(db, "knowledge_document")
+
+    def pick(name: str, fallback_sql: str) -> str:
+        return name if name in cols else f"{fallback_sql} AS {name}"
+
+    projection = [
+        pick("id", "NULL::uuid"),
+        pick("title", "NULL::text"),
+        pick("description", "NULL::text"),
+        pick("source", "NULL::text"),
+        pick("category", "NULL::text"),
+        pick("tags", "ARRAY[]::text[]"),
+        pick("file_type", "NULL::text"),
+        pick("file_size", "NULL::integer"),
+        pick("storage_key", "NULL::text"),
+        pick("file_url", "NULL::text"),
+        pick("created_at", "NULL::timestamptz"),
+        pick("updated_at", "NULL::timestamptz"),
+        pick("document_type", "NULL::text"),
+        pick("meeting_id", "NULL::uuid"),
+        pick("project_id", "NULL::uuid"),
+    ]
+    return ", ".join(projection)
+
+
 def _ensure_knowledge_document_schema(db: Session) -> None:
     """
     Safety net for environments where migrations were partially applied.
@@ -489,6 +519,7 @@ async def list_documents(
 ) -> KnowledgeDocumentList:
     """List all knowledge documents with optional filters"""
     try:
+        select_sql = _knowledge_doc_select_sql(db)
         chunk_cols = _get_table_columns(db, "knowledge_chunk")
         has_chunk_table = bool(chunk_cols)
         has_scope_meeting = "scope_meeting" in chunk_cols
@@ -543,10 +574,7 @@ async def list_documents(
         rows = db.execute(
             text(
                 f"""
-                SELECT id, title, description, source, category, tags,
-                       file_type, file_size, storage_key, file_url,
-                       created_at, updated_at, document_type,
-                       meeting_id, project_id
+                SELECT {select_sql}
                 FROM knowledge_document
                 WHERE {where_clause}
                 ORDER BY created_at DESC NULLS LAST
@@ -610,16 +638,14 @@ async def list_documents(
 async def get_document(db: Session, document_id: UUID) -> Optional[KnowledgeDocument]:
     """Get a single document by ID and increment view count"""
     try:
+        select_sql = _knowledge_doc_select_sql(db)
         row = db.execute(
             text(
                 """
-                SELECT id, title, description, source, category, tags,
-                       file_type, file_size, storage_key, file_url,
-                       created_at, updated_at, document_type,
-                       meeting_id, project_id
+                SELECT {select_sql}
                 FROM knowledge_document
                 WHERE id = :id
-                """
+                """.format(select_sql=select_sql)
             ),
             {"id": str(document_id)},
         ).mappings().first()
