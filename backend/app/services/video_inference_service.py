@@ -220,6 +220,7 @@ async def process_meeting_video(
     meeting_id: str,
     video_url: str,
     template_id: Optional[str] = None,
+    user_id: Optional[str] = None,
 ) -> dict:
     """
     Process video file through full pipeline:
@@ -360,6 +361,7 @@ async def process_meeting_video(
                             include_risks=True,
                             format="markdown",
                         ),
+                        user_id=user_id,
                     )
                     minutes_id = minutes_result.id if hasattr(minutes_result, 'id') else None
                     logger.info(f"Minutes generated: {minutes_id}")

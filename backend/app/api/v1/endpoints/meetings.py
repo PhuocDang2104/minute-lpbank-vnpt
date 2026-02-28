@@ -16,6 +16,7 @@ from app.services import email_service, knowledge_service
 from app.services import video_service
 from app.services.storage_client import generate_presigned_get_url
 from app.schemas.knowledge import KnowledgeDocument
+from app.core.security import get_current_user_optional
 from datetime import datetime
 
 router = APIRouter()
@@ -45,15 +46,23 @@ def list_meetings(
 @router.post('/', response_model=Meeting, status_code=201)
 def create_meeting(
     payload: MeetingCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Create a new meeting"""
+    current_user_id = str((current_user or {}).get("sub") or "").strip()
+    if not payload.organizer_id and current_user_id:
+        if hasattr(payload, "model_copy"):
+            payload = payload.model_copy(update={"organizer_id": current_user_id})
+        else:
+            payload = payload.copy(update={"organizer_id": current_user_id})
     return meeting_service.create_meeting(db=db, payload=payload)
 
 
 @router.post('/quick', response_model=Meeting, status_code=201)
 def quick_create_meeting(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """
     Quick-create a new meeting with auto-generated title.
@@ -61,7 +70,11 @@ def quick_create_meeting(
     """
     now = datetime.now()
     title = f"Untitled {now.strftime('%Y-%m-%d %H:%M')}"
-    payload = MeetingCreate(title=title)
+    current_user_id = str((current_user or {}).get("sub") or "").strip()
+    payload = MeetingCreate(
+        title=title,
+        organizer_id=current_user_id or None,
+    )
     return meeting_service.create_meeting(db=db, payload=payload)
 
 
@@ -362,7 +375,8 @@ async def delete_meeting_video(
 async def trigger_inference(
     meeting_id: str,
     template_id: Optional[str] = Query(None, description="Template ID for minutes generation"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """
     Trigger AI inference (transcription + diarization) from video recording.
@@ -391,12 +405,14 @@ async def trigger_inference(
         raise HTTPException(status_code=400, detail="Meeting does not have a video recording")
     
     try:
+        current_user_id = str((current_user or {}).get("sub") or "").strip() or None
         # Process video (sync for demo). TODO: move to background job/queue for long videos.
         result = await video_inference_service.process_meeting_video(
             db=db,
             meeting_id=meeting_id,
             video_url=meeting.recording_url,
             template_id=template_id,
+            user_id=current_user_id,
         )
         
         return {

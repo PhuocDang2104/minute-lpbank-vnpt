@@ -17,6 +17,10 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { languageNames, languageFlags, type Language } from '../../i18n'
 import type { LlmProvider } from '../../shared/dto/user'
 import { useLocaleText } from '../../i18n/useLocaleText'
+import {
+  CHAT_MODEL_OPTIONS as MODEL_OPTIONS,
+  VISION_MODEL_OPTIONS as VISUAL_MODEL_OPTIONS,
+} from '../../shared/llmModelOptions'
 
 type NoteStyle = 'Ngắn gọn' | 'Cân bằng' | 'Chi tiết'
 type ToneStyle =
@@ -27,8 +31,6 @@ type ToneStyle =
   | 'Socratic (hỏi gợi mở)'
 type ThemeMode = 'system' | 'light' | 'dark'
 type RecapInterval = 'off' | '2m' | '5m'
-type LlmModelOption = { value: string; label: string }
-
 const NOTE_STYLE_OPTIONS: { value: NoteStyle; labelVi: string; labelEn: string }[] = [
   { value: 'Ngắn gọn', labelVi: 'Ngắn gọn', labelEn: 'Concise' },
   { value: 'Cân bằng', labelVi: 'Cân bằng', labelEn: 'Balanced' },
@@ -121,31 +123,6 @@ interface LlmSettingsState {
   visualApiKeySet: boolean
   visualApiKeyLast4?: string | null
   masterPrompt: string
-}
-
-const MODEL_OPTIONS: Record<LlmProvider, LlmModelOption[]> = {
-  gemini: [
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-    { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B' },
-  ],
-  groq: [
-    { value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B (Groq)' },
-    { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
-    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
-    { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B 32K' },
-  ],
-}
-
-const VISUAL_MODEL_OPTIONS: Record<LlmProvider, LlmModelOption[]> = {
-  gemini: [
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Vision)' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Vision)' },
-  ],
-  groq: [
-    { value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B (Vision)' },
-    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile (Vision)' },
-  ],
 }
 
 const defaultLlmSettings: LlmSettingsState = {
@@ -453,7 +430,7 @@ const Settings = () => {
       return { label: lt('Sẽ xoá khi lưu', 'Will remove on save'), color: 'var(--error)', bg: 'var(--error-subtle)' }
     }
     if (llmSettings.apiKeySet) {
-      const suffix = llmSettings.apiKeyLast4 ? `•••• ${llmSettings.apiKeyLast4}` : lt('Đã lưu', 'Saved')
+      const suffix = llmSettings.apiKeyLast4 ? `â€¢â€¢â€¢â€¢ ${llmSettings.apiKeyLast4}` : lt('Đã lưu', 'Saved')
       return { label: suffix, color: 'var(--success)', bg: 'var(--success-subtle)' }
     }
     return { label: lt('Chưa thiết lập', 'Not set'), color: 'var(--text-muted)', bg: 'var(--bg-surface)' }
@@ -470,7 +447,7 @@ const Settings = () => {
       return { label: lt('Sẽ xoá khi lưu', 'Will remove on save'), color: 'var(--error)', bg: 'var(--error-subtle)' }
     }
     if (llmSettings.visualApiKeySet) {
-      const suffix = llmSettings.visualApiKeyLast4 ? `•••• ${llmSettings.visualApiKeyLast4}` : lt('Đã lưu', 'Saved')
+      const suffix = llmSettings.visualApiKeyLast4 ? `â€¢â€¢â€¢â€¢ ${llmSettings.visualApiKeyLast4}` : lt('Đã lưu', 'Saved')
       return { label: suffix, color: 'var(--success)', bg: 'var(--success-subtle)' }
     }
     return { label: lt('Chưa thiết lập', 'Not set'), color: 'var(--text-muted)', bg: 'var(--bg-surface)' }

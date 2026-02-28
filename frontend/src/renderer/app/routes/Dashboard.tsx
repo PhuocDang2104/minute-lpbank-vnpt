@@ -14,7 +14,6 @@ import {
   SlidersHorizontal,
   Sparkles,
   Video,
-  X,
 } from 'lucide-react'
 import aiApi from '../../lib/api/ai'
 import { useCalendarMeetings, type NormalizedMeeting } from '../../services/meeting'
@@ -23,6 +22,7 @@ import { currentUser } from '../../store/mockData'
 import { getStoredUser } from '../../lib/api/auth'
 import { usersApi } from '../../lib/api/users'
 import type { LlmProvider } from '../../shared/dto/user'
+import { CHAT_MODEL_OPTIONS as MODEL_OPTIONS } from '../../shared/llmModelOptions'
 
 type UserRole = 'admin' | 'PMO' | 'chair' | 'user'
 
@@ -32,8 +32,6 @@ interface VideoSuggestion {
   url: string
   roles: UserRole[]
 }
-
-type LlmModelOption = { value: string; label: string }
 
 const VIDEO_SUGGESTIONS: VideoSuggestion[] = [
   {
@@ -79,21 +77,6 @@ const VIDEO_SUGGESTIONS: VideoSuggestion[] = [
     roles: ['user', 'PMO', 'admin'],
   },
 ]
-
-const MODEL_OPTIONS: Record<LlmProvider, LlmModelOption[]> = {
-  gemini: [
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-    { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B' },
-  ],
-  groq: [
-    { value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B (Groq)' },
-    { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
-    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
-    { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B 32K' },
-  ],
-}
-
 
 const getDayKey = (date: Date) => {
   const year = date.getFullYear()
@@ -176,6 +159,7 @@ const Dashboard = () => {
   const [advancedSaving, setAdvancedSaving] = useState(false)
   const [advancedError, setAdvancedError] = useState<string | null>(null)
   const [advancedNotice, setAdvancedNotice] = useState<string | null>(null)
+  const [advancedLoaded, setAdvancedLoaded] = useState(false)
   const [currentTime, setCurrentTime] = useState(() => new Date())
 
   const [viewMonth, setViewMonth] = useState(() => new Date())
@@ -222,11 +206,16 @@ const Dashboard = () => {
 
   const carouselRef = useRef<HTMLDivElement | null>(null)
   const askInputRef = useRef<HTMLInputElement | null>(null)
+  const advancedPanelRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(new Date()), 60_000)
     return () => window.clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    setAdvancedLoaded(false)
+  }, [activeUserId])
 
   useEffect(() => {
     if (!advancedOpen) return
@@ -249,7 +238,9 @@ const Dashboard = () => {
         return
       }
 
-      setAdvancedLoading(true)
+      if (!advancedLoaded) {
+        setAdvancedLoading(true)
+      }
       setAdvancedError(null)
       setAdvancedNotice(null)
 
@@ -262,11 +253,7 @@ const Dashboard = () => {
         const nextModel = options.some(item => item.value === response.model) ? response.model : fallbackModel
         setAdvancedProvider(provider)
         setAdvancedModel(nextModel)
-        setAdvancedApiKeyInput('')
-        setAdvancedApiKeySet(Boolean(response.api_key_set))
-        setAdvancedApiKeyLast4(response.api_key_last4 || null)
-        setAdvancedShowApiKey(false)
-        setAdvancedClearApiKey(false)
+        setAdvancedLoaded(true)
       } catch {
         if (!isActive) return
         setAdvancedError(lt('Không thể tải cấu hình model. Vui lòng thử lại.', 'Unable to load model settings. Please try again.'))
@@ -281,7 +268,7 @@ const Dashboard = () => {
     return () => {
       isActive = false
     }
-  }, [activeUserId, advancedOpen, lt])
+  }, [activeUserId, advancedOpen, language])
 
   const greetingMessage = useMemo(() => {
     const hour = currentTime.getHours()
@@ -351,7 +338,14 @@ const Dashboard = () => {
   }
 
   const handleAskAdvanced = () => {
-    setAdvancedOpen(true)
+    setAdvancedOpen((prev) => {
+      const next = !prev
+      if (next) {
+        setAdvancedNotice(null)
+        setAdvancedError(null)
+      }
+      return next
+    })
   }
 
   const handleProviderChange = (nextProvider: LlmProvider) => {
@@ -432,12 +426,8 @@ const Dashboard = () => {
       const nextModel = options.some(item => item.value === result.model) ? result.model : fallbackModel
       setAdvancedProvider(provider)
       setAdvancedModel(nextModel)
-      setAdvancedApiKeyInput('')
-      setAdvancedApiKeySet(Boolean(result.api_key_set))
-      setAdvancedApiKeyLast4(result.api_key_last4 || null)
-      setAdvancedShowApiKey(false)
-      setAdvancedClearApiKey(false)
-      setAdvancedNotice(lt('Đã lưu cấu hình model và API key cho Ask AI.', 'Ask AI model and API key settings saved.'))
+      setAdvancedLoaded(true)
+      setAdvancedNotice(lt('Đã lưu model mặc định cho Ask AI.', 'Default Ask AI model saved.'))
     } catch {
       setAdvancedError(lt('Không thể lưu cấu hình model. Vui lòng thử lại.', 'Unable to save model settings. Please try again.'))
     } finally {
@@ -480,14 +470,83 @@ const Dashboard = () => {
             </div>
 
             <div className="home-hub-ai__actions">
-              <button
-                type="button"
-                className="home-hub-ai__advanced"
-                onClick={handleAskAdvanced}
-              >
-                <SlidersHorizontal size={16} />
-                {lt('Nâng cao', 'Advanced')}
-              </button>
+              <div className="home-hub-ai__advanced-wrap" ref={advancedPanelRef}>
+                <button
+                  type="button"
+                  className="home-hub-ai__advanced"
+                  onClick={handleAskAdvanced}
+                  aria-expanded={advancedOpen}
+                  aria-haspopup="dialog"
+                >
+                  <SlidersHorizontal size={16} />
+                  {lt('Cài đặt Ask AI', 'Ask AI settings')}
+                </button>
+                {advancedOpen && (
+                  <div
+                    className="home-hub-ai__dropdown"
+                    role="dialog"
+                    aria-label={lt('Cài đặt Ask AI', 'Ask AI settings')}
+                    onMouseDown={(event) => event.stopPropagation()}
+                  >
+                    <div className="home-hub-ai__dropdown-head">
+                      <strong>{lt('Mô hình mặc định', 'Default model')}</strong>
+                      <Link to="/app/settings" className="home-hub-ai__dropdown-link" onClick={() => setAdvancedOpen(false)}>
+                        {lt('Trang Settings', 'Settings page')}
+                      </Link>
+                    </div>
+                    {advancedLoading ? (
+                      <div className="home-hub-ai__dropdown-status">
+                        <div className="spinner" style={{ width: 16, height: 16 }} />
+                        <span>{lt('Đang tải cấu hình model...', 'Loading model settings...')}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <label className="home-hub-ai__dropdown-label">{lt('Nhà cung cấp', 'Provider')}</label>
+                        <select
+                          className="home-hub-ai__dropdown-select"
+                          value={advancedProvider}
+                          onChange={event => handleProviderChange(event.target.value as LlmProvider)}
+                          disabled={advancedSaving}
+                        >
+                          <option value="gemini">Gemini</option>
+                          <option value="groq">Groq</option>
+                        </select>
+
+                        <label className="home-hub-ai__dropdown-label">{lt('Model', 'Model')}</label>
+                        <select
+                          className="home-hub-ai__dropdown-select"
+                          value={advancedModel}
+                          onChange={event => setAdvancedModel(event.target.value)}
+                          disabled={advancedSaving}
+                        >
+                          {(MODEL_OPTIONS[advancedProvider] || []).map(item => (
+                            <option key={item.value} value={item.value}>
+                              {item.label}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+
+                    {advancedError && <div className="home-hub-ai__dropdown-error">{advancedError}</div>}
+                    {advancedNotice && <div className="home-hub-ai__dropdown-success">{advancedNotice}</div>}
+
+                    <div className="home-hub-ai__dropdown-actions">
+                      <button type="button" className="home-hub-ai__dropdown-btn home-hub-ai__dropdown-btn--ghost" onClick={() => setAdvancedOpen(false)}>
+                        {lt('Đóng', 'Close')}
+                      </button>
+                      <button
+                        type="button"
+                        className="home-hub-ai__dropdown-btn home-hub-ai__dropdown-btn--primary"
+                        onClick={handleSaveAdvanced}
+                        disabled={advancedLoading || advancedSaving}
+                      >
+                        {advancedSaving ? lt('Đang lưu...', 'Saving...') : lt('Lưu và áp dụng', 'Save & apply')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <button
                 type="button"
@@ -509,147 +568,6 @@ const Dashboard = () => {
           </div>
         )}
       </section>
-
-      {advancedOpen && (
-        <div className="modal-overlay" onClick={() => setAdvancedOpen(false)}>
-          <div className="modal home-hub-ai-modal" onClick={event => event.stopPropagation()}>
-            <div className="modal__header">
-              <h3 className="modal__title">{lt('Cài đặt Ask AI', 'Ask AI settings')}</h3>
-              <button type="button" className="modal__close" onClick={() => setAdvancedOpen(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="modal__body home-hub-ai-modal__body">
-              <p className="home-hub-ai-modal__hint">
-                {lt(
-                  'Chọn provider/model mặc định cho Ask AI. Cấu hình này dùng chung với trang Settings.',
-                  'Choose default provider/model for Ask AI. This uses the same setting as the Settings page.',
-                )}
-              </p>
-
-              {advancedLoading ? (
-                <div className="home-hub-ai-modal__status">
-                  <div className="spinner" style={{ width: 20, height: 20 }} />
-                  <span>{lt('Đang tải cấu hình model...', 'Loading model settings...')}</span>
-                </div>
-              ) : (
-                <>
-                  <div className="form-group">
-                    <label className="form-label">{lt('Nhà cung cấp', 'Provider')}</label>
-                    <select
-                      className="form-select"
-                      value={advancedProvider}
-                      onChange={event => handleProviderChange(event.target.value as LlmProvider)}
-                      disabled={advancedSaving}
-                    >
-                      <option value="gemini">Gemini</option>
-                      <option value="groq">Groq</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">{lt('Model', 'Model')}</label>
-                    <select
-                      className="form-select"
-                      value={advancedModel}
-                      onChange={event => setAdvancedModel(event.target.value)}
-                      disabled={advancedSaving}
-                    >
-                      {(MODEL_OPTIONS[advancedProvider] || []).map(item => (
-                        <option key={item.value} value={item.value}>
-                          {item.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">{lt('LLM API key của riêng bạn', 'Your LLM API key')}</label>
-                    <div className="home-hub-ai-modal__key-row">
-                      <input
-                        className="form-input"
-                        type={advancedShowApiKey ? 'text' : 'password'}
-                        value={advancedApiKeyInput}
-                        onChange={event => {
-                          setAdvancedApiKeyInput(event.target.value)
-                          setAdvancedClearApiKey(false)
-                        }}
-                        placeholder={lt('Nhập API key', 'Enter API key')}
-                        disabled={advancedSaving}
-                      />
-                      <div className="home-hub-ai-modal__key-actions">
-                        <button
-                          type="button"
-                          className="home-hub-ai-modal__key-btn"
-                          onClick={() => setAdvancedShowApiKey(prev => !prev)}
-                          disabled={advancedSaving}
-                          title={advancedShowApiKey ? lt('Ẩn key', 'Hide key') : lt('Hiện key', 'Show key')}
-                        >
-                          {advancedShowApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
-                        </button>
-                        <button
-                          type="button"
-                          className="home-hub-ai-modal__key-btn"
-                          onClick={() => {
-                            setAdvancedClearApiKey(true)
-                            setAdvancedApiKeyInput('')
-                          }}
-                          disabled={advancedSaving || !advancedApiKeySet}
-                        >
-                          {lt('Xoá key', 'Remove key')}
-                        </button>
-                      </div>
-                    </div>
-                    <span
-                      className="home-hub-ai-modal__key-badge"
-                      style={{
-                        color: advancedApiKeyBadge.color,
-                        background: advancedApiKeyBadge.bg,
-                        borderColor: advancedApiKeyBadge.border,
-                      }}
-                    >
-                      {advancedApiKeyBadge.label}
-                    </span>
-                    <p className="home-hub-ai-modal__key-note">
-                      <KeyRound size={14} />
-                      {lt(
-                        'API key được mã hoá và chỉ lưu trên server.',
-                        'API key is encrypted and stored only on the server.',
-                      )}
-                    </p>
-                  </div>
-                </>
-              )}
-
-              {advancedError && <div className="home-hub-ai-modal__error">{advancedError}</div>}
-              {advancedNotice && <div className="home-hub-ai-modal__success">{advancedNotice}</div>}
-
-              <Link to="/app/settings" className="home-hub-ai-modal__link" onClick={() => setAdvancedOpen(false)}>
-                {lt('Mở trang Settings đầy đủ', 'Open full Settings page')}
-              </Link>
-            </div>
-
-            <div className="modal__footer home-hub-ai-modal__footer">
-              <button
-                type="button"
-                className="home-hub-ai-modal__btn home-hub-ai-modal__btn--ghost"
-                onClick={() => setAdvancedOpen(false)}
-              >
-                {lt('Đóng', 'Close')}
-              </button>
-              <button
-                type="button"
-                className="home-hub-ai-modal__btn home-hub-ai-modal__btn--primary"
-                onClick={handleSaveAdvanced}
-                disabled={advancedLoading || advancedSaving}
-              >
-                {advancedSaving ? lt('Đang lưu...', 'Saving...') : lt('Lưu và áp dụng', 'Save & apply')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <section className="home-hub-calendar">
         <div className="home-hub-calendar__header">
@@ -699,7 +617,7 @@ const Dashboard = () => {
                     <div className="home-hub-calendar__day-events">
                       {dayMeetings.slice(0, 2).map(meeting => (
                         <span key={meeting.id}>
-                          {meeting.start || lt('Cả ngày', 'All day')} · {meeting.title}
+                          {meeting.start || lt('Cả ngày', 'All day')} • {meeting.title}
                         </span>
                       ))}
                       {count > 2 && <span>+{count - 2}</span>}

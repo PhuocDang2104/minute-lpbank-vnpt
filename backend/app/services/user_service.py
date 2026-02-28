@@ -419,6 +419,7 @@ def update_llm_settings(
 def get_user_llm_override(
     db: Session,
     user_id: str,
+    *,
     allow_demo_fallback: bool = True,
 ) -> Optional[Dict[str, Any]]:
     def _fetch_override(target_user_id: str) -> Optional[Dict[str, Any]]:
@@ -445,14 +446,14 @@ def get_user_llm_override(
         behavior = llm.get("behavior") if isinstance(llm.get("behavior"), dict) else {}
         behavior = _normalize_behavior(behavior)
         behavior_profile = _build_behavior_profile(behavior.model_dump())
-        if not (provider and model and api_key):
+        if not (provider and model):
             return None
         if provider not in ("gemini", "groq"):
             return None
         return {
             "provider": provider,
             "model": model,
-            "api_key": api_key,
+            "api_key": api_key or "",
             "master_prompt": master_prompt,
             "behavior_note_style": behavior.note_style,
             "behavior_tone": behavior.tone,

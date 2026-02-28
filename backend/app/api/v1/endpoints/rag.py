@@ -9,6 +9,7 @@ from datetime import datetime
 from uuid import uuid4
 from typing import Optional, Tuple
 import json
+import logging
 
 from app.db.session import get_db
 from app.schemas.ai import RAGQuery, RAGResponse, RAGHistory, Citation
@@ -16,9 +17,11 @@ from app.schemas.knowledge import KnowledgeQueryRequest
 from app.services import knowledge_service
 from app.services import user_service
 from app.llm.gemini_client import LLMConfig
+from app.core.security import get_current_user_optional
 
 router = APIRouter()
 _DEMO_LLM_USER_ID = "00000000-0000-0000-0000-000000000001"
+logger = logging.getLogger(__name__)
 
 
 def _get_meeting_context(db: Session, meeting_id: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
@@ -42,7 +45,11 @@ def _get_meeting_context(db: Session, meeting_id: Optional[str]) -> Tuple[Option
     return context, row[4]
 
 
-def _load_runtime_llm_config(db: Session, meeting_id: Optional[str]) -> Optional[LLMConfig]:
+def _load_runtime_llm_config(
+    db: Session,
+    meeting_id: Optional[str],
+    user_id: Optional[str] = None,
+) -> Optional[LLMConfig]:
     organizer_id: Optional[str] = None
     if meeting_id:
         try:
@@ -54,13 +61,31 @@ def _load_runtime_llm_config(db: Session, meeting_id: Optional[str]) -> Optional
                 organizer_id = str(row[0])
         except Exception:
             db.rollback()
-    target_user_id = organizer_id or _DEMO_LLM_USER_ID
-    try:
-        override = user_service.get_user_llm_override(db, target_user_id)
-        if override:
-            return LLMConfig(**override)
-    except Exception:
-        db.rollback()
+    candidate_ids: list[str] = []
+    for candidate in (organizer_id, user_id, _DEMO_LLM_USER_ID):
+        normalized = str(candidate or "").strip()
+        if not normalized or normalized in candidate_ids:
+            continue
+        candidate_ids.append(normalized)
+
+    for candidate_id in candidate_ids:
+        try:
+            override = user_service.get_user_llm_override(
+                db,
+                candidate_id,
+                allow_demo_fallback=(candidate_id == _DEMO_LLM_USER_ID),
+            )
+            if override:
+                return LLMConfig(**override)
+        except Exception as exc:
+            logger.warning("Failed to load runtime LLM settings for user %s: %s", candidate_id, exc)
+            db.rollback()
+    logger.info(
+        "No runtime LLM override found for RAG meeting_id=%s user_id=%s (candidates=%s). Using environment defaults.",
+        meeting_id,
+        user_id,
+        candidate_ids,
+    )
     return None
 
 
@@ -81,10 +106,20 @@ def _to_citations(docs) -> list[Citation]:
 @router.post('/query', response_model=RAGResponse)
 async def query_rag(
     request: RAGQuery,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Query RAG using uploaded docs/chunks scoped by meeting/project."""
-    llm_config = _load_runtime_llm_config(db, request.meeting_id)
+    current_user_id = str((current_user or {}).get("sub") or "").strip() or None
+    llm_config = _load_runtime_llm_config(db, request.meeting_id, user_id=current_user_id)
+    if llm_config:
+        logger.info(
+            "rag.query runtime_llm meeting_id=%s user_id=%s provider=%s model=%s",
+            request.meeting_id,
+            current_user_id or "anonymous",
+            llm_config.provider,
+            llm_config.model,
+        )
 
     meeting_context = None
     project_id = None
@@ -142,7 +177,7 @@ async def query_rag(
             db.commit()
         except Exception as exc:
             db.rollback()
-            print(f"Failed to save RAG query: {exc}")
+            logger.warning("Failed to save RAG query meeting_id=%s: %s", request.meeting_id, exc)
 
     return RAGResponse(
         id=query_id,
@@ -175,7 +210,7 @@ def get_rag_history(
         rows = db.execute(query, {'meeting_id': meeting_id}).fetchall()
     except Exception as exc:
         db.rollback()
-        print(f"Failed to load RAG history: {exc}")
+        logger.warning("Failed to load RAG history meeting_id=%s: %s", meeting_id, exc)
         return RAGHistory(queries=[], total=0)
 
     queries = []

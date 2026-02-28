@@ -1314,6 +1314,18 @@ async def query_knowledge_ai(
     llm_config: Optional[LLMConfig] = None,
 ) -> KnowledgeQueryResponse:
     """RAG query using session docs + transcript + visual context."""
+    if llm_config:
+        logger.info(
+            "query_knowledge_ai llm override meeting_id=%s provider=%s model=%s",
+            request.meeting_id,
+            llm_config.provider,
+            llm_config.model,
+        )
+    else:
+        logger.info(
+            "query_knowledge_ai using environment LLM defaults meeting_id=%s",
+            request.meeting_id,
+        )
     # Smalltalk/noise handling
     if _is_smalltalk_or_noise(request.query):
         answer = "Xin chào! Bạn muốn hỏi gì về tài liệu/policy? Hãy mô tả rõ hơn nhé."

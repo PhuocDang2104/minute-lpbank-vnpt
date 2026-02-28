@@ -6,6 +6,7 @@ from app.db.session import get_db
 from app.core.security import get_current_user_optional
 from app.schemas.minutes import GenerateMinutesRequest, DistributeMinutesRequest
 from app.services import minutes_service, action_item_service, participant_service, summary_service
+from app.core.security import get_current_user_optional
 
 router = APIRouter()
 
@@ -74,15 +75,12 @@ def get_meeting_minutes(
 async def generate_meeting_minutes(
     request: GenerateMinutesRequest,
     db: Session = Depends(get_db),
-    current_user: Optional[dict] = Depends(get_current_user_optional),
+    current_user: dict | None = Depends(get_current_user_optional),
 ):
     """Generate meeting minutes using AI"""
-    current_user_id = str((current_user or {}).get("sub") or "").strip()
-    effective_request_user_id = current_user_id or str(getattr(request, "request_user_id", "") or "").strip()
-    if effective_request_user_id and effective_request_user_id != request.request_user_id:
-        request = request.model_copy(update={"request_user_id": effective_request_user_id})
+    current_user_id = str((current_user or {}).get("sub") or "").strip() or None
     try:
-        minutes = await minutes_service.generate_minutes_with_ai(db, request)
+        minutes = await minutes_service.generate_minutes_with_ai(db, request, user_id=current_user_id)
         return {
             "status": "success",
             "minutes": minutes.model_dump()
