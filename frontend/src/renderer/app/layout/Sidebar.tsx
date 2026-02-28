@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Plus,
+  Home,
   LayoutGrid,
   Settings,
   Info,
@@ -20,6 +21,7 @@ interface NavItem {
   path: string
   label: string
   icon: React.ReactNode
+  isActive?: (pathname: string) => boolean
 }
 
 const Sidebar = () => {
@@ -28,6 +30,8 @@ const Sidebar = () => {
   const storedUser = getStoredUser()
   const displayUser = storedUser || currentUser
   const { lt } = useLocaleText()
+  const userName = displayUser.display_name || displayUser.displayName
+  const userRole = String(displayUser.role || lt('Thành viên', 'Member'))
 
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false)
@@ -89,12 +93,18 @@ const Sidebar = () => {
   }
 
   const navItems: NavItem[] = [
-    { path: '/app/meetings', label: lt('Workspace', 'Workspace'), icon: <LayoutGrid size={20} /> },
+    {
+      path: '/app/home',
+      label: lt('Home', 'Home'),
+      icon: <Home size={18} />,
+      isActive: (pathname: string) => pathname === '/app' || pathname === '/app/home' || pathname === '/app/dashboard',
+    },
+    { path: '/app/meetings', label: lt('Workspace', 'Workspace'), icon: <LayoutGrid size={18} /> },
   ]
 
   const bottomNavItems: NavItem[] = [
-    { path: '/app/settings', label: lt('Cài đặt', 'Settings'), icon: <Settings size={20} /> },
-    { path: '/about', label: lt('About', 'About'), icon: <Info size={20} /> },
+    { path: '/app/settings', label: lt('Cài đặt', 'Settings'), icon: <Settings size={18} /> },
+    { path: '/about', label: lt('About', 'About'), icon: <Info size={18} /> },
   ]
 
   return (
@@ -106,7 +116,7 @@ const Sidebar = () => {
             <img
               src="/minute_icon.svg"
               alt="Minute"
-              style={{ width: 40, height: 40, objectFit: 'contain' }}
+              style={{ width: 34, height: 34, objectFit: 'contain' }}
             />
           </div>
           <span className="sidebar__logo-text">Minute</span>
@@ -117,14 +127,14 @@ const Sidebar = () => {
       <nav className="sidebar__nav">
         <div className="sidebar__nav-section">
           <ul className="sidebar__nav-list">
-            <li className="sidebar__nav-item">
+            <li className="sidebar__nav-item sidebar__nav-item--create">
               <button
                 onClick={() => setIsCreateMenuOpen(true)}
-                className="sidebar__nav-link sidebar__nav-link--action"
-                style={{ width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer' }}
+                className="sidebar__nav-link sidebar__nav-link--action sidebar__nav-link--create"
+                type="button"
               >
                 <span className="sidebar__nav-icon">
-                  <Plus size={20} />
+                  <Plus size={18} />
                 </span>
                 <span className="sidebar__nav-label">
                   {lt('Tạo mới', 'Create')}
@@ -136,7 +146,9 @@ const Sidebar = () => {
                 <NavLink
                   to={item.path}
                   className={({ isActive }) => {
-                    const active = isActive || location.pathname.startsWith(`${item.path}/`)
+                    const active = item.isActive
+                      ? item.isActive(location.pathname)
+                      : isActive || location.pathname.startsWith(`${item.path}/`)
                     return `sidebar__nav-link ${active ? 'active' : ''}`
                   }}
                 >
@@ -180,8 +192,8 @@ const Sidebar = () => {
             />
           </div>
           <div className="sidebar__user-info">
-            <div className="sidebar__user-name">{displayUser.display_name || displayUser.displayName}</div>
-            <div className="sidebar__user-role">AI Engineer</div>
+            <div className="sidebar__user-name">{userName}</div>
+            <div className="sidebar__user-role">{userRole}</div>
           </div>
         </div>
       </div>
@@ -296,4 +308,5 @@ const Sidebar = () => {
 }
 
 export default Sidebar
+
 

@@ -1,12 +1,16 @@
 import React, { useState } from 'react'
 import { Check, Mail, AlertCircle } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 type ContactEmailFormProps = {
   className?: string
 }
 
 export const ContactEmailForm = ({ className }: ContactEmailFormProps) => {
+  const { language } = useLanguage()
+  const isVi = language === 'vi'
+  const lt = (vi: string, en: string) => (isVi ? vi : en)
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
@@ -21,13 +25,13 @@ export const ContactEmailForm = ({ className }: ContactEmailFormProps) => {
     setErrorMessage('')
 
     try {
-      const subject = encodeURIComponent('Minute product consultation')
-      const body = encodeURIComponent(`Please contact me at: ${trimmed}`)
+      const subject = encodeURIComponent(lt('Tư vấn sản phẩm MINUTE', 'Minute product consultation'))
+      const body = encodeURIComponent(`${lt('Vui lòng liên hệ tôi qua email:', 'Please contact me at:')} ${trimmed}`)
       window.location.href = `mailto:${supportEmail}?subject=${subject}&body=${body}`
       setStatus('success')
     } catch {
       setStatus('error')
-      setErrorMessage('Something went wrong. Please try again.')
+      setErrorMessage(lt('Có lỗi xảy ra. Vui lòng thử lại.', 'Something went wrong. Please try again.'))
     }
   }
 
@@ -47,7 +51,7 @@ export const ContactEmailForm = ({ className }: ContactEmailFormProps) => {
           <input
             type="email"
             name="contactEmail"
-            placeholder="Enter your work email..."
+            placeholder={lt('Nhập email công việc...', 'Enter your work email...')}
             value={email}
             onChange={handleChange}
             autoComplete="email"
@@ -56,13 +60,15 @@ export const ContactEmailForm = ({ className }: ContactEmailFormProps) => {
           />
         </div>
         <button type="submit" className="btn btn-primary" disabled={status === 'submitting'}>
-          {status === 'submitting' ? 'Opening mail app...' : 'Request Consultation'}
+          {status === 'submitting'
+            ? lt('Đang mở ứng dụng email...', 'Opening mail app...')
+            : lt('Nhận tư vấn', 'Request Consultation')}
         </button>
       </div>
       {status === 'success' ? (
         <div className="contact-form__message contact-form__message--success">
           <Check size={16} />
-          Thanks. Your email app has been opened to send the request.
+          {lt('Cảm ơn bạn. Ứng dụng email đã được mở để gửi yêu cầu.', 'Thanks. Your email app has been opened to send the request.')}
         </div>
       ) : null}
       {status === 'error' ? (

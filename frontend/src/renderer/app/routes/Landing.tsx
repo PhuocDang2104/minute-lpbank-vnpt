@@ -11,15 +11,22 @@ import {
   ArrowRight,
   Info,
   Map,
+  BadgeDollarSign,
   Mail,
   Github,
   ExternalLink,
+  Globe,
 } from 'lucide-react';
 import BackgroundRippleEffect from '../../components/ui/background-ripple-effect';
 import FloatingNavbar from '../../components/ui/floating-navbar';
 import ContactEmailForm from '../../components/ui/contact-email-form';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export const Landing: React.FC = () => {
+  const { language, setLanguage } = useLanguage();
+  const isVi = language === 'vi';
+  const lt = (vi: string, en: string) => (isVi ? vi : en);
+
   useEffect(() => {
     const root = document.querySelector('.landing-page');
     if (!root) return;
@@ -61,29 +68,48 @@ export const Landing: React.FC = () => {
     <div className="landing-page public-page">
       <FloatingNavbar
         navItems={[
-          { name: 'About', to: '/about', icon: <Info size={18} /> },
-          { name: 'Roadmap', to: '/roadmap', icon: <Map size={18} /> },
-          { name: 'Contact', onClick: () => scrollToSection('contact'), icon: <Mail size={18} /> },
+          { name: lt('Giới thiệu', 'About'), to: '/about', icon: <Info size={18} /> },
+          { name: lt('Lộ trình', 'Roadmap'), to: '/roadmap', icon: <Map size={18} /> },
+          { name: lt('Bảng giá', 'Pricing'), to: '/pricing', icon: <BadgeDollarSign size={18} /> },
+          { name: lt('Liên hệ', 'Contact'), onClick: () => scrollToSection('contact'), icon: <Mail size={18} /> },
         ]}
-        action={{ label: 'Get Started', to: '/app/meetings', icon: <ArrowRight size={16} /> }}
+        action={{ label: lt('Bắt đầu', 'Get started'), to: '/app/meetings', icon: <ArrowRight size={16} /> }}
       />
       {/* Header */}
       <header className="landing-header">
         <div className="landing-header__brand">
           <Link to="/" className="logo" aria-label="Homepage" title="Homepage">
-            <img src="/minute_icon.svg" alt="MINUTE" className="landing-logo__icon" />
-            <span>MINUTE</span>
+            <img src="/minute_icon.svg" alt="Minute" className="landing-logo__icon" />
+            <span>Minute</span>
           </Link>
           <nav className="landing-nav">
-            <Link to="/about" className="landing-nav__link">About</Link>
-            <Link to="/roadmap" className="landing-nav__link">Roadmap</Link>
+            <Link to="/about" className="landing-nav__link">{lt('Giới thiệu', 'About')}</Link>
+            <Link to="/roadmap" className="landing-nav__link">{lt('Lộ trình', 'Roadmap')}</Link>
+            <Link to="/pricing" className="landing-nav__link">{lt('Bảng giá', 'Pricing')}</Link>
             <button type="button" className="landing-nav__link" onClick={() => scrollToSection('contact')}>
-              Contact
+              {lt('Liên hệ', 'Contact')}
             </button>
           </nav>
         </div>
         <div className="landing-actions">
-          <Link to="/app/meetings" className="btn btn-primary landing-get-started">Get Started</Link>
+          <div className="landing-lang-switch" role="group" aria-label={lt('Chọn ngôn ngữ', 'Select language')}>
+            <button
+              type="button"
+              className={`landing-lang-switch__btn${language === 'vi' ? ' is-active' : ''}`}
+              onClick={() => setLanguage('vi')}
+            >
+              <Globe size={12} />
+              VI
+            </button>
+            <button
+              type="button"
+              className={`landing-lang-switch__btn${language === 'en' ? ' is-active' : ''}`}
+              onClick={() => setLanguage('en')}
+            >
+              EN
+            </button>
+          </div>
+          <Link to="/app/meetings" className="btn btn-primary landing-get-started">{lt('Bắt đầu', 'Get started')}</Link>
         </div>
       </header>
 
@@ -93,19 +119,22 @@ export const Landing: React.FC = () => {
           <BackgroundRippleEffect rows={14} cols={30} cellSize={48} />
           <div className="hero-stage__content">
             <h1 className="hero-title">
-              A Multimodal AI Assistant for <span className="gradient-text">Meetings &amp; Learning</span>
+              {lt('Trợ lý AI đa phương thức cho', 'A multimodal AI assistant for')}{' '}
+              <span className="gradient-text">{lt('Cuộc họp & Đào tạo', 'Meetings & Training')}</span>
             </h1>
             <p className="hero-subtitle">
-              MINUTE helps you prepare and stay in sync throughout online sessions, whether you're in a meeting or
-              studying, powered by multimodal GEMINI 3 LLM.
+              {lt(
+                'MINUTE giúp bạn luôn sẵn sàng và đồng bộ tuyệt đối trong mọi phiên trực tuyến của quy trình làm việc, được vận hành bởi các AI agent tiên tiến tối ưu cho lĩnh vực BFSI.',
+                'MINUTE keeps you prepared and perfectly aligned across every online session in your workflow, driven by advanced AI agents tailored for the BFSI industry',
+              )}
             </p>
             <div className="hero-actions">
               <Link to="/about" className="btn btn-outline btn-lg hero-cta hero-cta--ghost">
-                Learn More
+                {lt('Tìm hiểu thêm', 'Learn more')}
                 <ArrowRight size={18} />
               </Link>
               <Link to="/app/meetings" className="btn btn-primary btn-lg hero-cta hero-cta--primary hero-login">
-                Get Started
+                {lt('Bắt đầu', 'Get started')}
                 <ArrowRight size={18} />
               </Link>
             </div>
@@ -115,34 +144,38 @@ export const Landing: React.FC = () => {
 
       {/* Features Section */}
       <section className="features">
-        <h2 className="reveal-on-scroll">Core Capabilities</h2>
+        <h2 className="reveal-on-scroll">{lt('Năng lực cốt lõi', 'Core Capabilities')}</h2>
         <div className="features-grid">
           <div className="feature-card reveal-on-scroll">
             <div className="feature-card__header">
               <div className="feature-icon">
                 <Calendar />
               </div>
-              <h3>Session Hub & Ingest</h3>
+              <h3>{lt('Trung tâm phiên & Thu nạp', 'Session Hub & Ingest')}</h3>
               <p className="feature-card__summary">
-                Run live sessions or upload recordings with unified artifacts and timeline context.
+                {lt(
+                  'Chạy phiên trực tiếp hoặc tải bản ghi lên với timeline và artifacts được hợp nhất.',
+                  'Run live sessions or upload recordings with unified artifacts and timeline context.',
+                )}
               </p>
             </div>
             <div className="feature-card__expanded">
               <div className="feature-card__details">
                 <p className="feature-card__desc">
-                  MINUTE supports meeting and study session types in one workflow. Teams can start live sessions or
-                  upload audio/video records for offline processing, then review transcript, recap windows, Q&A, and
-                  attached references in a single session timeline.
+                  {lt(
+                    'MINUTE hỗ trợ nhiều loại phiên họp và phiên đào tạo trong cùng một workflow. Nhóm có thể bắt đầu phiên trực tiếp hoặc tải lên bản ghi âm/video để xử lý hậu kỳ, sau đó xem transcript, recap, Q&A và tài liệu đính kèm trên một timeline thống nhất.',
+                    'MINUTE supports meeting and study session types in one workflow. Teams can start live sessions or upload audio/video records for offline processing, then review transcript, recap windows, Q&A, and attached references in a single session timeline.',
+                  )}
                 </p>
                 <ul className="feature-card__list">
-                  <li>Meeting and study sessions in one product flow</li>
-                  <li>Live capture and offline upload for the same processing pipeline</li>
-                  <li>Timestamped transcript, recap, and visual moment artifacts</li>
-                  <li>Centralized session detail page for history and follow-up</li>
+                  <li>{lt('Phiên họp và phiên đào tạo trong một luồng sản phẩm', 'Meeting and study sessions in one product flow')}</li>
+                  <li>{lt('Live capture và offline upload dùng chung một pipeline xử lý', 'Live capture and offline upload for the same processing pipeline')}</li>
+                  <li>{lt('Transcript, recap và artifacts đa phương thức theo mốc thời gian', 'Timestamped transcript, recap, and visual moment artifacts')}</li>
+                  <li>{lt('Trang chi tiết phiên tập trung cho lịch sử và follow-up', 'Centralized session detail page for history and follow-up')}</li>
                 </ul>
               </div>
               <div className="feature-card__media">
-                <img src="/landing/pre.png" alt="Session hub and ingest overview" />
+                <img src="/landing/pre.png" alt={lt('Tổng quan Session hub và ingest', 'Session hub and ingest overview')} />
               </div>
             </div>
           </div>
@@ -151,27 +184,31 @@ export const Landing: React.FC = () => {
               <div className="feature-icon">
                 <MessageSquare />
               </div>
-              <h3>Realtime Multimodal Companion</h3>
+              <h3>{lt('Trợ lý đa phương thức thời gian thực', 'Realtime Multimodal Companion')}</h3>
               <p className="feature-card__summary">
-                Audio and visual context are merged into recap windows every two minutes.
+                {lt(
+                  'Ngữ cảnh âm thanh và hình ảnh được hợp nhất theo từng cửa sổ recap 2 phút.',
+                  'Audio and visual context are merged into recap windows every two minutes.',
+                )}
               </p>
             </div>
             <div className="feature-card__expanded">
               <div className="feature-card__details">
                 <p className="feature-card__desc">
-                  MINUTE ingests streaming audio and key video frames, aligns events by server timebase, and produces
-                  recap windows that reflect both what was said and what was shown. The timeline updates continuously
-                  during the session for low-friction tracking.
+                  {lt(
+                    'MINUTE ingest luồng audio thời gian thực và các key frame video, đồng bộ sự kiện theo timebase của server và tạo recap thể hiện đồng thời nội dung nói và nội dung trình chiếu. Timeline cập nhật liên tục trong suốt phiên.',
+                    'MINUTE ingests streaming audio and key video frames, aligns events by server timebase, and produces recap windows that reflect both what was said and what was shown. The timeline updates continuously during the session for low-friction tracking.',
+                  )}
                 </p>
                 <ul className="feature-card__list">
-                  <li>ASR streaming with partial and final transcript segments</li>
-                  <li>Frame sampling and slide-change based visual understanding</li>
-                  <li>Two-minute recap windows with citations</li>
-                  <li>Meeting decisions/actions or study concepts extracted in-session</li>
+                  <li>{lt('ASR streaming với đoạn transcript partial và final', 'ASR streaming with partial and final transcript segments')}</li>
+                  <li>{lt('Frame sampling và hiểu ngữ cảnh hình ảnh theo thay đổi slide', 'Frame sampling and slide-change based visual understanding')}</li>
+                  <li>{lt('Cửa sổ recap 2 phút kèm citations', 'Two-minute recap windows with citations')}</li>
+                  <li>{lt('Trích xuất quyết định/action hoặc nội dung đào tạo ngay trong phiên', 'Meeting decisions/actions or study concepts extracted in-session')}</li>
                 </ul>
               </div>
               <div className="feature-card__media">
-                <img src="/landing/in.png" alt="Realtime multimodal companion" />
+                <img src="/landing/in.png" alt={lt('Trợ lý đa phương thức thời gian thực', 'Realtime multimodal companion')} />
               </div>
             </div>
           </div>
@@ -180,27 +217,31 @@ export const Landing: React.FC = () => {
               <div className="feature-icon">
                 <FileText />
               </div>
-              <h3>Post-Session Summary Engine</h3>
+              <h3>{lt('Bộ máy tổng hợp sau phiên', 'Post-Session Summary Engine')}</h3>
               <p className="feature-card__summary">
-                Generate structured outputs by session type, with versioned artifacts for reuse.
+                {lt(
+                  'Sinh đầu ra có cấu trúc theo loại phiên, với artifacts version hóa để tái sử dụng.',
+                  'Generate structured outputs by session type, with versioned artifacts for reuse.',
+                )}
               </p>
             </div>
             <div className="feature-card__expanded">
               <div className="feature-card__details">
                 <p className="feature-card__desc">
-                  After a session, MINUTE consolidates final transcript, recap timeline, and references into a core
-                  summary, then branches output generation for meetings or study sessions. Each summary is stored with
-                  version history to support review and iteration.
+                  {lt(
+                    'Sau khi kết thúc phiên, MINUTE tổng hợp transcript cuối cùng, recap timeline và nguồn tham chiếu thành summary lõi, sau đó tách nhánh đầu ra cho phiên họp hoặc phiên đào tạo. Mỗi summary được lưu kèm lịch sử phiên bản để review và cải tiến.',
+                    'After a session, MINUTE consolidates final transcript, recap timeline, and references into a core summary, then branches output generation for meetings or study sessions. Each summary is stored with version history to support review and iteration.',
+                  )}
                 </p>
                 <ul className="feature-card__list">
-                  <li>Meeting outputs: summary, action items, and related documents</li>
-                  <li>Study outputs: concepts, examples, and layered quiz support</li>
-                  <li>Versioned summary artifacts for controlled updates</li>
-                  <li>Export-oriented structure for DOCX/PDF pipelines</li>
+                  <li>{lt('Đầu ra họp: summary, action items và tài liệu liên quan', 'Meeting outputs: summary, action items, and related documents')}</li>
+                  <li>{lt('Đầu ra đào tạo: concept, ví dụ và hỗ trợ kiểm tra nhiều lớp', 'Study outputs: concepts, examples, and layered quiz support')}</li>
+                  <li>{lt('Artifacts summary version hóa cho cập nhật có kiểm soát', 'Versioned summary artifacts for controlled updates')}</li>
+                  <li>{lt('Cấu trúc sẵn sàng export cho pipeline DOCX/PDF', 'Export-oriented structure for DOCX/PDF pipelines')}</li>
                 </ul>
               </div>
               <div className="feature-card__media">
-                <img src="/landing/post.png" alt="Post-session summary engine" />
+                <img src="/landing/post.png" alt={lt('Bộ máy tổng hợp sau phiên', 'Post-session summary engine')} />
               </div>
             </div>
           </div>
@@ -209,27 +250,31 @@ export const Landing: React.FC = () => {
               <div className="feature-icon">
                 <CheckSquare />
               </div>
-              <h3>Tiered LightRAG Q&A</h3>
+              <h3>{lt('Hỏi đáp LightRAG theo tầng', 'Tiered LightRAG Q&A')}</h3>
               <p className="feature-card__summary">
-                Grounded answers first, controlled escalation only when evidence is insufficient.
+                {lt(
+                  'Ưu tiên trả lời grounded theo bằng chứng, chỉ leo thang khi bằng chứng chưa đủ.',
+                  'Grounded answers first, controlled escalation only when evidence is insufficient.',
+                )}
               </p>
             </div>
             <div className="feature-card__expanded">
               <div className="feature-card__details">
                 <p className="feature-card__desc">
-                  Q&A starts from session memory and uploaded documents before any optional web expansion. The assistant
-                  runs self-check and citation validation, and applies policy gates plus user approval for risky
-                  tool-calling behavior.
+                  {lt(
+                    'Q&A bắt đầu từ session memory và tài liệu đã tải lên trước khi mở rộng web (nếu được phép). Trợ lý thực hiện self-check, kiểm chứng citation và áp policy gate cùng cơ chế user approval cho tool-calling rủi ro.',
+                    'Q&A starts from session memory and uploaded documents before any optional web expansion. The assistant runs self-check and citation validation, and applies policy gates plus user approval for risky tool-calling behavior.',
+                  )}
                 </p>
                 <ul className="feature-card__list">
-                  <li>Tier 0 and Tier 1 retrieval for fast grounded responses</li>
-                  <li>Tier 2 web search only when policy allows and user approves</li>
-                  <li>Tier 3 deep research for complex multi-hop queries</li>
-                  <li>No-source-no-answer guardrail for critical claims</li>
+                  <li>{lt('Retrieval Tier 0 và Tier 1 cho phản hồi grounded nhanh', 'Tier 0 and Tier 1 retrieval for fast grounded responses')}</li>
+                  <li>{lt('Tier 2 web search chỉ chạy khi policy cho phép và user xác nhận', 'Tier 2 web search only when policy allows and user approves')}</li>
+                  <li>{lt('Tier 3 deep research cho truy vấn đa bước phức tạp', 'Tier 3 deep research for complex multi-hop queries')}</li>
+                  <li>{lt('Guardrail no-source-no-answer cho claim quan trọng', 'No-source-no-answer guardrail for critical claims')}</li>
                 </ul>
               </div>
               <div className="feature-card__media">
-                <img src="/landing/rag.png" alt="Tiered LightRAG Q&A" />
+                <img src="/landing/rag.png" alt={lt('Hỏi đáp LightRAG theo tầng', 'Tiered LightRAG Q&A')} />
               </div>
             </div>
           </div>
@@ -242,25 +287,37 @@ export const Landing: React.FC = () => {
           <div className="benefit-item reveal-on-scroll">
             <div className="benefit-value">24/7</div>
             <p className="benefit-desc">
-              Always ready for every session, from ad-hoc calls to recurring executive reviews.
+              {lt(
+                'Luôn sẵn sàng cho mọi phiên, từ cuộc gọi ad-hoc đến các cuộc họp điều hành định kỳ.',
+                'Always ready for every session, from ad-hoc calls to recurring executive reviews.',
+              )}
             </p>
           </div>
           <div className="benefit-item reveal-on-scroll">
             <div className="benefit-value">90%</div>
             <p className="benefit-desc">
-              Up to 90% of manual note-taking and minutes drafting can be automated.
+              {lt(
+                'Có thể tự động hóa tới 90% khối lượng ghi chú thủ công và soạn biên bản.',
+                'Up to 90% of manual note-taking and minutes drafting can be automated.',
+              )}
             </p>
           </div>
           <div className="benefit-item reveal-on-scroll">
             <div className="benefit-value">2x</div>
             <p className="benefit-desc">
-              Decision cycles and follow-up execution move twice as fast with RAG and AI agents.
+              {lt(
+                'Chu kỳ ra quyết định và triển khai follow-up có thể tăng tốc gấp đôi nhờ RAG và AI agents.',
+                'Decision cycles and follow-up execution move twice as fast with RAG and AI agents.',
+              )}
             </p>
           </div>
           <div className="benefit-item reveal-on-scroll">
             <div className="benefit-value">0 lost context</div>
             <p className="benefit-desc">
-              Every decision is captured, assigned, and fully traceable when you need it.
+              {lt(
+                'Mọi quyết định đều được ghi nhận, phân công và truy vết đầy đủ khi cần.',
+                'Every decision is captured, assigned, and fully traceable when you need it.',
+              )}
             </p>
           </div>
         </div>
@@ -269,30 +326,30 @@ export const Landing: React.FC = () => {
       {/* Comparison Section */}
       <section className="comparison">
         <div className="comparison__header reveal-on-scroll">
-          <h2>Before and After MINUTE</h2>
+          <h2>{lt('Trước và sau khi dùng MINUTE', 'Before and After MINUTE')}</h2>
         </div>
         <div className="comparison-shell">
           <div className="comparison-panel comparison-panel--without reveal-on-scroll">
-            <h3 className="comparison-title">Without MINUTE</h3>
+            <h3 className="comparison-title">{lt('Khi chưa dùng MINUTE', 'Without MINUTE')}</h3>
             <ul className="comparison-list comparison-list--without">
-              <li>Realtime context is fragmented across transcript, slides, and personal notes.</li>
-              <li>Teams cannot verify claims quickly because evidence and timestamps are missing.</li>
-              <li>External web and tool actions may run without a consistent approval gate.</li>
-              <li>Action items often miss clear owner and deadline confirmation.</li>
-              <li>Post-session quality varies by person, making follow-up hard to scale.</li>
+              <li>{lt('Ngữ cảnh realtime bị phân mảnh giữa transcript, slide và ghi chú cá nhân.', 'Realtime context is fragmented across transcript, slides, and personal notes.')}</li>
+              <li>{lt('Đội ngũ khó xác minh claim nhanh do thiếu bằng chứng và mốc thời gian.', 'Teams cannot verify claims quickly because evidence and timestamps are missing.')}</li>
+              <li>{lt('Web/tool actions bên ngoài có thể chạy mà thiếu cơ chế phê duyệt nhất quán.', 'External web and tool actions may run without a consistent approval gate.')}</li>
+              <li>{lt('Action items thường thiếu xác nhận rõ ràng về owner và deadline.', 'Action items often miss clear owner and deadline confirmation.')}</li>
+              <li>{lt('Chất lượng sau phiên phụ thuộc từng người, khó mở rộng follow-up.', 'Post-session quality varies by person, making follow-up hard to scale.')}</li>
             </ul>
           </div>
           <div className="comparison-divider">
             <span>VS</span>
           </div>
           <div className="comparison-panel comparison-panel--with reveal-on-scroll">
-            <h3 className="comparison-title">With MINUTE</h3>
+            <h3 className="comparison-title">{lt('Khi dùng MINUTE', 'With MINUTE')}</h3>
             <ul className="comparison-list comparison-list--with">
-              <li>One multimodal timeline merges audio, visual events, and 2-minute recap windows.</li>
-              <li>LightRAG answers are grounded in session memory and uploaded documents first.</li>
-              <li>Risky tool calls follow propose-approve-execute with human-in-the-loop control.</li>
-              <li>Meeting and study outputs are structured, versioned, and evidence-backed.</li>
-              <li>Decisions move faster with clear ownership, deadlines, and audit-ready traces.</li>
+              <li>{lt('Một timeline đa phương thức hợp nhất audio, sự kiện hình ảnh và recap 2 phút.', 'One multimodal timeline merges audio, visual events, and 2-minute recap windows.')}</li>
+              <li>{lt('Câu trả lời LightRAG được grounded từ session memory và tài liệu tải lên trước.', 'LightRAG answers are grounded in session memory and uploaded documents first.')}</li>
+              <li>{lt('Tool call rủi ro tuân theo propose-approve-execute với human-in-the-loop.', 'Risky tool calls follow propose-approve-execute with human-in-the-loop control.')}</li>
+              <li>{lt('Đầu ra họp và đào tạo có cấu trúc, version hóa và có bằng chứng đi kèm.', 'Meeting and training outputs are structured, versioned, and evidence-backed.')}</li>
+              <li>{lt('Quyết định được đẩy nhanh với phân công rõ ràng, deadline cụ thể và trace sẵn sàng audit.', 'Decisions move faster with clear ownership, deadlines, and audit-ready traces.')}</li>
             </ul>
           </div>
         </div>
@@ -301,46 +358,46 @@ export const Landing: React.FC = () => {
       {/* Roadmap Section */}
       <section className="landing-roadmap" id="roadmap">
         <div className="landing-roadmap__header reveal-on-scroll">
-          <h2>Minute Roadmap</h2>
-          <p>Four release waves to scale from enterprise reliability to a complete product ecosystem.</p>
+          <h2>{lt('Lộ trình Minute', 'Minute Roadmap')}</h2>
+          <p>{lt('4 đợt phát hành để mở rộng từ độ tin cậy enterprise đến hệ sinh thái sản phẩm hoàn chỉnh.', 'Four release waves to scale from enterprise reliability to a complete product ecosystem.')}</p>
         </div>
         <div className="landing-roadmap__grid">
           <article className="landing-roadmap__column landing-roadmap__column--v1 reveal-on-scroll">
-            <div className="landing-roadmap__kicker">Large BFSI Enterprises</div>
+            <div className="landing-roadmap__kicker">{lt('Doanh nghiệp BFSI quy mô lớn', 'Large BFSI Enterprises')}</div>
             <div className="landing-roadmap__card">
               <div className="landing-roadmap__card-top">
                 <span className="landing-roadmap__pill">Ver 1</span>
                 <h3>Minute 1.0</h3>
               </div>
               <ul className="landing-roadmap__list">
-                <li><strong>Auto-capture and meeting orchestration:</strong> bot auto-join (Teams/GoMeet), Outlook sync, project tagging.</li>
-                <li><strong>Transcript plus diarization:</strong> accurate speaker attribution and readable formatting.</li>
-                <li><strong>BFSI-ready minutes:</strong> summary, decisions, actions (owner, due date), and top highlights.</li>
-                <li><strong>Export and distribution:</strong> DOCX/PDF, permissioned links, and draft/final versions.</li>
-                <li><strong>Apps and extension:</strong> smooth UX with fast workflow customization.</li>
-                <li><strong>Deployment and security:</strong> VPC/on-prem options, baseline RBAC, encryption, and access logs.</li>
+                <li><strong>{lt('Tự động thu và điều phối họp:', 'Auto-capture and meeting orchestration:')}</strong> {lt('bot tự tham gia (Teams/GoMeet), đồng bộ Outlook, gắn tag dự án.', 'bot auto-join (Teams/GoMeet), Outlook sync, project tagging.')}</li>
+                <li><strong>{lt('Transcript + diarization:', 'Transcript plus diarization:')}</strong> {lt('gán người nói chính xác, định dạng dễ đọc.', 'accurate speaker attribution and readable formatting.')}</li>
+                <li><strong>{lt('Biên bản sẵn sàng BFSI:', 'BFSI-ready minutes:')}</strong> {lt('summary, quyết định, hành động (owner, hạn), và highlights.', 'summary, decisions, actions (owner, due date), and top highlights.')}</li>
+                <li><strong>{lt('Xuất bản & phân phối:', 'Export and distribution:')}</strong> {lt('DOCX/PDF, link phân quyền, bản nháp và bản chính thức.', 'DOCX/PDF, permissioned links, and draft/final versions.')}</li>
+                <li><strong>{lt('Ứng dụng & mở rộng:', 'Apps and extension:')}</strong> {lt('UX mượt với workflow tùy chỉnh nhanh.', 'smooth UX with fast workflow customization.')}</li>
+                <li><strong>{lt('Triển khai & bảo mật:', 'Deployment and security:')}</strong> {lt('tùy chọn VPC/on-prem, RBAC nền tảng, mã hóa và access logs.', 'VPC/on-prem options, baseline RBAC, encryption, and access logs.')}</li>
               </ul>
             </div>
           </article>
           <article className="landing-roadmap__column landing-roadmap__column--v2 reveal-on-scroll">
-            <div className="landing-roadmap__kicker">Multi-Industry Enterprises</div>
+            <div className="landing-roadmap__kicker">{lt('Doanh nghiệp đa ngành', 'Multi-Industry Enterprises')}</div>
             <div className="landing-roadmap__card">
               <div className="landing-roadmap__card-top">
                 <span className="landing-roadmap__pill">Ver 2</span>
                 <h3>Minute 2.0</h3>
               </div>
               <ul className="landing-roadmap__list">
-                <li><strong>Admin platform:</strong> multi-workspace and branch control with role-based policies.</li>
-                <li><strong>Approval workflow:</strong> drafter to reviewer to approver with tracked changes and versions.</li>
-                <li><strong>Industry and role templates:</strong> libraries, taxonomy, and domain vocabulary.</li>
-                <li><strong>Quality tuning and review:</strong> confidence scoring and action/decision validation.</li>
-                <li><strong>Model modes and slide awareness:</strong> Fast/Strong modes with OCR and metric extraction.</li>
-                <li><strong>Voice identity (opt-in):</strong> stronger speaker mapping with optional identity verification.</li>
+                <li><strong>{lt('Nền tảng quản trị:', 'Admin platform:')}</strong> {lt('quản lý đa workspace/chi nhánh theo chính sách vai trò.', 'multi-workspace and branch control with role-based policies.')}</li>
+                <li><strong>{lt('Workflow phê duyệt:', 'Approval workflow:')}</strong> {lt('từ người soạn đến reviewer và approver, theo dõi thay đổi/phiên bản.', 'drafter to reviewer to approver with tracked changes and versions.')}</li>
+                <li><strong>{lt('Template theo ngành và vai trò:', 'Industry and role templates:')}</strong> {lt('thư viện, taxonomy và từ vựng domain.', 'libraries, taxonomy, and domain vocabulary.')}</li>
+                <li><strong>{lt('Tinh chỉnh & review chất lượng:', 'Quality tuning and review:')}</strong> {lt('confidence score và kiểm định action/decision.', 'confidence scoring and action/decision validation.')}</li>
+                <li><strong>{lt('Chế độ model & hiểu slide:', 'Model modes and slide awareness:')}</strong> {lt('Fast/Strong modes với OCR và trích xuất metric.', 'Fast/Strong modes with OCR and metric extraction.')}</li>
+                <li><strong>{lt('Nhận diện giọng nói (opt-in):', 'Voice identity (opt-in):')}</strong> {lt('nâng độ chính xác mapping người nói với xác thực tùy chọn.', 'stronger speaker mapping with optional identity verification.')}</li>
               </ul>
             </div>
           </article>
           <article className="landing-roadmap__column landing-roadmap__column--v3 reveal-on-scroll">
-            <div className="landing-roadmap__kicker">Packs (Enterprise + SME)</div>
+            <div className="landing-roadmap__kicker">{lt('Gói sản phẩm (Enterprise + SME)', 'Packs (Enterprise + SME)')}</div>
             <div className="landing-roadmap__card">
               <div className="landing-roadmap__card-top">
                 <span className="landing-roadmap__pill">Ver 3</span>
@@ -348,49 +405,49 @@ export const Landing: React.FC = () => {
               </div>
               <div className="landing-roadmap__packs">
                 <div className="landing-roadmap__pack">
-                  <div className="landing-roadmap__pack-title">Enterprise Pack</div>
+                  <div className="landing-roadmap__pack-title">{lt('Gói Enterprise', 'Enterprise Pack')}</div>
                   <ul className="landing-roadmap__list">
-                    <li><strong>Knowledge base and agentic RAG:</strong> project and industry grounding before and after sessions.</li>
-                    <li><strong>Citation and traceability:</strong> source-backed minutes and answers with timestamps.</li>
-                    <li><strong>Advanced eDiscovery:</strong> criteria search and export bundles for audits and investigations.</li>
-                    <li><strong>Action governance:</strong> policy-based reminders, escalation, and blocker reporting.</li>
-                    <li><strong>Cross-meeting insights:</strong> detect decision conflicts, duplicate tasks, and repeated topics.</li>
+                    <li><strong>{lt('Knowledge base & agentic RAG:', 'Knowledge base and agentic RAG:')}</strong> {lt('grounding theo dự án/ngành trước và sau phiên.', 'project and industry grounding before and after sessions.')}</li>
+                    <li><strong>{lt('Citation & khả năng truy vết:', 'Citation and traceability:')}</strong> {lt('biên bản và trả lời có nguồn cùng timestamp.', 'source-backed minutes and answers with timestamps.')}</li>
+                    <li><strong>{lt('eDiscovery nâng cao:', 'Advanced eDiscovery:')}</strong> {lt('lọc theo tiêu chí và export bundle cho audit/điều tra.', 'criteria search and export bundles for audits and investigations.')}</li>
+                    <li><strong>{lt('Quản trị hành động:', 'Action governance:')}</strong> {lt('nhắc việc theo policy, escalation và báo blocker.', 'policy-based reminders, escalation, and blocker reporting.')}</li>
+                    <li><strong>{lt('Insight liên cuộc họp:', 'Cross-meeting insights:')}</strong> {lt('phát hiện xung đột quyết định, task trùng và chủ đề lặp.', 'detect decision conflicts, duplicate tasks, and repeated topics.')}</li>
                   </ul>
                 </div>
                 <div className="landing-roadmap__pack landing-roadmap__pack--muted">
-                  <div className="landing-roadmap__pack-title">SME Pack</div>
+                  <div className="landing-roadmap__pack-title">{lt('Gói SME', 'SME Pack')}</div>
                   <ul className="landing-roadmap__list">
-                    <li><strong>Self-serve and auto-share:</strong> launch quickly and deliver minutes to Slack or Teams.</li>
-                    <li><strong>Essential task sync:</strong> one-click push to popular work tools.</li>
-                    <li><strong>Cost controls and quotas:</strong> usage, storage, and retention by plan.</li>
+                    <li><strong>{lt('Self-serve & auto-share:', 'Self-serve and auto-share:')}</strong> {lt('triển khai nhanh và gửi biên bản qua Slack/Teams.', 'launch quickly and deliver minutes to Slack or Teams.')}</li>
+                    <li><strong>{lt('Đồng bộ task thiết yếu:', 'Essential task sync:')}</strong> {lt('đẩy một chạm sang công cụ phổ biến.', 'one-click push to popular work tools.')}</li>
+                    <li><strong>{lt('Kiểm soát chi phí & quota:', 'Cost controls and quotas:')}</strong> {lt('giới hạn theo usage, lưu trữ và retention theo gói.', 'usage, storage, and retention by plan.')}</li>
                   </ul>
                 </div>
               </div>
             </div>
           </article>
           <article className="landing-roadmap__column landing-roadmap__column--v4 reveal-on-scroll">
-            <div className="landing-roadmap__kicker">Lite + Ecosystem</div>
+            <div className="landing-roadmap__kicker">{lt('Lite + Hệ sinh thái', 'Lite + Ecosystem')}</div>
             <div className="landing-roadmap__card">
               <div className="landing-roadmap__card-top">
                 <span className="landing-roadmap__pill">Ver 4</span>
-                <h3>Minute Ecosystem</h3>
+                <h3>{lt('Hệ sinh thái Minute', 'Minute Ecosystem')}</h3>
               </div>
               <div className="landing-roadmap__split">
                 <div className="landing-roadmap__pack">
-                  <div className="landing-roadmap__pack-title">Lite</div>
+                  <div className="landing-roadmap__pack-title">{lt('Lite', 'Lite')}</div>
                   <ul className="landing-roadmap__list">
-                    <li><strong>Minimal core loop:</strong> meeting to summary to action items with stable performance.</li>
-                    <li><strong>Search and share:</strong> find by meeting or minutes, then link or export.</li>
-                    <li><strong>Mobile-friendly minutes:</strong> quick review and action checkoffs on the go.</li>
+                    <li><strong>{lt('Vòng lõi tối giản:', 'Minimal core loop:')}</strong> {lt('từ họp -> summary -> action items với hiệu năng ổn định.', 'meeting to summary to action items with stable performance.')}</li>
+                    <li><strong>{lt('Tìm kiếm và chia sẻ:', 'Search and share:')}</strong> {lt('tra theo cuộc họp/biên bản, chia sẻ link hoặc export.', 'find by meeting or minutes, then link or export.')}</li>
+                    <li><strong>{lt('Biên bản tối ưu mobile:', 'Mobile-friendly minutes:')}</strong> {lt('review nhanh và checkoff hành động khi di chuyển.', 'quick review and action checkoffs on the go.')}</li>
                   </ul>
                 </div>
                 <div className="landing-roadmap__pack landing-roadmap__pack--muted">
-                  <div className="landing-roadmap__pack-title">Ecosystem</div>
+                  <div className="landing-roadmap__pack-title">{lt('Hệ sinh thái', 'Ecosystem')}</div>
                   <ul className="landing-roadmap__list">
-                    <li><strong>Broad integrations:</strong> CRM, ticketing, DMS, collaboration chat, and calendars.</li>
-                    <li><strong>Marketplace and partner model:</strong> install by industry/company with scoped permissions.</li>
-                    <li><strong>Multi-language and multi-region:</strong> support global rollout and enterprise operations.</li>
-                    <li><strong>Workflow triggers:</strong> finalized minutes trigger ticket updates, CRM updates, and notifications.</li>
+                    <li><strong>{lt('Tích hợp rộng:', 'Broad integrations:')}</strong> {lt('CRM, ticketing, DMS, collaboration chat và calendar.', 'CRM, ticketing, DMS, collaboration chat, and calendars.')}</li>
+                    <li><strong>{lt('Marketplace & mô hình đối tác:', 'Marketplace and partner model:')}</strong> {lt('cài đặt theo ngành/doanh nghiệp với phạm vi quyền rõ ràng.', 'install by industry/company with scoped permissions.')}</li>
+                    <li><strong>{lt('Đa ngôn ngữ & đa vùng:', 'Multi-language and multi-region:')}</strong> {lt('hỗ trợ rollout toàn cầu và vận hành enterprise.', 'support global rollout and enterprise operations.')}</li>
+                    <li><strong>{lt('Workflow triggers:', 'Workflow triggers:')}</strong> {lt('biên bản đã duyệt có thể kích hoạt cập nhật ticket/CRM/thông báo.', 'finalized minutes trigger ticket updates, CRM updates, and notifications.')}</li>
                   </ul>
                 </div>
               </div>
@@ -401,10 +458,10 @@ export const Landing: React.FC = () => {
 
       {/* CTA Section */}
       <section className="cta reveal-on-scroll">
-        <h2>Ready to upgrade every session?</h2>
-        <p>Start using Minute for free today.</p>
+        <h2>{lt('Sẵn sàng nâng cấp mọi phiên làm việc?', 'Ready to upgrade every session?')}</h2>
+        <p>{lt('Bắt đầu sử dụng Minute miễn phí ngay hôm nay.', 'Start using Minute for free today.')}</p>
         <Link to="/app/meetings" className="btn btn-primary btn-lg cta-button">
-          Get Started
+          {lt('Bắt đầu', 'Get Started')}
           <ArrowRight size={20} />
         </Link>
       </section>
@@ -413,19 +470,19 @@ export const Landing: React.FC = () => {
       <section className="contact" id="contact">
         <div className="contact-card reveal-on-scroll">
           <div className="contact-content">
-            <h2>Contact</h2>
-            <p>Request a demo, pricing details, or implementation consulting for your organization.</p>
+            <h2>{lt('Liên hệ', 'Contact')}</h2>
+            <p>{lt('Yêu cầu demo, thông tin pricing hoặc tư vấn triển khai cho tổ chức của bạn.', 'Request a demo, pricing details, or implementation consulting for your organization.')}</p>
             <div className="contact-tags">
-              <span className="contact-tag">Fast demo</span>
-              <span className="contact-tag">Implementation consulting</span>
-              <span className="contact-tag">Enterprise security</span>
+              <span className="contact-tag">{lt('Demo nhanh', 'Fast demo')}</span>
+              <span className="contact-tag">{lt('Tư vấn triển khai', 'Implementation consulting')}</span>
+              <span className="contact-tag">{lt('Bảo mật doanh nghiệp', 'Enterprise security')}</span>
             </div>
           </div>
           <div className="contact-panel">
             <ContactEmailForm />
             <div className="contact-actions">
-              <Link to="/app/meetings" className="btn btn-primary btn-lg">Get Started</Link>
-              <Link to="/about" className="btn btn-outline btn-lg">About Us</Link>
+              <Link to="/app/meetings" className="btn btn-primary btn-lg">{lt('Bắt đầu', 'Get Started')}</Link>
+              <Link to="/about" className="btn btn-outline btn-lg">{lt('Về chúng tôi', 'About Us')}</Link>
             </div>
           </div>
         </div>
@@ -447,7 +504,7 @@ export const Landing: React.FC = () => {
           GitHub
           <ExternalLink size={14} />
         </a>
-        <p>(c) {new Date().getFullYear()} MINUTE - AI Meeting Assistant for Enterprise</p>
+        <p>{lt('(c) 2026 MINUTE - Trợ lý AI cho cuộc họp doanh nghiệp', '(c) 2026 MINUTE - AI Meeting Assistant for Enterprise')}</p>
       </footer>
 
       <style>{`
@@ -539,6 +596,45 @@ export const Landing: React.FC = () => {
           display: flex;
           align-items: center;
           gap: var(--space-sm);
+        }
+
+        .landing-lang-switch {
+          display: inline-flex;
+          align-items: center;
+          border: 1px solid rgba(247, 167, 69, 0.36);
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.84);
+          padding: 2px;
+          box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+        }
+
+        .landing-lang-switch__btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          min-width: 42px;
+          padding: 4px 8px;
+          border: 0;
+          border-radius: 999px;
+          background: transparent;
+          color: var(--text-secondary);
+          font-size: 0.72rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: color 0.2s ease, background 0.2s ease;
+        }
+
+        .landing-lang-switch__btn:hover {
+          color: var(--accent);
+        }
+
+        .landing-lang-switch__btn.is-active {
+          color: #1f1202;
+          background: linear-gradient(120deg, #ffd992 0%, #f7a745 45%, #e47f20 100%);
+          box-shadow: 0 4px 10px rgba(247, 167, 69, 0.24);
         }
 
         /* Hero */
@@ -1562,7 +1658,18 @@ export const Landing: React.FC = () => {
           }
 
           .landing-actions {
-            display: none;
+            width: 100%;
+            justify-content: space-between;
+          }
+
+          .landing-lang-switch {
+            flex: 1;
+            max-width: 126px;
+          }
+
+          .landing-lang-switch__btn {
+            width: 100%;
+            min-width: 0;
           }
 
           .hero-title {

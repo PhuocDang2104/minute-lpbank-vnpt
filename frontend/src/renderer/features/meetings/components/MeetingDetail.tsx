@@ -54,6 +54,15 @@ export const MeetingDetail = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const resolveMeetingRecordingUrl = (data?: MeetingWithParticipants | null): string | null => {
+    if (!data) return null;
+    const snake = typeof data.recording_url === 'string' ? data.recording_url.trim() : '';
+    if (snake) return snake;
+    const camelRaw = (data as MeetingWithParticipants & { recordingUrl?: string | null }).recordingUrl;
+    const camel = typeof camelRaw === 'string' ? camelRaw.trim() : '';
+    return camel || null;
+  };
+
   const fetchMeeting = useCallback(async () => {
     if (!meetingId) return;
 
@@ -62,8 +71,12 @@ export const MeetingDetail = () => {
 
     try {
       const data = await meetingsApi.get(meetingId);
-      setMeeting(data);
-      setStreamSessionId(data.id);
+      const normalized = data as MeetingWithParticipants & { recordingUrl?: string | null };
+      if (!normalized.recording_url && normalized.recordingUrl) {
+        normalized.recording_url = normalized.recordingUrl;
+      }
+      setMeeting(normalized);
+      setStreamSessionId(normalized.id);
     } catch (err) {
       console.error('Failed to fetch meeting:', err);
       setError(lt('Không thể tải thông tin cuộc họp', 'Unable to load meeting details'));
@@ -274,6 +287,7 @@ export const MeetingDetail = () => {
   const sessionDateRaw = meeting.session_date || (meeting.start_time ? meeting.start_time.slice(0, 10) : null);
   const sessionDate = sessionDateRaw ? new Date(`${sessionDateRaw}T00:00:00`) : null;
   const sessionIdValue = streamSessionId || meeting.id;
+  const recordingUrl = resolveMeetingRecordingUrl(meeting);
 
   return (
     <div className="meeting-detail-v2">
@@ -347,7 +361,7 @@ export const MeetingDetail = () => {
             </div>
 
             {/* Navigation / join */}
-            {!meeting.recording_url && (
+            {!recordingUrl && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   className="btn btn--secondary"

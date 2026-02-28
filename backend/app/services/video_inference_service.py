@@ -272,15 +272,18 @@ async def process_meeting_video(
         try:
             logger.info("Analyzing visual timeline with ASR visual-ingest...")
             visual_override = _load_visual_override(db, meeting_id) or {}
-            run_caption = bool(visual_override.get("api_key"))
+            vision_provider = visual_override.get("provider") or "gemini"
+            vision_model = visual_override.get("model") or settings.gemini_vision_model
+            vision_api_key = visual_override.get("api_key") or settings.gemini_api_key
+            run_caption = bool(vision_api_key)
             visual_payload = await asr_service.analyze_video_file(
                 video_path,
                 meeting_id=meeting_id,
                 run_ocr=True,
                 run_caption=run_caption,
-                vision_provider=visual_override.get("provider"),
-                vision_model=visual_override.get("model"),
-                vision_api_key=visual_override.get("api_key"),
+                vision_provider=vision_provider,
+                vision_model=vision_model,
+                vision_api_key=vision_api_key,
             )
             visual_stats = _persist_visual_context(db, meeting_id, visual_payload)
             logger.info(

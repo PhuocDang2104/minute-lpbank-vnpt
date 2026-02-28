@@ -12,6 +12,8 @@ import {
   Lightbulb,
   Mail,
   Map,
+  BadgeDollarSign,
+  Globe,
   MessageSquare,
   Mic,
   ShieldCheck,
@@ -24,6 +26,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ContactEmailForm from '../../components/ui/contact-email-form'
 import FloatingNavbar from '../../components/ui/floating-navbar'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 const SECTION_NAV = [
   { id: 'overview', label: 'Overview' },
@@ -41,6 +44,9 @@ const SECTION_NAV = [
 ]
 
 const About = () => {
+  const { language, setLanguage } = useLanguage()
+  const isVi = language === 'vi'
+  const lt = (vi: string, en: string) => (isVi ? vi : en)
   const [activeSection, setActiveSection] = useState(SECTION_NAV[0]?.id ?? 'overview')
 
   const scrollToSection = (sectionId: string) => {
@@ -76,28 +82,47 @@ const About = () => {
     <div className="about-page public-page">
       <FloatingNavbar
         navItems={[
-          { name: 'About', to: '/about', icon: <Info size={18} /> },
-          { name: 'Roadmap', to: '/roadmap', icon: <Map size={18} /> },
-          { name: 'Contact', onClick: () => scrollToSection('contact'), icon: <Mail size={18} /> },
+          { name: lt('Giới thiệu', 'About'), to: '/about', icon: <Info size={18} /> },
+          { name: lt('Lộ trình', 'Roadmap'), to: '/roadmap', icon: <Map size={18} /> },
+          { name: lt('Bảng giá', 'Pricing'), to: '/pricing', icon: <BadgeDollarSign size={18} /> },
+          { name: lt('Liên hệ', 'Contact'), onClick: () => scrollToSection('contact'), icon: <Mail size={18} /> },
         ]}
-        action={{ label: 'Get Started', to: '/app/meetings', icon: <ArrowRight size={16} /> }}
+        action={{ label: lt('Bắt đầu', 'Get started'), to: '/app/meetings', icon: <ArrowRight size={16} /> }}
       />
       <header className="landing-header">
         <div className="landing-header__brand">
-          <Link to="/" className="logo" aria-label="Homepage" title="Homepage">
+          <Link to="/" className="logo" aria-label={lt('Trang chủ', 'Homepage')} title={lt('Trang chủ', 'Homepage')}>
             <img src="/minute_icon.svg" alt="Minute" className="landing-logo__icon" />
-            <span>MINUTE</span>
+            <span>Minute</span>
           </Link>
           <nav className="landing-nav">
-            <Link to="/about" className="landing-nav__link">About</Link>
-            <Link to="/roadmap" className="landing-nav__link">Roadmap</Link>
+            <Link to="/about" className="landing-nav__link">{lt('Giới thiệu', 'About')}</Link>
+            <Link to="/roadmap" className="landing-nav__link">{lt('Lộ trình', 'Roadmap')}</Link>
+            <Link to="/pricing" className="landing-nav__link">{lt('Bảng giá', 'Pricing')}</Link>
             <button type="button" className="landing-nav__link" onClick={() => scrollToSection('contact')}>
-              Contact
+              {lt('Liên hệ', 'Contact')}
             </button>
           </nav>
         </div>
         <div className="landing-actions">
-          <Link to="/app/meetings" className="btn btn-primary landing-get-started">Get Started</Link>
+          <div className="landing-lang-switch" role="group" aria-label={lt('Chọn ngôn ngữ', 'Select language')}>
+            <button
+              type="button"
+              className={`landing-lang-switch__btn${language === 'vi' ? ' is-active' : ''}`}
+              onClick={() => setLanguage('vi')}
+            >
+              <Globe size={12} />
+              VI
+            </button>
+            <button
+              type="button"
+              className={`landing-lang-switch__btn${language === 'en' ? ' is-active' : ''}`}
+              onClick={() => setLanguage('en')}
+            >
+              EN
+            </button>
+          </div>
+          <Link to="/app/meetings" className="btn btn-primary landing-get-started">{lt('Bắt đầu', 'Get started')}</Link>
         </div>
       </header>
 

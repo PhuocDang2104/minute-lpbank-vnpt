@@ -353,45 +353,70 @@ def _gemini_generate(
     api_key = api_key or settings.gemini_api_key
     if not api_key:
         return ""
-    try:
-        if genai_client and genai_types:
-            client = genai_client.Client(api_key=api_key)
-            try:
-                config = genai_types.GenerateContentConfig(
-                    temperature=temperature,
-                    max_output_tokens=max_tokens,
+    candidates = []
+    for name in [
+        model_name,
+        settings.gemini_model,
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+    ]:
+        normalized = (name or "").strip()
+        if normalized and normalized not in candidates:
+            candidates.append(normalized)
+
+    def _is_model_not_found(exc: Exception) -> bool:
+        raw = str(exc).lower()
+        return ("not found" in raw and "model" in raw) or ("models/" in raw and "not found" in raw)
+
+    last_error: Optional[Exception] = None
+    for candidate in candidates:
+        try:
+            if genai_client and genai_types:
+                client = genai_client.Client(api_key=api_key)
+                try:
+                    config = genai_types.GenerateContentConfig(
+                        temperature=temperature,
+                        max_output_tokens=max_tokens,
+                        system_instruction=system_prompt or None,
+                    )
+                    response = client.models.generate_content(
+                        model=candidate,
+                        contents=prompt,
+                        config=config,
+                    )
+                    return (getattr(response, "text", None) or "").strip()
+                except Exception:
+                    # Fallback: inline system prompt if SDK config signature differs.
+                    merged_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+                    response = client.models.generate_content(
+                        model=candidate,
+                        contents=merged_prompt,
+                    )
+                    return (getattr(response, "text", None) or "").strip()
+
+            if genai_legacy:
+                genai_legacy.configure(api_key=api_key)
+                model = genai_legacy.GenerativeModel(
+                    model_name=candidate,
                     system_instruction=system_prompt or None,
                 )
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                    config=config,
+                response = model.generate_content(
+                    prompt,
+                    generation_config=genai_legacy.types.GenerationConfig(
+                        temperature=temperature,
+                        max_output_tokens=max_tokens,
+                    ),
                 )
-                return (getattr(response, "text", None) or "").strip()
-            except Exception:
-                # Fallback: inline system prompt if SDK config signature differs
-                merged_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=merged_prompt,
-                )
-                return (getattr(response, "text", None) or "").strip()
-        if genai_legacy:
-            genai_legacy.configure(api_key=api_key)
-            model = genai_legacy.GenerativeModel(
-                model_name=model_name,
-                system_instruction=system_prompt or None,
-            )
-            response = model.generate_content(
-                prompt,
-                generation_config=genai_legacy.types.GenerationConfig(
-                    temperature=temperature,
-                    max_output_tokens=max_tokens,
-                ),
-            )
-            return (response.text or "").strip()
-    except Exception as exc:
-        print(f"[gemini] generate error: {exc}")
+                return (response.text or "").strip()
+        except Exception as exc:
+            last_error = exc
+            if _is_model_not_found(exc):
+                continue
+            break
+
+    if last_error:
+        print(f"[gemini] generate error: {last_error}")
     return ""
 
 
