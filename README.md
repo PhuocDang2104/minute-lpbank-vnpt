@@ -382,6 +382,7 @@ The script:
 - API contracts: `docs/implementation/api_contracts.md`
 - Transcript ingest: `docs/implementation/transcript_ingest_api.md`
 - RAG architecture: `docs/architecture/rag_architecture.md`, `docs/implementation/knowledge_vector_search.md`
+- Aiven schema update runbook: `docs/implementation/SCHEMA_UPDATE_AIVEN_RUNBOOK.md`
 - Deployment guide: `docs/DEPLOYMENT.md`, `docs/implementation/DEPLOYMENT.md`
 - Architecture deep dive: `docs/architecture/`
 - Security/test/UX plans: `docs/archive/Techni_docs_2/`
