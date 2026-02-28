@@ -37,10 +37,11 @@ import { minutesTemplateApi, type MinutesTemplate } from '../../../../lib/api/mi
 import { knowledgeApi, type KnowledgeDocument } from '../../../../lib/api/knowledge';
 import { UploadDocumentModal } from '../../../../components/UploadDocumentModal';
 import { useLocaleText } from '../../../../i18n/useLocaleText';
+import { API_URL } from '../../../../config/env';
 
 interface PostMeetTabFirefliesProps {
   meeting: MeetingWithParticipants;
-  onRefresh: () => void;
+  onRefresh: () => Promise<void> | void;
 }
 
 interface TranscriptChunk {
@@ -73,8 +74,32 @@ interface FilterState {
   searchQuery: string;
 }
 
+const getMeetingRecordingUrl = (
+  currentMeeting: (MeetingWithParticipants & { recordingUrl?: string | null }) | null | undefined,
+): string | null => {
+  if (!currentMeeting) return null;
+  const snake = typeof currentMeeting.recording_url === 'string' ? currentMeeting.recording_url.trim() : '';
+  if (snake) return snake;
+  const camelRaw = (currentMeeting as { recordingUrl?: string | null }).recordingUrl;
+  const camel = typeof camelRaw === 'string' ? camelRaw.trim() : '';
+  return camel || null;
+};
+
+const toAbsoluteMediaUrl = (value?: string | null): string | null => {
+  if (!value) return null;
+  const url = value.trim();
+  if (!url) return null;
+  if (/^https?:\/\//i.test(url) || url.startsWith('blob:') || url.startsWith('data:')) {
+    return url;
+  }
+  const base = API_URL.replace(/\/+$/, '');
+  if (!base) return url;
+  return url.startsWith('/') ? `${base}${url}` : `${base}/${url}`;
+};
+
 export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFirefliesProps) => {
   const { lt } = useLocaleText();
+  const meetingRecordingUrl = getMeetingRecordingUrl(meeting);
   const [minutes, setMinutes] = useState<MeetingMinutes | null>(null);
   const [transcripts, setTranscripts] = useState<TranscriptChunk[]>([]);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
@@ -175,6 +200,11 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
     }
   };
 
+  const refreshSessionView = async () => {
+    await Promise.resolve(onRefresh());
+    await loadAllData();
+  };
+
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
@@ -245,7 +275,7 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
   };
 
   const isEmptySession =
-    !meeting.recording_url &&
+    !meetingRecordingUrl &&
     !minutes &&
     transcripts.length === 0 &&
     actionItems.length === 0 &&
@@ -325,7 +355,7 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
         setIsUploadingVideo={setIsUploadingVideo}
         isProcessingVideo={isProcessingVideo}
         setIsProcessingVideo={setIsProcessingVideo}
-        onRefresh={loadAllData}
+        onRefresh={refreshSessionView}
         templates={templates}
         selectedTemplateId={selectedTemplateId}
         onSelectTemplate={setSelectedTemplateId}
@@ -636,6 +666,9 @@ const CenterPanel = ({
   setVideoProofText,
 }: CenterPanelProps) => {
   const { lt, dateLocale, timeLocale, language } = useLocaleText();
+  const meetingRecordingUrl = getMeetingRecordingUrl(meeting);
+  const [localRecordingUrl, setLocalRecordingUrl] = useState<string | null>(meetingRecordingUrl);
+  const effectiveRecordingUrl = toAbsoluteMediaUrl(localRecordingUrl || meetingRecordingUrl);
   const [isEditingSummary, setIsEditingSummary] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [dragActive, setDragActive] = useState(false);
@@ -645,6 +678,10 @@ const CenterPanel = ({
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [sentCount, setSentCount] = useState(0);
+
+  useEffect(() => {
+    setLocalRecordingUrl(meetingRecordingUrl);
+  }, [meeting.id, meetingRecordingUrl]);
 
   // Open email modal and pre-select participants
   const openEmailModal = () => {
@@ -664,8 +701,8 @@ const CenterPanel = ({
   const handleExportPDF = () => {
     if (!minutes) return;
 
-    const formatDate = (d: string | undefined) => d ? new Date(d).toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : lt('Chưa có', 'N/A');
-    const formatTime = (d: string | undefined) => d ? new Date(d).toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' }) : '';
+    const formatDate = (d: string | null | undefined) => d ? new Date(d).toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : lt('Chưa có', 'N/A');
+    const formatTime = (d: string | null | undefined) => d ? new Date(d).toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' }) : '';
     const priorityLabel = (value: string | undefined) => {
       const labels: Record<string, [string, string]> = {
         low: ['Thấp', 'Low'],
@@ -955,9 +992,20 @@ const CenterPanel = ({
     try {
       // Upload video
       const result = await meetingsApi.uploadVideo(meeting.id, file);
-
-      // Update meeting with recording_url
-      await meetingsApi.update(meeting.id, { recording_url: result.recording_url });
+      const uploadedUrl =
+        (typeof result.recording_url === 'string' && result.recording_url.trim()) ||
+        (typeof (result as { recordingUrl?: string | null }).recordingUrl === 'string'
+          ? ((result as { recordingUrl?: string | null }).recordingUrl || '').trim()
+          : '') ||
+        null;
+      if (uploadedUrl) {
+        setLocalRecordingUrl(uploadedUrl);
+      }
+      try {
+        await onRefresh();
+      } catch (refreshErr) {
+        console.warn('Meeting refresh after upload failed:', refreshErr);
+      }
 
       // Trigger inference (transcription + diarization)
       setIsProcessingVideo(true);
@@ -1032,7 +1080,7 @@ const CenterPanel = ({
   };
 
   const handleVideoDelete = async () => {
-    if (!meeting.recording_url) return;
+    if (!effectiveRecordingUrl) return;
 
     if (!confirm(lt('Bạn có chắc chắn muốn xóa video này? Hành động này không thể hoàn tác.', 'Are you sure you want to delete this video? This action cannot be undone.'))) {
       return;
@@ -1040,9 +1088,7 @@ const CenterPanel = ({
 
     try {
       await meetingsApi.deleteVideo(meeting.id);
-
-      // Update meeting to clear recording_url
-      await meetingsApi.update(meeting.id, { recording_url: null });
+      setLocalRecordingUrl(null);
 
       // Refresh meeting data
       await onRefresh();
@@ -1060,7 +1106,7 @@ const CenterPanel = ({
       <div className="fireflies-center-panel fireflies-center-panel--empty">
         <div className="fireflies-empty-hero">
           <VideoSection
-            recordingUrl={meeting.recording_url}
+            recordingUrl={effectiveRecordingUrl}
             onUpload={handleVideoUpload}
             onDelete={handleVideoDelete}
             isUploading={isUploadingVideo}
@@ -1081,7 +1127,7 @@ const CenterPanel = ({
     <div className="fireflies-center-panel">
       {/* Video Section */}
       <VideoSection
-        recordingUrl={meeting.recording_url}
+        recordingUrl={effectiveRecordingUrl}
         onUpload={handleVideoUpload}
         onDelete={handleVideoDelete}
         isUploading={isUploadingVideo}

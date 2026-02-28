@@ -29,6 +29,8 @@ export interface Meeting {
   end_time?: string | null; // ISO string
   location?: string;
   teams_link?: string;
+  recording_url?: string | null;
+  recordingUrl?: string | null; // backward compatibility for camelCase payloads
   project_id?: string;
   created_at?: string; // ISO string
   organizer?: User;
