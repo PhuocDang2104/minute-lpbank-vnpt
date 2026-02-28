@@ -172,7 +172,7 @@ const KnowledgeHub = () => {
             />
             <button 
               className="btn btn--primary"
-              onClick={handleSearch}
+              onClick={() => handleSearch()}
               disabled={!query.trim() || isSearching}
             >
               {isSearching ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}

@@ -32,7 +32,6 @@ const transformMockToApi = (mock: typeof mockActionItems[0]): ActionItem => ({
   description: mock.description,
   owner_user_id: mock.owner.id,
   owner_name: mock.owner.displayName,
-  meeting_title: mock.meetingTitle,
   deadline: mock.deadline.toISOString().split('T')[0],
   priority: mock.priority,
   status: mock.status as ActionItem['status'],

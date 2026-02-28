@@ -18,6 +18,16 @@ export interface User {
   avatar_url?: string;
 }
 
+export interface Participant {
+  id?: string;
+  user_id?: string;
+  email: string;
+  display_name?: string;
+  role: ParticipantRole;
+  response_status?: ResponseStatus;
+  avatar_url?: string;
+}
+
 export interface Meeting {
   id: string;
   title: string;
@@ -33,8 +43,8 @@ export interface Meeting {
   recordingUrl?: string | null; // backward compatibility for camelCase payloads
   project_id?: string;
   created_at?: string; // ISO string
-  organizer?: User;
-  participants?: any[]; // Simplified for now
+  organizer?: Participant | User;
+  participants?: Participant[];
 }
 
 export interface MeetingCreate {
@@ -67,7 +77,7 @@ export interface MeetingUpdate {
 }
 
 export interface MeetingWithParticipants extends Meeting {
-  participants?: User[];
+  participants?: Participant[];
 }
 
 export interface MeetingListResponse {
@@ -81,6 +91,20 @@ export interface MeetingFilters {
   phase?: MeetingPhase;
   meeting_type?: MeetingType;
   project_id?: string;
+}
+
+export interface MeetingNotifyRecipient {
+  email: string;
+  name?: string;
+  role?: string;
+}
+
+export interface MeetingNotifyRequest {
+  recipients: MeetingNotifyRecipient[];
+  include_agenda?: boolean;
+  include_documents?: boolean;
+  include_notes?: boolean;
+  custom_message?: string;
 }
 
 // Meeting type labels

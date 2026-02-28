@@ -131,24 +131,28 @@ const normalizeAdrRisks = (items: any[]): AdrRisk[] => {
 
 const normalizeCourseHighlights = (items: any[]): CourseHighlight[] => {
   if (!Array.isArray(items)) return [];
-  return items
-    .map((item, idx) => {
-      const kindRaw = String(item?.kind || 'concept').toLowerCase();
-      const kind: CourseHighlight['kind'] =
-        kindRaw === 'formula' || kindRaw === 'example' || kindRaw === 'note' ? kindRaw : 'concept';
-      const title = String(item?.title || item?.bullet || '').trim();
-      const bullet = String(item?.bullet || item?.title || '').trim();
-      const formula = String(item?.formula || '').trim();
-      if (!title && !bullet) return null;
-      return {
-        id: String(item?.id || `highlight-${idx}`),
-        kind,
-        title: title || bullet,
-        bullet: bullet || title,
-        formula: formula || undefined,
-      };
-    })
-    .filter((item): item is CourseHighlight => item !== null);
+  return items.reduce<CourseHighlight[]>((acc, item, idx) => {
+    const kindRaw = String(item?.kind || 'concept').toLowerCase();
+    const kind: CourseHighlight['kind'] =
+      kindRaw === 'formula' || kindRaw === 'example' || kindRaw === 'note' ? kindRaw : 'concept';
+    const title = String(item?.title || item?.bullet || '').trim();
+    const bullet = String(item?.bullet || item?.title || '').trim();
+    const formula = String(item?.formula || '').trim();
+
+    if (!title && !bullet) {
+      return acc;
+    }
+
+    acc.push({
+      id: String(item?.id || `highlight-${idx}`),
+      kind,
+      title: title || bullet,
+      bullet: bullet || title,
+      formula: formula || undefined,
+    });
+
+    return acc;
+  }, []);
 };
 
 const formatAdrDate = (value?: string) => {
