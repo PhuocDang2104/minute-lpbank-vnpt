@@ -416,7 +416,11 @@ def update_llm_settings(
     return _normalize_llm_settings(llm)
 
 
-def get_user_llm_override(db: Session, user_id: str) -> Optional[Dict[str, Any]]:
+def get_user_llm_override(
+    db: Session,
+    user_id: str,
+    allow_demo_fallback: bool = True,
+) -> Optional[Dict[str, Any]]:
     def _fetch_override(target_user_id: str) -> Optional[Dict[str, Any]]:
         query = text("SELECT preferences FROM user_account WHERE id = :user_id")
         result = db.execute(query, {"user_id": target_user_id})
@@ -464,6 +468,9 @@ def get_user_llm_override(db: Session, user_id: str) -> Optional[Dict[str, Any]]
 
     if override:
         return override
+
+    if not allow_demo_fallback:
+        return None
 
     demo_id = _DEMO_LLM_USER_ID
     if user_id == demo_id:

@@ -7,6 +7,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Eye,
+  EyeOff,
+  KeyRound,
   RefreshCw,
   SlidersHorizontal,
   Sparkles,
@@ -152,7 +155,10 @@ const Dashboard = () => {
   const activeUserId = String(displayUser.id || '').trim()
   const userRoleRaw = String(displayUser.role || 'user') as UserRole
   const userRole: UserRole = ['admin', 'PMO', 'chair', 'user'].includes(userRoleRaw) ? userRoleRaw : 'user'
-  const userDisplayName = displayUser.display_name || displayUser.displayName || 'Minute User'
+  const userDisplayName =
+    ('display_name' in displayUser ? displayUser.display_name : undefined) ||
+    ('displayName' in displayUser ? displayUser.displayName : undefined) ||
+    'Minute User'
 
   const [askValue, setAskValue] = useState('')
   const [askResponse, setAskResponse] = useState<string | null>(null)
@@ -161,6 +167,11 @@ const Dashboard = () => {
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [advancedProvider, setAdvancedProvider] = useState<LlmProvider>('gemini')
   const [advancedModel, setAdvancedModel] = useState<string>(MODEL_OPTIONS.gemini[0]?.value || '')
+  const [advancedApiKeyInput, setAdvancedApiKeyInput] = useState('')
+  const [advancedApiKeySet, setAdvancedApiKeySet] = useState(false)
+  const [advancedApiKeyLast4, setAdvancedApiKeyLast4] = useState<string | null>(null)
+  const [advancedShowApiKey, setAdvancedShowApiKey] = useState(false)
+  const [advancedClearApiKey, setAdvancedClearApiKey] = useState(false)
   const [advancedLoading, setAdvancedLoading] = useState(false)
   const [advancedSaving, setAdvancedSaving] = useState(false)
   const [advancedError, setAdvancedError] = useState<string | null>(null)
@@ -251,6 +262,11 @@ const Dashboard = () => {
         const nextModel = options.some(item => item.value === response.model) ? response.model : fallbackModel
         setAdvancedProvider(provider)
         setAdvancedModel(nextModel)
+        setAdvancedApiKeyInput('')
+        setAdvancedApiKeySet(Boolean(response.api_key_set))
+        setAdvancedApiKeyLast4(response.api_key_last4 || null)
+        setAdvancedShowApiKey(false)
+        setAdvancedClearApiKey(false)
       } catch {
         if (!isActive) return
         setAdvancedError(lt('Không thể tải cấu hình model. Vui lòng thử lại.', 'Unable to load model settings. Please try again.'))
@@ -344,6 +360,48 @@ const Dashboard = () => {
     setAdvancedModel(options[0]?.value || '')
   }
 
+  const advancedApiKeyBadge = useMemo(() => {
+    if (advancedLoading) {
+      return {
+        label: lt('Đang tải...', 'Loading...'),
+        color: '#5f4a2b',
+        bg: 'rgba(248, 229, 194, 0.35)',
+        border: 'rgba(145, 101, 31, 0.24)',
+      }
+    }
+    if (advancedApiKeyInput.trim().length > 0) {
+      return {
+        label: lt('Sẽ cập nhật khi lưu', 'Will update on save'),
+        color: '#1f2937',
+        bg: '#f3f4f6',
+        border: '#d1d5db',
+      }
+    }
+    if (advancedClearApiKey) {
+      return {
+        label: lt('Sẽ xoá khi lưu', 'Will remove on save'),
+        color: '#b42318',
+        bg: 'rgba(254, 226, 226, 0.7)',
+        border: 'rgba(239, 68, 68, 0.28)',
+      }
+    }
+    if (advancedApiKeySet) {
+      const suffix = advancedApiKeyLast4 ? `•••• ${advancedApiKeyLast4}` : lt('Đã lưu', 'Saved')
+      return {
+        label: suffix,
+        color: '#065f46',
+        bg: 'rgba(209, 250, 229, 0.6)',
+        border: 'rgba(16, 185, 129, 0.3)',
+      }
+    }
+    return {
+      label: lt('Chưa thiết lập', 'Not set'),
+      color: '#6b7280',
+      bg: '#f9fafb',
+      border: '#e5e7eb',
+    }
+  }, [advancedApiKeyInput, advancedApiKeyLast4, advancedApiKeySet, advancedClearApiKey, advancedLoading, lt])
+
   const handleSaveAdvanced = async () => {
     if (!activeUserId || advancedSaving) return
 
@@ -352,17 +410,34 @@ const Dashboard = () => {
     setAdvancedNotice(null)
 
     try {
-      const result = await usersApi.updateLlmSettings(activeUserId, {
+      const payload: {
+        provider: LlmProvider
+        model: string
+        api_key?: string
+        clear_api_key?: boolean
+      } = {
         provider: advancedProvider,
         model: advancedModel,
-      })
+      }
+      const trimmedApiKey = advancedApiKeyInput.trim()
+      if (advancedClearApiKey) {
+        payload.clear_api_key = true
+      } else if (trimmedApiKey) {
+        payload.api_key = trimmedApiKey
+      }
+      const result = await usersApi.updateLlmSettings(activeUserId, payload)
       const provider: LlmProvider = result.provider === 'groq' ? 'groq' : 'gemini'
       const options = MODEL_OPTIONS[provider]
       const fallbackModel = options[0]?.value || ''
       const nextModel = options.some(item => item.value === result.model) ? result.model : fallbackModel
       setAdvancedProvider(provider)
       setAdvancedModel(nextModel)
-      setAdvancedNotice(lt('Đã lưu model mặc định cho Ask AI.', 'Default Ask AI model saved.'))
+      setAdvancedApiKeyInput('')
+      setAdvancedApiKeySet(Boolean(result.api_key_set))
+      setAdvancedApiKeyLast4(result.api_key_last4 || null)
+      setAdvancedShowApiKey(false)
+      setAdvancedClearApiKey(false)
+      setAdvancedNotice(lt('Đã lưu cấu hình model và API key cho Ask AI.', 'Ask AI model and API key settings saved.'))
     } catch {
       setAdvancedError(lt('Không thể lưu cấu hình model. Vui lòng thử lại.', 'Unable to save model settings. Please try again.'))
     } finally {
@@ -487,6 +562,62 @@ const Dashboard = () => {
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">{lt('LLM API key của riêng bạn', 'Your LLM API key')}</label>
+                    <div className="home-hub-ai-modal__key-row">
+                      <input
+                        className="form-input"
+                        type={advancedShowApiKey ? 'text' : 'password'}
+                        value={advancedApiKeyInput}
+                        onChange={event => {
+                          setAdvancedApiKeyInput(event.target.value)
+                          setAdvancedClearApiKey(false)
+                        }}
+                        placeholder={lt('Nhập API key', 'Enter API key')}
+                        disabled={advancedSaving}
+                      />
+                      <div className="home-hub-ai-modal__key-actions">
+                        <button
+                          type="button"
+                          className="home-hub-ai-modal__key-btn"
+                          onClick={() => setAdvancedShowApiKey(prev => !prev)}
+                          disabled={advancedSaving}
+                          title={advancedShowApiKey ? lt('Ẩn key', 'Hide key') : lt('Hiện key', 'Show key')}
+                        >
+                          {advancedShowApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                        <button
+                          type="button"
+                          className="home-hub-ai-modal__key-btn"
+                          onClick={() => {
+                            setAdvancedClearApiKey(true)
+                            setAdvancedApiKeyInput('')
+                          }}
+                          disabled={advancedSaving || !advancedApiKeySet}
+                        >
+                          {lt('Xoá key', 'Remove key')}
+                        </button>
+                      </div>
+                    </div>
+                    <span
+                      className="home-hub-ai-modal__key-badge"
+                      style={{
+                        color: advancedApiKeyBadge.color,
+                        background: advancedApiKeyBadge.bg,
+                        borderColor: advancedApiKeyBadge.border,
+                      }}
+                    >
+                      {advancedApiKeyBadge.label}
+                    </span>
+                    <p className="home-hub-ai-modal__key-note">
+                      <KeyRound size={14} />
+                      {lt(
+                        'API key được mã hoá và chỉ lưu trên server.',
+                        'API key is encrypted and stored only on the server.',
+                      )}
+                    </p>
                   </div>
                 </>
               )}
@@ -683,4 +814,3 @@ const Dashboard = () => {
 }
 
 export default Dashboard
-

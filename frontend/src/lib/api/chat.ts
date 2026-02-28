@@ -1,4 +1,4 @@
-import apiClient from '../apiClient';
+import apiClient from '../../renderer/lib/apiClient';
 
 export interface ChatMessage {
     id: string;
@@ -43,6 +43,6 @@ export const chatApi = {
 
     // List sessions (optional)
     listSessions: async (meetingId?: string): Promise<{ sessions: ChatSession[]; total: number }> => {
-        return apiClient.get('/chat/sessions', { params: { meeting_id: meetingId } });
+        return apiClient.get('/chat/sessions', { meeting_id: meetingId });
     },
 };

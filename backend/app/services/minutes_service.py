@@ -1020,16 +1020,57 @@ async def generate_minutes_with_ai(
     }
 
     llm_config = None
-    if organizer_id:
-        try:
-            from app.services import user_service
-            from app.llm.gemini_client import LLMConfig
-            override = user_service.get_user_llm_override(db, str(organizer_id))
+    requested_user_id = str(getattr(request, "request_user_id", "") or "").strip()
+    organizer_user_id = str(organizer_id).strip() if organizer_id else ""
+    candidate_user_ids: List[str] = []
+    for candidate in (requested_user_id, organizer_user_id):
+        if candidate and candidate not in candidate_user_ids:
+            candidate_user_ids.append(candidate)
+
+    try:
+        from app.services import user_service
+        from app.llm.gemini_client import LLMConfig
+
+        override = None
+        source_user_id = None
+
+        # Prefer explicit requester key first, then organizer key.
+        for candidate_id in candidate_user_ids:
+            override = user_service.get_user_llm_override(
+                db,
+                candidate_id,
+                allow_demo_fallback=False,
+            )
             if override:
-                llm_config = LLMConfig(**override)
-        except Exception as exc:
-            logger.warning("Failed to load LLM settings for organizer %s: %s", organizer_id, exc)
-            db.rollback()
+                source_user_id = candidate_id
+                break
+
+        # If no direct key found, keep legacy fallback behavior to demo profile.
+        if not override:
+            fallback_user_id = candidate_user_ids[0] if candidate_user_ids else None
+            if fallback_user_id:
+                override = user_service.get_user_llm_override(db, fallback_user_id)
+                if override:
+                    source_user_id = fallback_user_id
+
+        if override:
+            llm_config = LLMConfig(**override)
+            logger.info(
+                "minutes_generate_using_user_llm meeting_id=%s user_id=%s provider=%s model=%s",
+                meeting_id,
+                source_user_id or "unknown",
+                override.get("provider"),
+                override.get("model"),
+            )
+    except Exception as exc:
+        logger.warning(
+            "Failed to load LLM settings for meeting %s (requested=%s organizer=%s): %s",
+            meeting_id,
+            requested_user_id or "none",
+            organizer_user_id or "none",
+            exc,
+        )
+        db.rollback()
 
     assistant = MeetingAIAssistant(
         meeting_id,

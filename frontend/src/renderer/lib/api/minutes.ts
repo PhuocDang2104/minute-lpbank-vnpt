@@ -5,6 +5,8 @@
 
 import api from '../apiClient';
 
+const USER_STORAGE_KEY = 'minute_user';
+
 export interface MeetingMinutes {
   id: string;
   meeting_id: string;
@@ -29,6 +31,7 @@ export interface MeetingMinutesList {
 
 export interface GenerateMinutesRequest {
   meeting_id: string;
+  request_user_id?: string;
   template_id?: string; // Template ID to use for generation
   include_transcript?: boolean;
   include_actions?: boolean;
@@ -69,6 +72,19 @@ export interface DistributionLogList {
 
 const ENDPOINT = '/minutes';
 
+const resolveRequestUserId = (): string | undefined => {
+  if (typeof localStorage === 'undefined') return undefined;
+  try {
+    const raw = localStorage.getItem(USER_STORAGE_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as { id?: string };
+    const id = String(parsed.id || '').trim();
+    return id || undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export const minutesApi = {
   /**
    * List all minutes versions for a meeting
@@ -91,7 +107,11 @@ export const minutesApi = {
    * Generate minutes using AI
    */
   generate: async (request: GenerateMinutesRequest): Promise<MeetingMinutes> => {
-    return api.post<MeetingMinutes>(`${ENDPOINT}/generate`, request);
+    const payload: GenerateMinutesRequest = { ...request };
+    if (!payload.request_user_id) {
+      payload.request_user_id = resolveRequestUserId();
+    }
+    return api.post<MeetingMinutes>(`${ENDPOINT}/generate`, payload);
   },
 
   /**

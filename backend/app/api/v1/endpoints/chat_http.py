@@ -109,9 +109,25 @@ def _load_runtime_llm_config(
                 organizer_id = str(row[0])
         except Exception:
             db.rollback()
-    target_user_id = organizer_id or user_id or _DEMO_LLM_USER_ID
+
+    candidate_user_ids: list[str] = []
+    for candidate in (user_id, organizer_id):
+        value = str(candidate or "").strip()
+        if value and value not in candidate_user_ids:
+            candidate_user_ids.append(value)
+
     try:
-        override = user_service.get_user_llm_override(db, target_user_id)
+        for candidate_id in candidate_user_ids:
+            override = user_service.get_user_llm_override(
+                db,
+                candidate_id,
+                allow_demo_fallback=False,
+            )
+            if override:
+                return LLMConfig(**override)
+
+        fallback_target = candidate_user_ids[0] if candidate_user_ids else _DEMO_LLM_USER_ID
+        override = user_service.get_user_llm_override(db, fallback_target, allow_demo_fallback=True)
         if override:
             return LLMConfig(**override)
     except Exception:
@@ -201,10 +217,12 @@ async def test_llm():
 @router.post('/message', response_model=ChatResponse)
 async def send_message(
     request: ChatRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Send a message to AI and get response"""
-    llm_config = _load_runtime_llm_config(db, request.meeting_id)
+    current_user_id = str((current_user or {}).get("sub") or "").strip() or None
+    llm_config = _load_runtime_llm_config(db, request.meeting_id, user_id=current_user_id)
     session_id, session = get_or_create_session(request.session_id, request.meeting_id, llm_config)
     
     # Get meeting context if requested
@@ -401,10 +419,12 @@ def delete_session(session_id: str, db: Session = Depends(get_db)):
 @router.post('/generate/agenda', response_model=AIGenerationResponse)
 async def generate_agenda_ai(
     request: GenerateAgendaRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Generate meeting agenda using AI"""
-    llm_config = _load_runtime_llm_config(db, request.meeting_id)
+    current_user_id = str((current_user or {}).get("sub") or "").strip() or None
+    llm_config = _load_runtime_llm_config(db, request.meeting_id, user_id=current_user_id)
     assistant = MeetingAIAssistant(request.meeting_id, {
         'type': request.meeting_type,
     }, llm_config=llm_config)
@@ -422,10 +442,12 @@ async def generate_agenda_ai(
 @router.post('/extract/items', response_model=AIGenerationResponse)
 async def extract_items_ai(
     request: ExtractItemsRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Extract action items, decisions, or risks from transcript"""
-    llm_config = _load_runtime_llm_config(db, request.meeting_id)
+    current_user_id = str((current_user or {}).get("sub") or "").strip() or None
+    llm_config = _load_runtime_llm_config(db, request.meeting_id, user_id=current_user_id)
     assistant = MeetingAIAssistant(request.meeting_id, llm_config=llm_config)
     
     if request.item_type == 'actions':
@@ -448,10 +470,12 @@ async def extract_items_ai(
 @router.post('/generate/summary', response_model=AIGenerationResponse)
 async def generate_summary_ai(
     request: GenerateSummaryRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Generate meeting summary from transcript"""
-    llm_config = _load_runtime_llm_config(db, request.meeting_id)
+    current_user_id = str((current_user or {}).get("sub") or "").strip() or None
+    llm_config = _load_runtime_llm_config(db, request.meeting_id, user_id=current_user_id)
     assistant = MeetingAIAssistant(request.meeting_id, llm_config=llm_config)
 
     result = await assistant.generate_summary(request.transcript)

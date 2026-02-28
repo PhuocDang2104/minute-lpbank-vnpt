@@ -56,7 +56,7 @@ const AdminConsole = () => {
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [u, d, m, a] = await Promise.all([
+      const [u, d, m, a, p] = await Promise.all([
         adminListUsers({ limit: 200 }),
         adminListDocuments({ limit: 50 }),
         adminListMeetings({ limit: 50 }),
@@ -67,7 +67,7 @@ const AdminConsole = () => {
       setDocs(d.documents)
       setMeetings(m)
       setActions(a.items)
-      setProjects((await adminListProjects({ limit: 100 })).projects)
+      setProjects(p.projects)
     } finally {
       setLoading(false)
     }
@@ -128,7 +128,7 @@ const AdminConsole = () => {
     await loadAll()
   }
 
-  const handleUpdateMeetingPhase = async (meetingId: string, phase?: string) => {
+  const handleUpdateMeetingPhase = async (meetingId: string, phase?: Meeting['phase']) => {
     if (!phase) return
     await adminUpdateMeeting(meetingId, { phase })
     await loadAll()
@@ -329,7 +329,7 @@ const AdminConsole = () => {
             <div className="admin-table__row" key={m.id}>
               <span>{m.title}</span>
               <span>
-                <select value={m.phase} onChange={e => handleUpdateMeetingPhase(m.id, e.target.value)}>
+                <select value={m.phase} onChange={e => handleUpdateMeetingPhase(m.id, e.target.value as Meeting['phase'])}>
                   {['pre', 'in', 'post'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </span>
