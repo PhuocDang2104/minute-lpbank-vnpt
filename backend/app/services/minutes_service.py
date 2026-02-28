@@ -492,6 +492,168 @@ def _build_ai_filters(
     return filters
 
 
+def _word_count(text_value: str) -> int:
+    if not text_value:
+        return 0
+    return len(re.findall(r"[0-9A-Za-zÀ-ỹà-ỹ]+", text_value, flags=re.UNICODE))
+
+
+def _join_preview(values: List[str], limit: int = 4) -> str:
+    cleaned = [str(item).strip() for item in values if str(item).strip()]
+    return "; ".join(cleaned[:limit])
+
+
+def _expand_summary_if_needed(
+    summary: str,
+    meeting_title: str,
+    meeting_desc: str,
+    key_points: List[str],
+    action_rows: List[Dict[str, Any]],
+    decision_rows: List[Dict[str, Any]],
+    risk_rows: List[Dict[str, Any]],
+    next_steps: List[str],
+    topic_tracker: List[Dict[str, Any]],
+    transcript_excerpt: str = "",
+) -> str:
+    base_summary = str(summary or "").strip()
+    if _word_count(base_summary) >= 140:
+        return base_summary
+
+    prefer_vi = _prefer_vietnamese_output()
+    paragraphs: List[str] = []
+    if base_summary:
+        paragraphs.append(base_summary)
+    elif meeting_desc:
+        if prefer_vi:
+            paragraphs.append(
+                f"Cuộc họp '{meeting_title}' tập trung vào nội dung: {meeting_desc[:420].strip()}."
+            )
+        else:
+            paragraphs.append(
+                f"The meeting '{meeting_title}' focused on: {meeting_desc[:420].strip()}."
+            )
+    else:
+        if prefer_vi:
+            paragraphs.append(
+                f"Cuộc họp '{meeting_title}' đã được ghi nhận và cần biên bản chi tiết để theo dõi tiến độ."
+            )
+        else:
+            paragraphs.append(
+                f"The meeting '{meeting_title}' was captured and requires detailed minutes for follow-up."
+            )
+
+    key_points_preview = _join_preview(key_points, 5)
+    if key_points_preview:
+        if prefer_vi:
+            paragraphs.append(
+                "Các điểm thảo luận trọng tâm gồm: "
+                + key_points_preview
+                + ". Nội dung cho thấy các bên đã làm rõ vấn đề, phạm vi ảnh hưởng và hướng xử lý ưu tiên."
+            )
+        else:
+            paragraphs.append(
+                "Core discussion points included: "
+                + key_points_preview
+                + ". The flow clarified scope, impact, and priority handling direction."
+            )
+
+    if decision_rows:
+        decision_preview = _join_preview(
+            [str(row.get("description") or "").strip() for row in decision_rows],
+            3,
+        )
+        if prefer_vi:
+            paragraphs.append(
+                f"Đã ghi nhận {len(decision_rows)} quyết định. "
+                + (f"Các quyết định đáng chú ý: {decision_preview}. " if decision_preview else "")
+                + "Các quyết định này là căn cứ để triển khai kế hoạch và phân quyền thực thi."
+            )
+        else:
+            paragraphs.append(
+                f"{len(decision_rows)} decision(s) were captured. "
+                + (f"Notable decisions: {decision_preview}. " if decision_preview else "")
+                + "These decisions establish the execution baseline and ownership boundaries."
+            )
+
+    if action_rows:
+        action_preview = _join_preview(
+            [
+                f"{str(row.get('description') or '').strip()} (owner: {str(row.get('owner') or 'N/A').strip()})"
+                for row in action_rows
+                if str(row.get("description") or "").strip()
+            ],
+            3,
+        )
+        if prefer_vi:
+            paragraphs.append(
+                f"Đã tổng hợp {len(action_rows)} đầu việc cần theo dõi. "
+                + (f"Một số đầu việc tiêu biểu: {action_preview}. " if action_preview else "")
+                + "Cần rà soát deadline và trạng thái định kỳ để đảm bảo tiến độ cam kết."
+            )
+        else:
+            paragraphs.append(
+                f"{len(action_rows)} action item(s) were consolidated. "
+                + (f"Representative items: {action_preview}. " if action_preview else "")
+                + "Deadlines and status should be reviewed on a recurring cadence."
+            )
+
+    if risk_rows:
+        risk_preview = _join_preview(
+            [str(row.get("description") or "").strip() for row in risk_rows],
+            3,
+        )
+        if prefer_vi:
+            paragraphs.append(
+                f"Đã phát hiện {len(risk_rows)} rủi ro/vướng mắc. "
+                + (f"Các rủi ro chính: {risk_preview}. " if risk_preview else "")
+                + "Đề xuất theo dõi mức độ ảnh hưởng và kế hoạch giảm thiểu theo từng mốc."
+            )
+        else:
+            paragraphs.append(
+                f"{len(risk_rows)} risk(s)/blockers were identified. "
+                + (f"Primary risks: {risk_preview}. " if risk_preview else "")
+                + "Impact levels and mitigation plans should be tracked by milestone."
+            )
+
+    if next_steps:
+        next_steps_preview = _join_preview(next_steps, 4)
+        if prefer_vi:
+            paragraphs.append(
+                "Các bước tiếp theo đã được xác định: "
+                + next_steps_preview
+                + ". Cần chốt người phụ trách và thời hạn cụ thể cho từng hạng mục."
+            )
+        else:
+            paragraphs.append(
+                "Next steps were identified: "
+                + next_steps_preview
+                + ". Owners and concrete due dates should be finalized per item."
+            )
+
+    if topic_tracker:
+        if prefer_vi:
+            paragraphs.append(
+                f"Phiên họp ghi nhận {len(topic_tracker)} cụm chủ đề theo timeline, hỗ trợ truy vết nhanh nội dung và quyết định."
+            )
+        else:
+            paragraphs.append(
+                f"The session tracked {len(topic_tracker)} topic clusters on the timeline for better traceability."
+            )
+
+    if transcript_excerpt and _word_count("\n\n".join(paragraphs)) < 120:
+        snippet = transcript_excerpt[:520].replace("\n", " ").strip()
+        if snippet:
+            if prefer_vi:
+                paragraphs.append(
+                    "Bằng chứng transcript tiêu biểu: " + snippet + "."
+                )
+            else:
+                paragraphs.append(
+                    "Representative transcript evidence: " + snippet + "."
+                )
+
+    return "\n\n".join([item for item in paragraphs if item.strip()]).strip()
+
 
 def list_minutes(db: Session, meeting_id: str) -> MeetingMinutesList:
     """List all minutes versions for a meeting"""
@@ -1288,6 +1450,19 @@ async def generate_minutes_with_ai(
                 fallback_points.append("Add transcript evidence to improve summary depth and accuracy.")
         summary_result["key_points"] = fallback_points[:5]
 
+    summary_result["summary"] = _expand_summary_if_needed(
+        summary=str(summary_result.get("summary") or ""),
+        meeting_title=str(meeting_title or ""),
+        meeting_desc=str(meeting_desc or ""),
+        key_points=summary_result["key_points"],
+        action_rows=action_rows,
+        decision_rows=decision_rows,
+        risk_rows=risk_rows,
+        next_steps=next_steps,
+        topic_tracker=topic_tracker,
+        transcript_excerpt=llm_fallback_transcript[:1200] if llm_fallback_transcript else "",
+    )
+
     actions = [row.get("description", "") for row in action_rows if row.get("description")]
     decisions = [row.get("description", "") for row in decision_rows if row.get("description")]
     risks = [
@@ -1407,20 +1582,6 @@ def format_minutes(
     lines: List[str] = []
     lines.append(f"# Biên bản: {meeting_title}")
     lines.append("")
-    lines.append(f"**Loại cuộc họp:** {meeting_type or 'N/A'}")
-    lines.append(f"**Chế độ phiên:** {session_type.title()}")
-    lines.append(f"**Thời gian:** {_fmt_dt(start_time)} - {_fmt_dt(end_time)}")
-    lines.append("")
-
-    lines.append("## Tóm tắt điều hành")
-    lines.append(summary or ("Chưa có tóm tắt." if _prefer_vietnamese_output() else "No summary available."))
-    lines.append("")
-
-    if key_points:
-        lines.append("## Các điểm chính")
-        for point in key_points:
-            lines.append(f"- {point}")
-        lines.append("")
 
     action_rows = action_rows or []
     decision_rows = decision_rows or []
@@ -1428,10 +1589,42 @@ def format_minutes(
     topic_tracker = topic_tracker or []
     ai_filters = ai_filters or []
     next_steps = next_steps or []
+    key_points = [str(point).strip() for point in (key_points or []) if str(point).strip()]
+    summary_text = str(summary or "").strip()
+    prefer_vi = _prefer_vietnamese_output()
+
+    lines.append("## Thông tin cuộc họp")
+    lines.append(f"- **Loại cuộc họp:** {meeting_type or 'N/A'}")
+    lines.append(f"- **Chế độ phiên:** {session_type.title()}")
+    lines.append(f"- **Thời gian:** {_fmt_dt(start_time)} - {_fmt_dt(end_time)}")
+    lines.append("")
+
+    lines.append("## Tóm tắt điều hành")
+    if summary_text:
+        lines.append(summary_text)
+    else:
+        lines.append(
+            "_Chưa có tóm tắt điều hành._"
+            if prefer_vi
+            else "_No executive summary available._"
+        )
+    lines.append("")
+
+    lines.append("## Các điểm chính")
+    if key_points:
+        for point in key_points:
+            lines.append(f"- {point}")
+    else:
+        lines.append(
+            "- Chưa có điểm chính được trích xuất."
+            if prefer_vi
+            else "- No key points extracted yet."
+        )
+    lines.append("")
 
     if session_type == "meeting":
+        lines.append("## Quyết định")
         if decision_rows:
-            lines.append("## Bảng quyết định")
             lines.append("| Quyết định | Lý do | Trạng thái | Người xác nhận |")
             lines.append("| --- | --- | --- | --- |")
             for row in decision_rows:
@@ -1447,15 +1640,19 @@ def format_minutes(
                     )
                     + " |"
                 )
-            lines.append("")
         elif decisions:
-            lines.append("## Quyết định")
             for idx, item in enumerate(decisions, start=1):
                 lines.append(f"{idx}. {item}")
-            lines.append("")
+        else:
+            lines.append(
+                "- Chưa ghi nhận quyết định cụ thể."
+                if prefer_vi
+                else "- No concrete decisions recorded."
+            )
+        lines.append("")
 
+        lines.append("## Hành động cần thực hiện")
         if action_rows:
-            lines.append("## Bảng hành động")
             lines.append("| Người phụ trách | Hạn chót | Mức ưu tiên | Trạng thái | Hành động |")
             lines.append("| --- | --- | --- | --- | --- |")
             for row in action_rows:
@@ -1472,15 +1669,19 @@ def format_minutes(
                     )
                     + " |"
                 )
-            lines.append("")
         elif actions:
-            lines.append("## Hành động cần làm")
             for idx, item in enumerate(actions, start=1):
                 lines.append(f"{idx}. {item}")
-            lines.append("")
+        else:
+            lines.append(
+                "- Chưa có đầu việc cần theo dõi."
+                if prefer_vi
+                else "- No tracked action items."
+            )
+        lines.append("")
 
+        lines.append("## Rủi ro và trở ngại")
         if risk_rows:
-            lines.append("## Bảng rủi ro")
             lines.append("| Rủi ro | Mức độ | Giảm thiểu | Người phụ trách | Trạng thái |")
             lines.append("| --- | --- | --- | --- | --- |")
             for row in risk_rows:
@@ -1497,43 +1698,117 @@ def format_minutes(
                     )
                     + " |"
                 )
-            lines.append("")
         elif risks:
-            lines.append("## Rủi ro")
             for item in risks:
                 lines.append(f"- {item}")
-            lines.append("")
-
-        if include_ai_filters and ai_filters:
-            lines.append("## Bộ lọc AI")
-            for flt in ai_filters:
-                lines.append(f"- {flt}")
-            lines.append("")
-
-    if include_topic_tracker and topic_tracker:
-        lines.append("## Theo dõi chủ đề")
-        lines.append("| Chủ đề | Bắt đầu | Kết thúc | Thời lượng (giây) |")
-        lines.append("| --- | --- | --- | --- |")
-        for row in topic_tracker:
+        else:
             lines.append(
-                "| "
-                + " | ".join(
-                    [
-                        _md_cell(row.get("title")),
-                        _md_cell(_fmt_seconds(row.get("start_time"))),
-                        _md_cell(_fmt_seconds(row.get("end_time"))),
-                        _md_cell(row.get("duration_seconds")),
-                    ]
-                )
-                + " |"
+                "- Chưa ghi nhận rủi ro nổi bật."
+                if prefer_vi
+                else "- No major risks recorded."
             )
         lines.append("")
 
+        if include_ai_filters:
+            lines.append("## Bộ lọc AI (tham chiếu)")
+            if ai_filters:
+                for flt in ai_filters:
+                    lines.append(f"- {flt}")
+            else:
+                lines.append(
+                    "- Chưa có bộ lọc AI."
+                    if prefer_vi
+                    else "- No AI filter metadata."
+                )
+            lines.append("")
+
+    if include_topic_tracker:
+        lines.append("## Theo dõi chủ đề")
+        if topic_tracker:
+            lines.append("| Chủ đề | Bắt đầu | Kết thúc | Thời lượng (giây) |")
+            lines.append("| --- | --- | --- | --- |")
+            for row in topic_tracker:
+                lines.append(
+                    "| "
+                    + " | ".join(
+                        [
+                            _md_cell(row.get("title")),
+                            _md_cell(_fmt_seconds(row.get("start_time"))),
+                            _md_cell(_fmt_seconds(row.get("end_time"))),
+                            _md_cell(row.get("duration_seconds")),
+                        ]
+                    )
+                    + " |"
+                )
+        else:
+            lines.append(
+                "- Chưa có dữ liệu theo dõi chủ đề."
+                if prefer_vi
+                else "- No topic-tracker data yet."
+            )
+        lines.append("")
+
+    if session_type == "course" and study_pack:
+        concepts = [item for item in _safe_json_list(study_pack.get("concepts")) if item]
+        quiz = [item for item in _safe_json_list(study_pack.get("quiz")) if item]
+        if include_knowledge_table:
+            lines.append("## Bảng kiến thức trọng tâm")
+            if concepts:
+                lines.append("| Khái niệm | Giải thích |")
+                lines.append("| --- | --- |")
+                for item in concepts:
+                    lines.append(
+                        "| "
+                        + " | ".join(
+                            [
+                                _md_cell(item.get("concept") or item.get("name")),
+                                _md_cell(item.get("explanation") or item.get("description")),
+                            ]
+                        )
+                        + " |"
+                    )
+            else:
+                lines.append(
+                    "- Chưa có dữ liệu khái niệm."
+                    if prefer_vi
+                    else "- No concept data available."
+                )
+            lines.append("")
+        if include_quiz:
+            lines.append("## Câu hỏi ôn tập")
+            if quiz:
+                for idx, item in enumerate(quiz, start=1):
+                    question = str(item.get("question") or "").strip()
+                    lines.append(f"{idx}. {question or ('Chưa có nội dung câu hỏi' if prefer_vi else 'No question text')}")
+                    options = item.get("options") if isinstance(item.get("options"), list) else []
+                    for opt in options:
+                        lines.append(f"   - {str(opt).strip()}")
+                    answer = str(item.get("answer") or item.get("correct_answer") or "").strip()
+                    if answer:
+                        lines.append(
+                            f"   - **Đáp án:** {answer}"
+                            if prefer_vi
+                            else f"   - **Answer:** {answer}"
+                        )
+            else:
+                lines.append(
+                    "- Chưa có câu hỏi ôn tập."
+                    if prefer_vi
+                    else "- No quiz data available."
+                )
+            lines.append("")
+
+    lines.append("## Bước tiếp theo")
     if next_steps:
-        lines.append("## Bước tiếp theo")
         for idx, step in enumerate(next_steps, start=1):
             lines.append(f"{idx}. {step}")
-        lines.append("")
+    else:
+        lines.append(
+            "- Chưa xác định bước tiếp theo."
+            if prefer_vi
+            else "- Next steps are not specified yet."
+        )
+    lines.append("")
 
     return "\n".join(lines)
 
