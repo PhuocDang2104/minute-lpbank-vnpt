@@ -36,6 +36,19 @@ const RECENT_SEARCH_STORAGE_KEY = 'minute_topbar_recent_searches'
 const MAX_RECENT_SEARCHES = 6
 const MAX_PROJECT_SUGGESTIONS = 5
 const MAX_SESSION_SUGGESTIONS = 6
+const PROJECT_SEARCH_LIMIT = 200
+const MEETING_SEARCH_LIMIT = 400
+
+const normalizeSearchText = (value: string | null | undefined): string => (
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+)
 
 const isSearchSuggestion = (value: unknown): value is SearchSuggestion => {
   if (!value || typeof value !== 'object') return false
@@ -76,19 +89,19 @@ const Topbar = () => {
     '/app': 'Home',
     '/app/home': 'Home',
     '/app/dashboard': 'Home',
-    '/app/calendar': lt('Lich hop', 'Calendar'),
+    '/app/calendar': lt('Lịch họp', 'Calendar'),
     '/app/meetings': 'Workspace',
-    '/app/projects': lt('Du an', 'Projects'),
-    '/app/knowledge': lt('Kho kien thuc', 'Knowledge Hub'),
-    '/app/tasks': lt('Nhiem vu', 'Tasks'),
-    '/app/settings': lt('Cai dat', 'Settings'),
-    '/app/admin': lt('Bang quan tri', 'Admin Console'),
+    '/app/projects': lt('Dự án', 'Projects'),
+    '/app/knowledge': lt('Kho kiến thức', 'Knowledge Hub'),
+    '/app/tasks': lt('Nhiệm vụ', 'Tasks'),
+    '/app/settings': lt('Cài đặt', 'Settings'),
+    '/app/admin': lt('Bảng quản trị', 'Admin Console'),
   }), [lt])
 
   const routeBreadcrumbs: Array<{ match: RegExp; trail: string[] }> = useMemo(
     () => [
-      { match: /^\/app\/meetings\/[^/]+\/detail/, trail: ['Workspace', lt('Chi tiet phien', 'Session detail')] },
-      { match: /^\/app\/projects\/[^/]+$/, trail: [lt('Du an', 'Projects'), lt('Chi tiet du an', 'Project detail')] },
+      { match: /^\/app\/meetings\/[^/]+\/detail/, trail: ['Workspace', lt('Chi tiết phiên', 'Session detail')] },
+      { match: /^\/app\/projects\/[^/]+$/, trail: [lt('Dự án', 'Projects'), lt('Chi tiết dự án', 'Project detail')] },
     ],
     [lt],
   )
@@ -96,10 +109,10 @@ const Topbar = () => {
   const findPageTitle = (path: string) => {
     if (routeTitles[path]) return routeTitles[path]
     if (path.startsWith('/app/meetings')) return 'Workspace'
-    if (path.startsWith('/app/projects')) return lt('Du an', 'Projects')
-    if (path.startsWith('/app/knowledge')) return lt('Kho kien thuc', 'Knowledge Hub')
-    if (path.startsWith('/app/tasks')) return lt('Nhiem vu', 'Tasks')
-    if (path.startsWith('/app/settings')) return lt('Cai dat', 'Settings')
+    if (path.startsWith('/app/projects')) return lt('Dự án', 'Projects')
+    if (path.startsWith('/app/knowledge')) return lt('Kho kiến thức', 'Knowledge Hub')
+    if (path.startsWith('/app/tasks')) return lt('Nhiệm vụ', 'Tasks')
+    if (path.startsWith('/app/settings')) return lt('Cài đặt', 'Settings')
     return 'Minute'
   }
 
@@ -151,8 +164,9 @@ const Topbar = () => {
     })
   }, [persistRecentSearches])
 
-  const loadSearchIndex = useCallback(async () => {
+  const loadSearchIndex = useCallback(async (force = false) => {
     if (isSearchLoading) return
+    if (hasSearchIndexLoaded && !force) return
 
     setIsSearchLoading(true)
     setSearchError(null)
@@ -193,8 +207,8 @@ const Topbar = () => {
       }
 
       const [projectResult, meetingResult] = await Promise.allSettled([
-        projectsApi.list({ limit: 300 }),
-        meetingsApi.list({ limit: 500 }),
+        projectsApi.list({ limit: PROJECT_SEARCH_LIMIT }),
+        meetingsApi.list({ limit: MEETING_SEARCH_LIMIT }),
       ])
 
       const projectLoaded = projectResult.status === 'fulfilled'
@@ -207,16 +221,16 @@ const Topbar = () => {
       setHasSearchIndexLoaded(hasAnyLoaded)
 
       if (!hasAnyLoaded) {
-        setSearchError(lt('Khong the tai du lieu tim kiem. Vui long thu lai.', 'Unable to load search data. Please try again.'))
+        setSearchError(lt('Không thể tải dữ liệu tìm kiếm. Vui lòng thử lại.', 'Unable to load search data. Please try again.'))
       }
     } catch {
-      setSearchError(lt('Khong the tai du lieu tim kiem. Vui long thu lai.', 'Unable to load search data. Please try again.'))
+      setSearchError(lt('Không thể tải dữ liệu tìm kiếm. Vui lòng thử lại.', 'Unable to load search data. Please try again.'))
     } finally {
       setIsSearchLoading(false)
     }
-  }, [isSearchLoading, lt])
+  }, [hasSearchIndexLoaded, isSearchLoading, lt])
 
-  const normalizedSearch = searchTerm.trim().toLowerCase()
+  const normalizedSearch = normalizeSearchText(searchTerm)
   const queryTokens = useMemo(
     () => normalizedSearch.split(/\s+/).filter(Boolean),
     [normalizedSearch],
@@ -231,7 +245,7 @@ const Topbar = () => {
     if (queryTokens.length === 0) return []
 
     const matchesQuery = (parts: Array<string | null | undefined>) => {
-      const text = parts.filter(Boolean).join(' ').toLowerCase()
+      const text = normalizeSearchText(parts.filter(Boolean).join(' '))
       return queryTokens.every((token) => text.includes(token))
     }
 
@@ -251,7 +265,7 @@ const Topbar = () => {
     if (queryTokens.length === 0) return []
 
     const matchesQuery = (parts: Array<string | null | undefined>) => {
-      const text = parts.filter(Boolean).join(' ').toLowerCase()
+      const text = normalizeSearchText(parts.filter(Boolean).join(' '))
       return queryTokens.every((token) => text.includes(token))
     }
 
@@ -269,7 +283,7 @@ const Topbar = () => {
           meeting.title,
           meeting.description,
           projectName,
-          isCourse ? 'course training study dao tao khoa hoc' : 'meeting hop workspace',
+          isCourse ? 'course training study đào tạo khóa học lớp học' : 'meeting họp phiên workspace',
         ])
       })
       .slice(0, MAX_SESSION_SUGGESTIONS)
@@ -286,7 +300,7 @@ const Topbar = () => {
           : ''
 
         const subtitleParts = [
-          projectName ? `${lt('Du an', 'Project')}: ${projectName}` : undefined,
+          projectName ? `${lt('Dự án', 'Project')}: ${projectName}` : undefined,
           formattedDate || undefined,
         ].filter(Boolean)
 
@@ -294,7 +308,7 @@ const Topbar = () => {
           id: meeting.id,
           entityType: isCourse ? 'course' : 'meeting',
           title: meeting.title,
-          subtitle: subtitleParts.length ? subtitleParts.join(' � ') : undefined,
+          subtitle: subtitleParts.length ? subtitleParts.join(' • ') : undefined,
           route: `/app/meetings/${meeting.id}/detail`,
         }
       })
@@ -303,9 +317,9 @@ const Topbar = () => {
   const firstSuggestion = projectSuggestions[0] || sessionSuggestions[0] || null
 
   const getEntityTag = useCallback((entityType: SearchEntityType) => {
-    if (entityType === 'project') return lt('Du an', 'Project')
-    if (entityType === 'course') return lt('Training', 'Course')
-    return lt('Meeting', 'Meeting')
+    if (entityType === 'project') return lt('Dự án', 'Project')
+    if (entityType === 'course') return lt('Khóa học', 'Course')
+    return lt('Phiên', 'Session')
   }, [lt])
 
   const renderSuggestionIcon = useCallback((entityType: SearchEntityType) => {
@@ -323,9 +337,7 @@ const Topbar = () => {
 
   const handleSearchFocus = () => {
     setIsSearchOpen(true)
-    if (!hasSearchIndexLoaded) {
-      void loadSearchIndex()
-    }
+    void loadSearchIndex(true)
   }
 
   const handleSearchInputChange = (nextValue: string) => {
@@ -363,7 +375,7 @@ const Topbar = () => {
             <button
               className="topbar__icon-btn"
               onClick={toggleLanguage}
-              title={language === 'vi' ? 'Switch to English' : lt('Chuyen sang tieng Viet', 'Switch to Vietnamese')}
+              title={language === 'vi' ? 'Switch to English' : lt('Chuyển sang tiếng Việt', 'Switch to Vietnamese')}
               type="button"
             >
               {languageSwitchLabel}
@@ -371,7 +383,7 @@ const Topbar = () => {
             <button
               className="topbar__icon-btn topbar__dock-back"
               onClick={() => navigate(-1)}
-              title={lt('Quay lai', 'Back')}
+              title={lt('Quay lại', 'Back')}
               type="button"
             >
               <ArrowLeft size={18} />
@@ -407,7 +419,7 @@ const Topbar = () => {
               <input
                 type="search"
                 className="topbar__search-input"
-                placeholder={lt('Tim cuoc hop, khoa dao tao, du an...', 'Search meetings, training courses, projects...')}
+                placeholder={lt('Tìm cuộc họp, khóa đào tạo, dự án...', 'Search meetings, training courses, projects...')}
                 value={searchTerm}
                 onFocus={handleSearchFocus}
                 onChange={(event) => handleSearchInputChange(event.target.value)}
@@ -426,7 +438,7 @@ const Topbar = () => {
                 <button
                   type="button"
                   className="topbar__search-clear"
-                  title={lt('Xoa tim kiem', 'Clear search')}
+                  title={lt('Xóa tìm kiếm', 'Clear search')}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={clearSearchInput}
                 >
@@ -435,14 +447,14 @@ const Topbar = () => {
               )}
 
               {isSearchOpen && (
-                <div className="topbar-search__panel" role="listbox" aria-label={lt('Goi y tim kiem', 'Search suggestions')}>
+                <div className="topbar-search__panel" role="listbox" aria-label={lt('Gợi ý tìm kiếm', 'Search suggestions')}>
                   {isSearchLoading && !hasSearchIndexLoaded && (
-                    <div className="topbar-search__empty">{lt('Dang tai du lieu...', 'Loading data...')}</div>
+                    <div className="topbar-search__empty">{lt('Đang tải dữ liệu...', 'Loading data...')}</div>
                   )}
 
                   {showRecentSearches ? (
                     <div className="topbar-search__section">
-                      <div className="topbar-search__section-title">{lt('Tim kiem gan day', 'Recent searches')}</div>
+                      <div className="topbar-search__section-title">{lt('Tìm kiếm gần đây', 'Recent searches')}</div>
                       {recentSearches.length > 0 ? (
                         recentSearches.map((suggestion) => (
                           <button
@@ -466,7 +478,7 @@ const Topbar = () => {
                         ))
                       ) : (
                         <div className="topbar-search__empty">
-                          {lt('Bat dau go de tim meeting, training course, project.', 'Start typing to search meetings, training courses, and projects.')}
+                          {lt('Bắt đầu gõ để tìm phiên, khóa đào tạo hoặc dự án.', 'Start typing to search meetings, training courses, and projects.')}
                         </div>
                       )}
                     </div>
@@ -474,7 +486,7 @@ const Topbar = () => {
                     <>
                       {projectSuggestions.length > 0 && (
                         <div className="topbar-search__section">
-                          <div className="topbar-search__section-title">{lt('Du an', 'Projects')}</div>
+                          <div className="topbar-search__section-title">{lt('Dự án', 'Projects')}</div>
                           {projectSuggestions.map((suggestion) => (
                             <button
                               key={`${suggestion.entityType}-${suggestion.id}`}
@@ -500,7 +512,7 @@ const Topbar = () => {
 
                       {sessionSuggestions.length > 0 && (
                         <div className="topbar-search__section">
-                          <div className="topbar-search__section-title">{lt('Sessions', 'Sessions')}</div>
+                          <div className="topbar-search__section-title">{lt('Phiên', 'Sessions')}</div>
                           {sessionSuggestions.map((suggestion) => (
                             <button
                               key={`${suggestion.entityType}-${suggestion.id}`}
@@ -525,7 +537,7 @@ const Topbar = () => {
                       )}
 
                       {!hasMatchedResults && !isSearchLoading && (
-                        <div className="topbar-search__empty">{lt('Khong tim thay ket qua phu hop.', 'No matching results found.')}</div>
+                        <div className="topbar-search__empty">{lt('Không tìm thấy kết quả phù hợp.', 'No matching results found.')}</div>
                       )}
                     </>
                   )}
@@ -542,7 +554,7 @@ const Topbar = () => {
             <button
               className="topbar__icon-btn"
               onClick={toggleLanguage}
-              title={language === 'vi' ? 'Switch to English' : lt('Chuyen sang tieng Viet', 'Switch to Vietnamese')}
+              title={language === 'vi' ? 'Switch to English' : lt('Chuyển sang tiếng Việt', 'Switch to Vietnamese')}
               type="button"
             >
               {languageSwitchLabel}
@@ -553,7 +565,7 @@ const Topbar = () => {
             <button
               type="button"
               className="topbar__icon-btn topbar__icon-btn--logout"
-              title={lt('Quay ve landing page', 'Back to landing page')}
+              title={lt('Quay về landing page', 'Back to landing page')}
               onClick={handleLogout}
             >
               <LogOut size={18} />
@@ -566,3 +578,4 @@ const Topbar = () => {
 }
 
 export default Topbar
+

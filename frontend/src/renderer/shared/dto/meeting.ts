@@ -130,3 +130,4 @@ export function getMeetingPhaseLabel(phase: MeetingPhase, language: LocaleCode =
   }
   return MEETING_PHASE_LABELS[phase] || phase;
 }
+
