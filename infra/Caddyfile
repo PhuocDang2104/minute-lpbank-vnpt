@@ -1,4 +1,4 @@
-api.yourdomain.com {
+minute-api.duckdns.org {
   encode zstd gzip
   reverse_proxy minute_backend:8000
 }
