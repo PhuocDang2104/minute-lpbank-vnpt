@@ -41,6 +41,7 @@
 | [ASR Docker](ASR_DOCKER.md) | ASR service (whisper.cpp) setup |
 | [In-Meeting Video Capture Handoff](implementation/IN_MEETING_VIDEO_CAPTURE_API_HANDOFF.md) | API handoff for video capture -> transcript + visual RAG context |
 | [Auth Session Handoff 2026-02-24](implementation/2026-02-24_AUTH_SESSION_HANDOFF.md) | Current auth/session implementation handoff (backend + frontend + env) |
+| [Aiven Schema Update Runbook](implementation/SCHEMA_UPDATE_AIVEN_RUNBOOK.md) | Runbook để update/reset schema trên Aiven an toàn (backup, strict/non-destructive) |
 | [Deployment](implementation/DEPLOYMENT.md) | Deploy guide |
 
 ## 🚀 Quick Start
