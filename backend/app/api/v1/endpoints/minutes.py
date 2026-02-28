@@ -16,6 +16,7 @@ from app.schemas.minutes import (
     GenerateMinutesRequest, DistributeMinutesRequest
 )
 from app.services import minutes_service, participant_service
+from app.core.security import get_current_user_optional
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -180,11 +181,13 @@ def render_minutes_full_page(
 @router.post('/generate', response_model=MeetingMinutesResponse)
 async def generate_minutes(
     request: GenerateMinutesRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """Generate meeting minutes using AI"""
+    current_user_id = str((current_user or {}).get("sub") or "").strip() or None
     try:
-        minutes = await minutes_service.generate_minutes_with_ai(db, request)
+        minutes = await minutes_service.generate_minutes_with_ai(db, request, user_id=current_user_id)
         return minutes
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

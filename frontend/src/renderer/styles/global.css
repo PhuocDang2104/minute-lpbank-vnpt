@@ -16488,6 +16488,9 @@ a {
   right: 0;
   top: calc(100% + 10px);
   width: min(360px, 88vw);
+  max-height: min(70vh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-radius: 14px;
   border: 1px solid rgba(145, 101, 31, 0.28);
   background: #fffdf8;

@@ -243,15 +243,26 @@ def create_meeting(db: Session, payload: MeetingCreate) -> Meeting:
     meeting_id = str(uuid4())
     now = datetime.utcnow()
     
-    # Check if organizer_id exists in user_account
+    # Check if organizer_id exists in either user_account or profiles.
     organizer_id = None
     if payload.organizer_id:
         check_user = db.execute(
             text("SELECT id FROM user_account WHERE id = :user_id"),
-            {'user_id': payload.organizer_id}
+            {'user_id': payload.organizer_id},
         )
         if check_user.fetchone():
             organizer_id = payload.organizer_id
+        else:
+            try:
+                check_profile = db.execute(
+                    text("SELECT id FROM profiles WHERE id = :user_id"),
+                    {'user_id': payload.organizer_id},
+                )
+                if check_profile.fetchone():
+                    organizer_id = payload.organizer_id
+            except Exception:
+                # profiles table might not exist in legacy deployments
+                pass
     
     # Check if project_id exists
     project_id = None

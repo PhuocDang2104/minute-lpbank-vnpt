@@ -859,7 +859,8 @@ def approve_minutes(
 
 async def generate_minutes_with_ai(
     db: Session,
-    request: GenerateMinutesRequest
+    request: GenerateMinutesRequest,
+    user_id: Optional[str] = None,
 ) -> MeetingMinutesResponse:
     """Generate minutes with two prompt strategies and feature-specific sections."""
     from app.llm.gemini_client import MeetingAIAssistant
@@ -1020,16 +1021,49 @@ async def generate_minutes_with_ai(
     }
 
     llm_config = None
-    if organizer_id:
-        try:
-            from app.services import user_service
-            from app.llm.gemini_client import LLMConfig
-            override = user_service.get_user_llm_override(db, str(organizer_id))
-            if override:
-                llm_config = LLMConfig(**override)
-        except Exception as exc:
-            logger.warning("Failed to load LLM settings for organizer %s: %s", organizer_id, exc)
-            db.rollback()
+    runtime_candidates: List[str] = []
+    for candidate in (organizer_id, user_id, "00000000-0000-0000-0000-000000000001"):
+        normalized = str(candidate or "").strip()
+        if not normalized or normalized in runtime_candidates:
+            continue
+        runtime_candidates.append(normalized)
+
+    try:
+        from app.services import user_service
+        from app.llm.gemini_client import LLMConfig
+        for candidate in runtime_candidates:
+            override = user_service.get_user_llm_override(
+                db,
+                candidate,
+                allow_demo_fallback=(candidate == "00000000-0000-0000-0000-000000000001"),
+            )
+            if not override:
+                continue
+            llm_config = LLMConfig(**override)
+            logger.info(
+                "Using runtime LLM settings for minutes meeting_id=%s user_id=%s provider=%s model=%s",
+                meeting_id,
+                candidate,
+                llm_config.provider,
+                llm_config.model,
+            )
+            break
+    except Exception as exc:
+        logger.warning(
+            "Failed to load runtime LLM settings for meeting_id=%s organizer_id=%s user_id=%s: %s",
+            meeting_id,
+            organizer_id,
+            user_id,
+            exc,
+        )
+        db.rollback()
+    if not llm_config:
+        logger.info(
+            "No user-specific LLM override found for meeting_id=%s organizer_id=%s user_id=%s. Falling back to environment defaults.",
+            meeting_id,
+            organizer_id,
+            user_id,
+        )
 
     assistant = MeetingAIAssistant(
         meeting_id,

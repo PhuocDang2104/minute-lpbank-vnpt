@@ -148,6 +148,7 @@ const Dashboard = () => {
   const [advancedSaving, setAdvancedSaving] = useState(false)
   const [advancedError, setAdvancedError] = useState<string | null>(null)
   const [advancedNotice, setAdvancedNotice] = useState<string | null>(null)
+  const [advancedLoaded, setAdvancedLoaded] = useState(false)
   const [currentTime, setCurrentTime] = useState(() => new Date())
 
   const [viewMonth, setViewMonth] = useState(() => new Date())
@@ -202,6 +203,10 @@ const Dashboard = () => {
   }, [])
 
   useEffect(() => {
+    setAdvancedLoaded(false)
+  }, [activeUserId])
+
+  useEffect(() => {
     if (!advancedOpen) return
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -214,17 +219,6 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!advancedOpen) return
-    const onMouseDown = (event: MouseEvent) => {
-      const target = event.target as Node | null
-      if (advancedPanelRef.current?.contains(target)) return
-      setAdvancedOpen(false)
-    }
-    document.addEventListener('mousedown', onMouseDown)
-    return () => document.removeEventListener('mousedown', onMouseDown)
-  }, [advancedOpen])
-
-  useEffect(() => {
-    if (!advancedOpen) return
     let isActive = true
 
     const loadAdvancedSettings = async () => {
@@ -233,7 +227,9 @@ const Dashboard = () => {
         return
       }
 
-      setAdvancedLoading(true)
+      if (!advancedLoaded) {
+        setAdvancedLoading(true)
+      }
       setAdvancedError(null)
       setAdvancedNotice(null)
 
@@ -246,6 +242,7 @@ const Dashboard = () => {
         const nextModel = options.some(item => item.value === response.model) ? response.model : fallbackModel
         setAdvancedProvider(provider)
         setAdvancedModel(nextModel)
+        setAdvancedLoaded(true)
       } catch {
         if (!isActive) return
         setAdvancedError(lt('Không thể tải cấu hình model. Vui lòng thử lại.', 'Unable to load model settings. Please try again.'))
@@ -260,7 +257,7 @@ const Dashboard = () => {
     return () => {
       isActive = false
     }
-  }, [activeUserId, advancedOpen, lt])
+  }, [activeUserId, advancedOpen, language])
 
   const greetingMessage = useMemo(() => {
     const hour = currentTime.getHours()
@@ -330,7 +327,14 @@ const Dashboard = () => {
   }
 
   const handleAskAdvanced = () => {
-    setAdvancedOpen(prev => !prev)
+    setAdvancedOpen((prev) => {
+      const next = !prev
+      if (next) {
+        setAdvancedNotice(null)
+        setAdvancedError(null)
+      }
+      return next
+    })
   }
 
   const handleProviderChange = (nextProvider: LlmProvider) => {
@@ -357,6 +361,7 @@ const Dashboard = () => {
       const nextModel = options.some(item => item.value === result.model) ? result.model : fallbackModel
       setAdvancedProvider(provider)
       setAdvancedModel(nextModel)
+      setAdvancedLoaded(true)
       setAdvancedNotice(lt('Đã lưu model mặc định cho Ask AI.', 'Default Ask AI model saved.'))
     } catch {
       setAdvancedError(lt('Không thể lưu cấu hình model. Vui lòng thử lại.', 'Unable to save model settings. Please try again.'))
@@ -412,7 +417,12 @@ const Dashboard = () => {
                   {lt('Cài đặt Ask AI', 'Ask AI settings')}
                 </button>
                 {advancedOpen && (
-                  <div className="home-hub-ai__dropdown" role="dialog" aria-label={lt('Cài đặt Ask AI', 'Ask AI settings')}>
+                  <div
+                    className="home-hub-ai__dropdown"
+                    role="dialog"
+                    aria-label={lt('Cài đặt Ask AI', 'Ask AI settings')}
+                    onMouseDown={(event) => event.stopPropagation()}
+                  >
                     <div className="home-hub-ai__dropdown-head">
                       <strong>{lt('Mô hình mặc định', 'Default model')}</strong>
                       <Link to="/app/settings" className="home-hub-ai__dropdown-link" onClick={() => setAdvancedOpen(false)}>
@@ -657,4 +667,3 @@ const Dashboard = () => {
 }
 
 export default Dashboard
-

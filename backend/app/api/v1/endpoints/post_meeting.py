@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.minutes import GenerateMinutesRequest, DistributeMinutesRequest
 from app.services import minutes_service, action_item_service, participant_service, summary_service
+from app.core.security import get_current_user_optional
 
 router = APIRouter()
 
@@ -71,11 +72,13 @@ def get_meeting_minutes(
 @router.post('/minutes/generate', response_model=dict)
 async def generate_meeting_minutes(
     request: GenerateMinutesRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict | None = Depends(get_current_user_optional),
 ):
     """Generate meeting minutes using AI"""
+    current_user_id = str((current_user or {}).get("sub") or "").strip() or None
     try:
-        minutes = await minutes_service.generate_minutes_with_ai(db, request)
+        minutes = await minutes_service.generate_minutes_with_ai(db, request, user_id=current_user_id)
         return {
             "status": "success",
             "minutes": minutes.model_dump()

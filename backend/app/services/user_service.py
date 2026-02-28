@@ -416,7 +416,12 @@ def update_llm_settings(
     return _normalize_llm_settings(llm)
 
 
-def get_user_llm_override(db: Session, user_id: str) -> Optional[Dict[str, Any]]:
+def get_user_llm_override(
+    db: Session,
+    user_id: str,
+    *,
+    allow_demo_fallback: bool = True,
+) -> Optional[Dict[str, Any]]:
     def _fetch_override(target_user_id: str) -> Optional[Dict[str, Any]]:
         query = text("SELECT preferences FROM user_account WHERE id = :user_id")
         result = db.execute(query, {"user_id": target_user_id})
@@ -441,14 +446,14 @@ def get_user_llm_override(db: Session, user_id: str) -> Optional[Dict[str, Any]]
         behavior = llm.get("behavior") if isinstance(llm.get("behavior"), dict) else {}
         behavior = _normalize_behavior(behavior)
         behavior_profile = _build_behavior_profile(behavior.model_dump())
-        if not (provider and model and api_key):
+        if not (provider and model):
             return None
         if provider not in ("gemini", "groq"):
             return None
         return {
             "provider": provider,
             "model": model,
-            "api_key": api_key,
+            "api_key": api_key or "",
             "master_prompt": master_prompt,
             "behavior_note_style": behavior.note_style,
             "behavior_tone": behavior.tone,
@@ -464,6 +469,9 @@ def get_user_llm_override(db: Session, user_id: str) -> Optional[Dict[str, Any]]
 
     if override:
         return override
+
+    if not allow_demo_fallback:
+        return None
 
     demo_id = _DEMO_LLM_USER_ID
     if user_id == demo_id:
