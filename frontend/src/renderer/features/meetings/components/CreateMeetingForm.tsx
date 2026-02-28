@@ -94,25 +94,25 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
     const nextErrors: FormErrors = {};
 
     if (!formData.title.trim()) {
-      nextErrors.title = lt('Vui long nhap tieu de phien.', 'Please enter a session title.');
+      nextErrors.title = lt('Vui lòng nhập tiêu đề phiên.', 'Please enter a session title.');
     }
 
     if (!formData.is_instant) {
       if (!formData.session_date) {
-        nextErrors.session_date = lt('Vui long chon ngay dien ra.', 'Please select the session date.');
+        nextErrors.session_date = lt('Vui lòng chọn ngày diễn ra.', 'Please select the session date.');
       }
       if (!formData.start_time) {
-        nextErrors.start_time = lt('Vui long chon gio bat dau.', 'Please select a start time.');
+        nextErrors.start_time = lt('Vui lòng chọn giờ bắt đầu.', 'Please select a start time.');
       }
       if (!formData.end_time) {
-        nextErrors.end_time = lt('Vui long chon gio ket thuc.', 'Please select an end time.');
+        nextErrors.end_time = lt('Vui lòng chọn giờ kết thúc.', 'Please select an end time.');
       }
 
       if (!nextErrors.session_date && !nextErrors.start_time && !nextErrors.end_time) {
         const start = new Date(`${formData.session_date}T${formData.start_time}`);
         const end = new Date(`${formData.session_date}T${formData.end_time}`);
         if (end.getTime() <= start.getTime()) {
-          nextErrors.end_time = lt('Gio ket thuc phai sau gio bat dau.', 'End time must be after start time.');
+          nextErrors.end_time = lt('Giờ kết thúc phải sau giờ bắt đầu.', 'End time must be after start time.');
         }
       }
     }
@@ -158,7 +158,7 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
       onSuccess(response.id);
     } catch (err) {
       console.error('Failed to create session:', err);
-      setError(lt('Khong the tao phien. Vui long thu lai.', 'Unable to create session. Please try again.'));
+      setError(lt('Không thể tạo phiên. Vui lòng thử lại.', 'Unable to create session. Please try again.'));
       setStep('details');
     } finally {
       setIsSubmitting(false);
@@ -169,8 +169,8 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
     return (
       <div className="mode-selection-container" style={{ textAlign: 'center', padding: '60px 0' }}>
         <Loader2 size={48} className="spinner" style={{ animation: 'spin 1s linear infinite', color: '#6366f1', margin: '0 auto 24px' }} />
-        <h3 style={{ fontSize: 18, color: 'var(--text-primary)' }}>{lt('Dang tao phien...', 'Creating session...')}</h3>
-        <p style={{ color: 'var(--text-secondary)', marginTop: 8 }}>{lt('Vui long doi trong giay lat', 'Please wait a moment')}</p>
+        <h3 style={{ fontSize: 18, color: 'var(--text-primary)' }}>{lt('Đang tạo phiên...', 'Creating session...')}</h3>
+        <p style={{ color: 'var(--text-secondary)', marginTop: 8 }}>{lt('Vui lòng đợi trong giây lát', 'Please wait a moment')}</p>
       </div>
     );
   }
@@ -179,10 +179,10 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
     return (
       <div className="mode-selection-container" style={{ textAlign: 'center', padding: '20px 0' }}>
         <h3 style={{ marginBottom: 8, fontSize: 18, color: 'var(--text-primary)' }}>
-          {lt('Buoc 1: Chon loai phien', 'Step 1: Choose session type')}
+          {lt('Bước 1: Chọn loại phiên', 'Step 1: Choose session type')}
         </h3>
         <p style={{ marginBottom: 24, fontSize: 13, color: 'var(--text-secondary)' }}>
-          {lt('Sau khi chon, ban se dien thong tin truoc khi tao phien.', 'After selecting, you will fill session details before creation.')}
+          {lt('Sau khi chọn, bạn sẽ điền thông tin trước khi tạo phiên.', 'After selecting, you will fill session details before creation.')}
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
@@ -218,10 +218,10 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
             </div>
             <div>
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
-                {lt('Du an / Cong viec', 'Project / Work')}
+                {lt('Dự án / Công việc', 'Project / Work')}
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                {lt('Phien lam viec cho doi nhom va du an', 'Working session for teams and projects')}
+                {lt('Phiên làm việc cho đội nhóm và dự án', 'Working session for teams and projects')}
               </div>
             </div>
           </button>
@@ -258,10 +258,10 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
             </div>
             <div>
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
-                {lt('Lop hoc online', 'Online Class')}
+                {lt('Lớp học online', 'Online Class')}
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                {lt('Phien dua tren kich ban hoc tap', 'Session tailored for study workflow')}
+                {lt('Phiên dựa trên kịch bản học tập', 'Session tailored for study workflow')}
               </div>
             </div>
           </button>
@@ -269,7 +269,7 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
 
         <div style={{ marginTop: 32, display: 'flex', justifyContent: 'center' }}>
           <button type="button" className="btn btn--ghost" onClick={onCancel} disabled={isSubmitting}>
-            {lt('Huy bo', 'Cancel')}
+            {lt('Hủy bỏ', 'Cancel')}
           </button>
         </div>
       </div>
@@ -280,17 +280,17 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
     <form onSubmit={handleSubmit}>
       <div style={{ marginBottom: 16 }}>
         <h3 style={{ marginBottom: 6, fontSize: 17, color: 'var(--text-primary)' }}>
-          {lt('Buoc 2: Dien thong tin phien', 'Step 2: Fill session details')}
+          {lt('Bước 2: Điền thông tin phiên', 'Step 2: Fill session details')}
         </h3>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          {lt('Hoan tat thong tin nay truoc khi tao session.', 'Complete these fields before creating the session.')}
+          {lt('Hoàn tất thông tin này trước khi tạo session.', 'Complete these fields before creating the session.')}
         </p>
       </div>
 
       {error && <div className="form-error" style={{ marginBottom: 12 }}>{error}</div>}
 
       <div className="form-group">
-        <label className="form-label">{lt('Loai phien', 'Session type')}</label>
+        <label className="form-label">{lt('Loại phiên', 'Session type')}</label>
         <select
           className="form-select"
           value={formData.meeting_type}
@@ -303,33 +303,33 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
       </div>
 
       <div className="form-group">
-        <label className="form-label">{lt('Tieu de phien *', 'Session title *')}</label>
+        <label className="form-label">{lt('Tiêu đề phiên *', 'Session title *')}</label>
         <input
           type="text"
           className={`form-input ${errors.title ? 'form-input--error' : ''}`}
           value={formData.title}
           onChange={(e) => handleChange('title', e.target.value)}
-          placeholder={lt('Nhap tieu de phien', 'Enter session title')}
+          placeholder={lt('Nhập tiêu đề phiên', 'Enter session title')}
           disabled={isSubmitting}
         />
         {errors.title && <span className="form-field__error">{errors.title}</span>}
       </div>
 
       <div className="form-group">
-        <label className="form-label">{lt('Mo ta', 'Description')}</label>
+        <label className="form-label">{lt('Mô tả', 'Description')}</label>
         <textarea
           className="form-textarea"
           rows={3}
           value={formData.description}
           onChange={(e) => handleChange('description', e.target.value)}
-          placeholder={lt('Nhap mo ta ngan', 'Enter a short description')}
+          placeholder={lt('Nhập mô tả ngắn', 'Enter a short description')}
           disabled={isSubmitting}
         />
       </div>
 
       {!projectId && (
         <div className="form-group">
-          <label className="form-label">{lt('Du an (tuy chon)', 'Project (optional)')}</label>
+          <label className="form-label">{lt('Dự án (tùy chọn)', 'Project (optional)')}</label>
           <select
             className="form-select"
             value={formData.project_id}
@@ -346,7 +346,7 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
       )}
 
       <div className="form-group">
-        <label className="form-label">{lt('Ngay dien ra', 'Session date')}</label>
+        <label className="form-label">{lt('Ngày diễn ra', 'Session date')}</label>
         <input
           type="date"
           className={`form-input ${errors.session_date ? 'form-input--error' : ''}`}
@@ -369,14 +369,14 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
             }}
             disabled={isSubmitting}
           />
-          <span>{lt('Phien tuc thi (khong co ngay dien ra - N/A)', 'Instant session (no session date - N/A)')}</span>
+          <span>{lt('Phiên tức thì (không có ngày diễn ra - N/A)', 'Instant session (no session date - N/A)')}</span>
         </label>
       </div>
 
       {!formData.is_instant && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-base)' }}>
           <div className="form-group">
-            <label className="form-label">{lt('Gio bat dau *', 'Start time *')}</label>
+            <label className="form-label">{lt('Giờ bắt đầu *', 'Start time *')}</label>
             <input
               type="time"
               className={`form-input ${errors.start_time ? 'form-input--error' : ''}`}
@@ -387,7 +387,7 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
             {errors.start_time && <span className="form-field__error">{errors.start_time}</span>}
           </div>
           <div className="form-group">
-            <label className="form-label">{lt('Gio ket thuc *', 'End time *')}</label>
+            <label className="form-label">{lt('Giờ kết thúc *', 'End time *')}</label>
             <input
               type="time"
               className={`form-input ${errors.end_time ? 'form-input--error' : ''}`}
@@ -407,14 +407,14 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
           onClick={() => setStep('selection')}
           disabled={isSubmitting}
         >
-          {lt('Quay lai', 'Back')}
+          {lt('Quay lại', 'Back')}
         </button>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" className="btn btn--secondary" onClick={onCancel} disabled={isSubmitting}>
-            {lt('Huy', 'Cancel')}
+            {lt('Hủy', 'Cancel')}
           </button>
           <button type="submit" className="btn btn--primary" disabled={isSubmitting}>
-            {lt('Tao session', 'Create session')}
+            {lt('Tạo session', 'Create session')}
           </button>
         </div>
       </div>
@@ -423,3 +423,4 @@ export const CreateMeetingForm = ({ onSuccess, onCancel, projectId }: CreateMeet
 };
 
 export default CreateMeetingForm;
+

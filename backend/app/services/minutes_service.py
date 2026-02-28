@@ -1021,7 +1021,8 @@ def approve_minutes(
 
 async def generate_minutes_with_ai(
     db: Session,
-    request: GenerateMinutesRequest
+    request: GenerateMinutesRequest,
+    user_id: Optional[str] = None,
 ) -> MeetingMinutesResponse:
     """Generate minutes with two prompt strategies and feature-specific sections."""
     from app.llm.gemini_client import MeetingAIAssistant
@@ -1182,57 +1183,49 @@ async def generate_minutes_with_ai(
     }
 
     llm_config = None
-    requested_user_id = str(getattr(request, "request_user_id", "") or "").strip()
-    organizer_user_id = str(organizer_id).strip() if organizer_id else ""
-    candidate_user_ids: List[str] = []
-    for candidate in (requested_user_id, organizer_user_id):
-        if candidate and candidate not in candidate_user_ids:
-            candidate_user_ids.append(candidate)
+    runtime_candidates: List[str] = []
+    for candidate in (organizer_id, user_id, "00000000-0000-0000-0000-000000000001"):
+        normalized = str(candidate or "").strip()
+        if not normalized or normalized in runtime_candidates:
+            continue
+        runtime_candidates.append(normalized)
 
     try:
         from app.services import user_service
         from app.llm.gemini_client import LLMConfig
-
-        override = None
-        source_user_id = None
-
-        # Prefer explicit requester key first, then organizer key.
-        for candidate_id in candidate_user_ids:
+        for candidate in runtime_candidates:
             override = user_service.get_user_llm_override(
                 db,
-                candidate_id,
-                allow_demo_fallback=False,
+                candidate,
+                allow_demo_fallback=(candidate == "00000000-0000-0000-0000-000000000001"),
             )
-            if override:
-                source_user_id = candidate_id
-                break
-
-        # If no direct key found, keep legacy fallback behavior to demo profile.
-        if not override:
-            fallback_user_id = candidate_user_ids[0] if candidate_user_ids else None
-            if fallback_user_id:
-                override = user_service.get_user_llm_override(db, fallback_user_id)
-                if override:
-                    source_user_id = fallback_user_id
-
-        if override:
+            if not override:
+                continue
             llm_config = LLMConfig(**override)
             logger.info(
-                "minutes_generate_using_user_llm meeting_id=%s user_id=%s provider=%s model=%s",
+                "Using runtime LLM settings for minutes meeting_id=%s user_id=%s provider=%s model=%s",
                 meeting_id,
-                source_user_id or "unknown",
-                override.get("provider"),
-                override.get("model"),
+                candidate,
+                llm_config.provider,
+                llm_config.model,
             )
+            break
     except Exception as exc:
         logger.warning(
-            "Failed to load LLM settings for meeting %s (requested=%s organizer=%s): %s",
+            "Failed to load runtime LLM settings for meeting_id=%s organizer_id=%s user_id=%s: %s",
             meeting_id,
-            requested_user_id or "none",
-            organizer_user_id or "none",
+            organizer_id,
+            user_id,
             exc,
         )
         db.rollback()
+    if not llm_config:
+        logger.info(
+            "No user-specific LLM override found for meeting_id=%s organizer_id=%s user_id=%s. Falling back to environment defaults.",
+            meeting_id,
+            organizer_id,
+            user_id,
+        )
 
     assistant = MeetingAIAssistant(
         meeting_id,

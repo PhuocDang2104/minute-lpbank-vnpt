@@ -10,6 +10,7 @@ from uuid import uuid4
 from typing import Optional
 import json
 import hashlib
+import logging
 
 from app.core.config import get_settings
 from app.db.session import get_db
@@ -33,6 +34,7 @@ from app.core.security import get_current_user_optional
 
 router = APIRouter()
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 HOME_ASK_CONTEXT = """MINUTE | Tro ly thong minh cho meetings va study sessions
 (Web app + Multimodal Companion Agent + LightRAG + Tool-calling)
@@ -109,29 +111,31 @@ def _load_runtime_llm_config(
                 organizer_id = str(row[0])
         except Exception:
             db.rollback()
+    candidate_ids: list[str] = []
+    for candidate in (organizer_id, user_id, _DEMO_LLM_USER_ID):
+        normalized = str(candidate or "").strip()
+        if not normalized or normalized in candidate_ids:
+            continue
+        candidate_ids.append(normalized)
 
-    candidate_user_ids: list[str] = []
-    for candidate in (user_id, organizer_id):
-        value = str(candidate or "").strip()
-        if value and value not in candidate_user_ids:
-            candidate_user_ids.append(value)
-
-    try:
-        for candidate_id in candidate_user_ids:
+    for candidate_id in candidate_ids:
+        try:
             override = user_service.get_user_llm_override(
                 db,
                 candidate_id,
-                allow_demo_fallback=False,
+                allow_demo_fallback=(candidate_id == _DEMO_LLM_USER_ID),
             )
             if override:
                 return LLMConfig(**override)
-
-        fallback_target = candidate_user_ids[0] if candidate_user_ids else _DEMO_LLM_USER_ID
-        override = user_service.get_user_llm_override(db, fallback_target, allow_demo_fallback=True)
-        if override:
-            return LLMConfig(**override)
-    except Exception:
-        db.rollback()
+        except Exception as exc:
+            logger.warning("Failed to load runtime LLM settings for user %s: %s", candidate_id, exc)
+            db.rollback()
+    logger.info(
+        "No runtime LLM override found meeting_id=%s user_id=%s (candidates=%s). Using environment defaults.",
+        meeting_id,
+        user_id,
+        candidate_ids,
+    )
     return None
 
 
@@ -224,6 +228,14 @@ async def send_message(
     current_user_id = str((current_user or {}).get("sub") or "").strip() or None
     llm_config = _load_runtime_llm_config(db, request.meeting_id, user_id=current_user_id)
     session_id, session = get_or_create_session(request.session_id, request.meeting_id, llm_config)
+    if llm_config:
+        logger.info(
+            "send_message runtime_llm meeting_id=%s user_id=%s provider=%s model=%s",
+            request.meeting_id,
+            current_user_id or "anonymous",
+            llm_config.provider,
+            llm_config.model,
+        )
     
     # Get meeting context if requested
     context = None
@@ -248,7 +260,7 @@ async def send_message(
     chat: GeminiChat = session['chat']
     response_text = ""
     response_sources = None
-    confidence = 0.85 if is_gemini_available() else 0.7
+    confidence = 0.85 if chat.provider != "mock" else 0.7
 
     if request.include_context and request.meeting_id:
         try:
@@ -268,7 +280,7 @@ async def send_message(
             response_sources = [doc.title for doc in rag_result.relevant_documents] or None
             confidence = float(rag_result.confidence or confidence)
         except Exception as exc:
-            print(f"RAG query failed, fallback to chat: {exc}")
+            logger.warning("RAG query failed (fallback to chat), meeting_id=%s: %s", request.meeting_id, exc)
 
     if not response_text:
         response_text = await chat.chat(request.message, context)
@@ -309,7 +321,7 @@ async def send_message(
             })
             db.commit()
         except Exception as e:
-            print(f"Failed to save chat message: {e}")
+            logger.warning("Failed to save chat message, meeting_id=%s session_id=%s: %s", request.meeting_id, session_id, e)
     
     return ChatResponse(
         id=str(uuid4()),
@@ -340,12 +352,18 @@ async def home_ask(
         llm_config=llm_config,
     )
     response_text = await chat.chat(message)
+    logger.info(
+        "home_ask completed user_id=%s provider=%s model=%s",
+        current_user_id or "anonymous",
+        chat.provider,
+        chat.model_name or "n/a",
+    )
 
     return ChatResponse(
         id=str(uuid4()),
         message=response_text,
         role='assistant',
-        confidence=0.85 if is_gemini_available() else 0.7,
+        confidence=0.85 if chat.provider != "mock" else 0.7,
         created_at=datetime.utcnow()
     )
 

@@ -307,12 +307,37 @@ def _select_provider(
     return "mock"
 
 
+def _is_model_not_found_error(exc: Exception) -> bool:
+    raw = str(exc).lower()
+    return (
+        ("model" in raw and "not found" in raw)
+        or ("unknown model" in raw)
+        or ("invalid model" in raw)
+        or ("does not exist" in raw and "model" in raw)
+    )
+
+
+def _groq_model_candidates(model_name: str) -> List[str]:
+    candidates: List[str] = []
+    for name in (
+        model_name,
+        settings.llm_groq_chat_model,
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+    ):
+        normalized = (name or "").strip()
+        if normalized and normalized not in candidates:
+            candidates.append(normalized)
+    return candidates
+
+
 def is_gemini_available() -> bool:
     """Check if Gemini or Groq is configured and usable."""
     provider = _select_provider()
     if provider != "mock":
         return True
-    print("[AI] No AI API key configured (Gemini or Groq)")
+    logger.warning("[AI] No AI API key configured (Gemini or Groq)")
     return False
 
 
@@ -416,7 +441,7 @@ def _gemini_generate(
             break
 
     if last_error:
-        print(f"[gemini] generate error: {last_error}")
+        logger.error("[gemini] generate error model=%s: %s", model_name, last_error)
     return ""
 
 
@@ -431,21 +456,40 @@ def _groq_generate(
 ) -> str:
     client = get_groq_client(api_key)
     if not client:
+        logger.warning("[groq] generate requested but no API key is configured")
         return ""
-    try:
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-        resp = client.chat.completions.create(
-            model=model_name,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-        return (resp.choices[0].message.content or "").strip()
-    except Exception as exc:
-        print(f"[groq] generate error: {exc}")
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    last_error: Optional[Exception] = None
+    for candidate_model in _groq_model_candidates(model_name):
+        try:
+            resp = client.chat.completions.create(
+                model=candidate_model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            if candidate_model != model_name:
+                logger.warning(
+                    "[groq] fallback model used requested=%s resolved=%s",
+                    model_name,
+                    candidate_model,
+                )
+            return (resp.choices[0].message.content or "").strip()
+        except Exception as exc:
+            last_error = exc
+            if _is_model_not_found_error(exc):
+                logger.warning("[groq] model unavailable: %s (%s)", candidate_model, exc)
+                continue
+            logger.error("[groq] generate failed model=%s: %s", candidate_model, exc)
+            break
+
+    if last_error:
+        logger.error("[groq] generate error model=%s: %s", model_name, last_error)
     return ""
 
 
@@ -459,14 +503,36 @@ def _groq_chat(
 ) -> str:
     client = get_groq_client(api_key)
     if not client:
+        logger.warning("[groq] chat requested but no API key is configured")
         return ""
-    resp = client.chat.completions.create(
-        model=model_name,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
-    return (resp.choices[0].message.content or "").strip()
+
+    last_error: Optional[Exception] = None
+    for candidate_model in _groq_model_candidates(model_name):
+        try:
+            resp = client.chat.completions.create(
+                model=candidate_model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            if candidate_model != model_name:
+                logger.warning(
+                    "[groq] fallback model used requested=%s resolved=%s",
+                    model_name,
+                    candidate_model,
+                )
+            return (resp.choices[0].message.content or "").strip()
+        except Exception as exc:
+            last_error = exc
+            if _is_model_not_found_error(exc):
+                logger.warning("[groq] model unavailable: %s (%s)", candidate_model, exc)
+                continue
+            logger.error("[groq] chat failed model=%s: %s", candidate_model, exc)
+            raise
+
+    if last_error:
+        logger.error("[groq] chat error model=%s: %s", model_name, last_error)
+    return ""
 
 
 def call_llm_sync(
@@ -506,6 +572,10 @@ def call_llm_sync(
             max_tokens=max_tokens,
             api_key=groq_key,
         )
+    logger.warning(
+        "[AI] call_llm_sync in mock mode provider_override=%s",
+        provider_override or "auto",
+    )
     return ""
 
 class GeminiChat:
@@ -521,6 +591,7 @@ class GeminiChat:
         self.system_prompt = _compose_effective_system_prompt(base_system_prompt, llm_config)
         self.mock_response = mock_response or "AI is running in mock mode (no API key configured)."
         self.history: List[Dict[str, str]] = []
+        self.mock_reason: Optional[str] = None
         
         provider_override = llm_config.provider if llm_config else None
         gemini_key = llm_config.api_key if llm_config and llm_config.provider == "gemini" else None
@@ -537,6 +608,22 @@ class GeminiChat:
         else:
             self.model_name = None
             self.api_key = None
+            if provider_override == "groq":
+                self.mock_reason = "Groq is selected but no Groq API key is configured."
+            elif provider_override == "gemini":
+                self.mock_reason = "Gemini is selected but no Gemini API key is configured."
+            else:
+                self.mock_reason = "No AI API key is configured."
+
+        if self.provider == "mock" and self.mock_reason:
+            self.mock_response = f"{self.mock_response} ({self.mock_reason})"
+
+        logger.info(
+            "[AI] GeminiChat initialized provider=%s model=%s override=%s",
+            self.provider,
+            self.model_name or "n/a",
+            provider_override or "auto",
+        )
     
     def _default_system_prompt(self) -> str:
         return """You are MINUTE AI Assistant — an intelligent copilot for meetings and study sessions.
@@ -559,6 +646,7 @@ Hard rules:
 
     async def chat(self, message: str, context: Optional[str] = None) -> str:
         if self.provider == "mock":
+            logger.warning("[AI] Chat fallback to mock mode reason=%s", self.mock_reason or "unconfigured provider")
             return self._mock_response(message)
             
         try:
@@ -576,6 +664,12 @@ Hard rules:
                     max_tokens=settings.ai_max_tokens,
                     api_key=self.api_key,
                 )
+                if not (response_text or "").strip():
+                    logger.warning(
+                        "[AI] Empty Gemini response model=%s, falling back to mock response",
+                        self.model_name or settings.gemini_model,
+                    )
+                    return self._mock_response(message)
                 return self._clean_markdown(response_text)
             elif self.provider == "groq":
                 # Groq
@@ -597,13 +691,22 @@ Hard rules:
                     max_tokens=settings.ai_max_tokens,
                     api_key=self.api_key,
                 )
+                if not (assistant_message or "").strip():
+                    logger.warning(
+                        "[AI] Empty Groq response model=%s, falling back to mock response",
+                        self.model_name or settings.llm_groq_chat_model,
+                    )
+                    return self._mock_response(message)
                 self.history.append({"user": full_prompt, "assistant": assistant_message})
                 return self._clean_markdown(assistant_message)
                 
         except Exception as e:
-            import traceback
-            print(f"[{self.provider}] Chat error: {e}")
-            print(traceback.format_exc())
+            logger.exception(
+                "[AI] Chat error provider=%s model=%s: %s",
+                self.provider,
+                self.model_name or "n/a",
+                e,
+            )
             return self._mock_response(message)
     
     def _clean_markdown(self, text: str) -> str:
