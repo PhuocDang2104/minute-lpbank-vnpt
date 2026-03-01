@@ -67,6 +67,7 @@ services:
       SUPABASE_S3_SECRET_KEY: ${SUPABASE_S3_SECRET_KEY:-}
       ASR_URL: http://asr:9000
       ASR_LANGUAGE: ${ASR_LANGUAGE:-vi}
+      REALTIME_AV_RECORD_MS: ${REALTIME_AV_RECORD_MS:-10000}
       LLM_OUTPUT_LANGUAGE: ${LLM_OUTPUT_LANGUAGE:-vi}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://your-project.vercel.app}
       PYTHONPATH: /app

@@ -270,7 +270,7 @@ class RealtimeAVService:
         self._lock = threading.Lock()
         self._schema_lock = threading.Lock()
         self._schema_ensured = False
-        self.record_ms = max(1000, int(getattr(settings, "realtime_av_record_ms", 30_000)))
+        self.record_ms = max(1000, int(getattr(settings, "realtime_av_record_ms", 10_000)))
         self.window_ms = max(10_000, int(getattr(settings, "realtime_av_window_ms", 120_000)))
         self.window_overlap_ms = max(0, int(getattr(settings, "realtime_av_window_overlap_ms", 15_000)))
         self.window_stride_ms = max(1_000, self.window_ms - self.window_overlap_ms)

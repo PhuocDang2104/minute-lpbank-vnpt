@@ -1,7 +1,7 @@
 # MINUTE Realtime Audio + Video Pipeline (MVP)
 
 ## 1) Muc tieu
-- Batch ASR theo record 30 giay.
+- Batch ASR theo record 10 giay.
 - Phat hien global slide/screen change bang dHash 64-bit + SSIM.
 - Capture frame theo timecode khi change duoc confirm.
 - Recap moi 2 phut, co revision khi du lieu den tre.
@@ -31,7 +31,7 @@ Model ORM moi:
 - `backend/app/services/realtime_av_service.py`
 
 Service nay quan ly state theo `session_id`:
-- batch recorder (30s) + batch ASR + timestamp normalize.
+- batch recorder (10s) + batch ASR + timestamp normalize.
 - detector lane (ROI -> detect frame -> dHash -> SSIM -> cooldown).
 - capture-on-change + upload storage/local fallback.
 - window builder 2 phut + overlap + revision.
@@ -55,7 +55,7 @@ Main app wiring:
 
 ### 2.4 Config them moi
 - `backend/app/core/config.py`
-  - `REALTIME_AV_RECORD_MS` (default 30000)
+  - `REALTIME_AV_RECORD_MS` (default 10000)
   - `REALTIME_AV_WINDOW_MS` (default 120000)
   - `REALTIME_AV_WINDOW_OVERLAP_MS` (default 15000)
   - `REALTIME_AV_VIDEO_SAMPLE_MS` (default 1000)
@@ -77,10 +77,10 @@ Main app wiring:
 - Moi event duoc gan `ts_ms` theo server (`now_ms()`), khong tin clock client.
 - `session_id` la key scope cho audio/video/window merge.
 
-## 3.2 Audio lane (30 giay)
+## 3.2 Audio lane (10 giay)
 1. Client gui `audio_chunk`.
 2. Server gom PCM vao batch recorder.
-3. Den bien 30s -> tao `AudioRecord`.
+3. Den bien 10s -> tao `AudioRecord`.
 4. Goi batch ASR.
 5. Normalize segment:
    - offset `mm:ss` -> `start_ts_ms = record_start_ts_ms + offset_ms`.
@@ -175,7 +175,7 @@ Luu y:
 - Gui `video_frame_meta` 1 fps (frame PNG/JPEG base64), kem `frame_id`.
 
 ## 5.3 Render event
-- `transcript_record_ready`: render block transcript 30s theo speaker + time.
+- `transcript_record_ready`: render block transcript 10s theo speaker + time.
 - `slide_change_event`: update timeline marker.
 - `captured_frame_ready`: append gallery/timeline image.
 - `recap_window_ready`: replace theo `(window_id, revision)` moi nhat.
@@ -208,7 +208,7 @@ uvicorn app.main:app --reload --port 8000
 - `audio_chunk`
 - `video_frame_meta`
 3. Check event:
-- `transcript_record_ready` (sau 30s va ASR xong)
+- `transcript_record_ready` (sau 10s va ASR xong)
 - `slide_change_event` + `captured_frame_ready`
 - `recap_window_ready` (moi 2 phut)
 
@@ -258,7 +258,7 @@ Tuning pipeline:
 ## 8) KPI demo acceptance mapping
 - Video latency: confirm change sau ~1-2s (sampling + candidate ticks).
 - False-positive: giam nho ROI + threshold + cooldown.
-- Audio: moi 30s co `transcript_record_ready`.
+- Audio: moi 10s co `transcript_record_ready`.
 - Recap: moi 120s co `recap_window_ready`.
 - Citations: co `seg_id/ts_ms` va `frame_id/ts_ms`.
 

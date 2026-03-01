@@ -33,6 +33,8 @@ services:
         sync: false
       - key: ASR_LANGUAGE
         value: vi
+      - key: REALTIME_AV_RECORD_MS
+        value: "10000"
       - key: SUPABASE_S3_ENDPOINT
         sync: false
       - key: SUPABASE_S3_REGION

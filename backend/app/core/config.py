@@ -118,7 +118,7 @@ class Settings(BaseSettings):
     llm_output_language: str = 'vi'
 
     # Realtime AV pipeline (batch ASR + slide change detection + recap windows)
-    realtime_av_record_ms: int = 30000
+    realtime_av_record_ms: int = 10000
     realtime_av_window_ms: int = 120000
     realtime_av_window_overlap_ms: int = 15000
     realtime_av_video_sample_ms: int = 1000
