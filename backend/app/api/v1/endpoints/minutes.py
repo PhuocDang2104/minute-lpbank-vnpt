@@ -102,11 +102,11 @@ def get_latest_minutes(
     meeting_id: str,
     db: Session = Depends(get_db)
 ):
-    """Get the latest minutes for a meeting"""
+    """Get the latest minutes for a meeting with a stable response shape."""
     minutes = minutes_service.get_latest_minutes(db, meeting_id)
     if not minutes:
         return {'meeting_id': meeting_id, 'minutes': None, 'message': 'No minutes available'}
-    return minutes.model_dump()
+    return {'meeting_id': meeting_id, 'minutes': minutes.model_dump()}
 
 
 @router.post('/', response_model=MeetingMinutesResponse)

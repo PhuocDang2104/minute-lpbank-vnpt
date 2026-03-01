@@ -34,6 +34,10 @@ def test_get_latest_minutes(client):
     if response.status_code == 200:
         data = response.json()
         assert "meeting_id" in data
+        assert "minutes" in data
+        if data["minutes"] is not None:
+            assert "id" in data["minutes"]
+            assert "meeting_id" in data["minutes"]
 
 
 def test_generate_minutes(client):

@@ -11,6 +11,11 @@ It uses:
 - Inbound ports open: `22`, `80`, `443`
 - Domain DNS A record points to VM public IP (example: `api.yourdomain.com`)
 
+Important:
+- Use `docker compose` (Compose plugin v2).
+- Do not use old `docker-compose` v1.29.x. On newer Docker Engine it may crash with:
+  `KeyError: 'ContainerConfig'`.
+
 Do not open database port `5432/5433` to public internet.
 
 ## 2) Prepare production env file

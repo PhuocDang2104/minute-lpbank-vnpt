@@ -351,6 +351,17 @@ cp env.prod.example .env.prod
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```
 
+Important:
+- Use `docker compose` (Compose plugin v2), not legacy `docker-compose` v1.
+- `docker-compose==1.29.x` can fail on newer Docker Engine with `KeyError: 'ContainerConfig'`.
+- If you ever hit that error, remove old containers and recreate with v2:
+```bash
+cd infra
+docker compose -f docker-compose.prod.yml --env-file .env.prod down --remove-orphans || true
+docker rm -f minute_backend minute_db minute_asr 2>/dev/null || true
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build --force-recreate
+```
+
 Full guide:
 - `docs/DEPLOY_VM_COMPOSE.md`
 

@@ -65,8 +65,11 @@ def get_meeting_minutes(
             "minutes": None,
             "message": "No minutes generated yet"
         }
-    
-    return minutes.model_dump()
+
+    return {
+        "meeting_id": meeting_id,
+        "minutes": minutes.model_dump(),
+    }
 
 
 @router.post('/minutes/generate', response_model=dict)

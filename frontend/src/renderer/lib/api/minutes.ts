@@ -68,6 +68,23 @@ export interface DistributionLogList {
 }
 
 const ENDPOINT = '/minutes';
+type LatestMinutesEnvelope = {
+  meeting_id: string;
+  minutes: MeetingMinutes | null;
+  message?: string;
+};
+
+const isMeetingMinutes = (value: unknown): value is MeetingMinutes => {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<MeetingMinutes>;
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.meeting_id === 'string' &&
+    typeof candidate.version === 'number' &&
+    typeof candidate.status === 'string' &&
+    typeof candidate.generated_at === 'string'
+  );
+};
 
 export const minutesApi = {
   /**
@@ -81,10 +98,21 @@ export const minutesApi = {
    * Get the latest minutes for a meeting
    */
   getLatest: async (meetingId: string): Promise<MeetingMinutes | null> => {
-    const response = await api.get<{ meeting_id: string; minutes: MeetingMinutes | null; message?: string }>(
-      `${ENDPOINT}/${meetingId}/latest`
-    );
-    return response.minutes;
+    const response = await api.get<LatestMinutesEnvelope | MeetingMinutes>(`${ENDPOINT}/${meetingId}/latest`);
+
+    // Backward-compatible parsing:
+    // - New/expected: { meeting_id, minutes }
+    // - Legacy: direct MeetingMinutes object
+    if (isMeetingMinutes(response)) {
+      return response;
+    }
+
+    if (response && typeof response === 'object' && 'minutes' in response) {
+      const nested = (response as LatestMinutesEnvelope).minutes;
+      return isMeetingMinutes(nested) ? nested : null;
+    }
+
+    return null;
   },
 
   /**
