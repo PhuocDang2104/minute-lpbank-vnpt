@@ -7,6 +7,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Eye,
+  EyeOff,
+  KeyRound,
   RefreshCw,
   SlidersHorizontal,
   Sparkles,
@@ -135,7 +138,10 @@ const Dashboard = () => {
   const activeUserId = String(displayUser.id || '').trim()
   const userRoleRaw = String(displayUser.role || 'user') as UserRole
   const userRole: UserRole = ['admin', 'PMO', 'chair', 'user'].includes(userRoleRaw) ? userRoleRaw : 'user'
-  const userDisplayName = displayUser.display_name || displayUser.displayName || 'Minute User'
+  const userDisplayName =
+    ('display_name' in displayUser ? displayUser.display_name : undefined) ||
+    ('displayName' in displayUser ? displayUser.displayName : undefined) ||
+    'Minute User'
 
   const [askValue, setAskValue] = useState('')
   const [askResponse, setAskResponse] = useState<string | null>(null)
@@ -144,6 +150,11 @@ const Dashboard = () => {
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [advancedProvider, setAdvancedProvider] = useState<LlmProvider>('gemini')
   const [advancedModel, setAdvancedModel] = useState<string>(MODEL_OPTIONS.gemini[0]?.value || '')
+  const [advancedApiKeyInput, setAdvancedApiKeyInput] = useState('')
+  const [advancedApiKeySet, setAdvancedApiKeySet] = useState(false)
+  const [advancedApiKeyLast4, setAdvancedApiKeyLast4] = useState<string | null>(null)
+  const [advancedShowApiKey, setAdvancedShowApiKey] = useState(false)
+  const [advancedClearApiKey, setAdvancedClearApiKey] = useState(false)
   const [advancedLoading, setAdvancedLoading] = useState(false)
   const [advancedSaving, setAdvancedSaving] = useState(false)
   const [advancedError, setAdvancedError] = useState<string | null>(null)
@@ -343,6 +354,48 @@ const Dashboard = () => {
     setAdvancedModel(options[0]?.value || '')
   }
 
+  const advancedApiKeyBadge = useMemo(() => {
+    if (advancedLoading) {
+      return {
+        label: lt('Đang tải...', 'Loading...'),
+        color: '#5f4a2b',
+        bg: 'rgba(248, 229, 194, 0.35)',
+        border: 'rgba(145, 101, 31, 0.24)',
+      }
+    }
+    if (advancedApiKeyInput.trim().length > 0) {
+      return {
+        label: lt('Sẽ cập nhật khi lưu', 'Will update on save'),
+        color: '#1f2937',
+        bg: '#f3f4f6',
+        border: '#d1d5db',
+      }
+    }
+    if (advancedClearApiKey) {
+      return {
+        label: lt('Sẽ xoá khi lưu', 'Will remove on save'),
+        color: '#b42318',
+        bg: 'rgba(254, 226, 226, 0.7)',
+        border: 'rgba(239, 68, 68, 0.28)',
+      }
+    }
+    if (advancedApiKeySet) {
+      const suffix = advancedApiKeyLast4 ? `•••• ${advancedApiKeyLast4}` : lt('Đã lưu', 'Saved')
+      return {
+        label: suffix,
+        color: '#065f46',
+        bg: 'rgba(209, 250, 229, 0.6)',
+        border: 'rgba(16, 185, 129, 0.3)',
+      }
+    }
+    return {
+      label: lt('Chưa thiết lập', 'Not set'),
+      color: '#6b7280',
+      bg: '#f9fafb',
+      border: '#e5e7eb',
+    }
+  }, [advancedApiKeyInput, advancedApiKeyLast4, advancedApiKeySet, advancedClearApiKey, advancedLoading, lt])
+
   const handleSaveAdvanced = async () => {
     if (!activeUserId || advancedSaving) return
 
@@ -351,10 +404,22 @@ const Dashboard = () => {
     setAdvancedNotice(null)
 
     try {
-      const result = await usersApi.updateLlmSettings(activeUserId, {
+      const payload: {
+        provider: LlmProvider
+        model: string
+        api_key?: string
+        clear_api_key?: boolean
+      } = {
         provider: advancedProvider,
         model: advancedModel,
-      })
+      }
+      const trimmedApiKey = advancedApiKeyInput.trim()
+      if (advancedClearApiKey) {
+        payload.clear_api_key = true
+      } else if (trimmedApiKey) {
+        payload.api_key = trimmedApiKey
+      }
+      const result = await usersApi.updateLlmSettings(activeUserId, payload)
       const provider: LlmProvider = result.provider === 'groq' ? 'groq' : 'gemini'
       const options = MODEL_OPTIONS[provider]
       const fallbackModel = options[0]?.value || ''

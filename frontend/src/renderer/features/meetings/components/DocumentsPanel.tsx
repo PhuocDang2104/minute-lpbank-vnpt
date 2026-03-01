@@ -80,7 +80,7 @@ export const DocumentsPanel = ({ meetingId }: DocumentsPanelProps) => {
     }
   };
 
-  const updateDocStatus = (docId: string, status: 'accepted' | 'ignored') => {
+  const updateDocStatus = (docId: string, status: 'accepted' | 'ignored' | 'suggested') => {
     setDocuments(prev => prev.map(doc =>
       doc.id === docId ? { ...doc, status } : doc
     ));

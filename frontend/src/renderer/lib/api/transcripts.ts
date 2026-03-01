@@ -80,9 +80,9 @@ export const extract = async (meetingId: string): Promise<{
   // Note: Backend has separate endpoints for extract actions/decisions/risks
   // This is a convenience wrapper (if needed, implement separately)
   const [actionsRes, decisionsRes, risksRes] = await Promise.all([
-    api.post(`/transcripts/${meetingId}/extract/actions`).catch(() => ({ actions: [] })),
-    api.post(`/transcripts/${meetingId}/extract/decisions`).catch(() => ({ decisions: [] })),
-    api.post(`/transcripts/${meetingId}/extract/risks`).catch(() => ({ risks: [] })),
+    api.post<{ actions: any[] }>(`/transcripts/${meetingId}/extract/actions`).catch(() => ({ actions: [] })),
+    api.post<{ decisions: any[] }>(`/transcripts/${meetingId}/extract/decisions`).catch(() => ({ decisions: [] })),
+    api.post<{ risks: any[] }>(`/transcripts/${meetingId}/extract/risks`).catch(() => ({ risks: [] })),
   ]);
   
   return {
@@ -101,4 +101,3 @@ export const transcriptsApi = {
 };
 
 export default transcriptsApi;
-

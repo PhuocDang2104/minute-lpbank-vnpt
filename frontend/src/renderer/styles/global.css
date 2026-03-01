@@ -16697,6 +16697,62 @@ a {
   gap: 8px;
 }
 
+.home-hub-ai-modal__key-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-hub-ai-modal__key-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.home-hub-ai-modal__key-btn {
+  min-height: 36px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.home-hub-ai-modal__key-btn:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+.home-hub-ai-modal__key-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.home-hub-ai-modal__key-badge {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.home-hub-ai-modal__key-note {
+  margin: 6px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
 .home-hub-ai-modal__error {
   border-radius: 10px;
   border: 1px solid rgba(239, 68, 68, 0.28);
@@ -17245,6 +17301,15 @@ a {
   .home-hub-ai__send {
     width: 34px;
     height: 34px;
+  }
+
+  .home-hub-ai-modal__key-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .home-hub-ai-modal__key-actions {
+    justify-content: flex-end;
   }
 
   .home-hub-calendar__month-label {

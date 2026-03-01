@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.db.session import get_db
+from app.core.security import get_current_user_optional
 from app.schemas.minutes import GenerateMinutesRequest, DistributeMinutesRequest
 from app.services import minutes_service, action_item_service, participant_service, summary_service
 from app.core.security import get_current_user_optional

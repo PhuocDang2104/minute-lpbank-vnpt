@@ -39,6 +39,14 @@ export interface AuthMessage {
   message: string;
 }
 
+export interface RegisterResponse {
+  id: string;
+  email: string;
+  display_name: string;
+  role?: string;
+  is_active?: boolean;
+}
+
 export interface GoogleLoginPayload {
   id_token: string;
 }

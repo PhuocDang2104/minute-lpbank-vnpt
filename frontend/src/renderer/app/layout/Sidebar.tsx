@@ -30,7 +30,10 @@ const Sidebar = () => {
   const storedUser = getStoredUser()
   const displayUser = storedUser || currentUser
   const { lt } = useLocaleText()
-  const userName = displayUser.display_name || displayUser.displayName
+  const userName =
+    ('display_name' in displayUser ? displayUser.display_name : undefined) ||
+    ('displayName' in displayUser ? displayUser.displayName : undefined) ||
+    'Minute User'
   const userRole = String(displayUser.role || lt('Thành viên', 'Member'))
 
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
@@ -308,5 +311,4 @@ const Sidebar = () => {
 }
 
 export default Sidebar
-
 

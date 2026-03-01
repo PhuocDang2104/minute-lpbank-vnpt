@@ -217,7 +217,7 @@ const SendPrepEmailModal = ({
     }
   };
 
-  const formatDate = (dateStr: string | undefined) => {
+  const formatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
     return date.toLocaleDateString('vi-VN', {
@@ -561,7 +561,7 @@ const AgendaPanel = ({ meeting }: { meeting: MeetingWithParticipants }) => {
         ) : displayItems.length > 0 ? (
           <>
             {displayItems.map((item, index) => (
-              <div key={item.id || index} className="detected-item detected-item--action">
+              <div key={hasChanges ? `agenda-edit-${index}` : (item as AgendaItem).id} className="detected-item detected-item--action">
                 <div className="detected-item__number">{index + 1}</div>
                 <div className="detected-item__content" style={{ flex: 1 }}>
                   <input

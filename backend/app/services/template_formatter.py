@@ -8,6 +8,238 @@ from app.services import template_service, meeting_service
 from sqlalchemy.orm import Session
 
 
+def _as_list(value: Any) -> List[Any]:
+    if isinstance(value, list):
+        return value
+    if value in (None, ""):
+        return []
+    return [value]
+
+
+def _is_non_empty(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, list):
+        return any(_is_non_empty(item) for item in value)
+    if isinstance(value, dict):
+        return any(_is_non_empty(item) for item in value.values())
+    return True
+
+
+def _md_cell(value: Any) -> str:
+    text_val = str(value or "").replace("|", "\\|").replace("\n", " ").strip()
+    return text_val or "-"
+
+
+def _format_section_fallback(
+    section_id: str,
+    meeting: Any,
+    context: Dict[str, Any],
+    format_type: str = "markdown",
+) -> str:
+    sid = str(section_id or "").strip().lower()
+    if not sid:
+        return ""
+
+    summary = str(context.get("summary") or "").strip()
+    key_points = [str(item).strip() for item in _as_list(context.get("key_points")) if str(item).strip()]
+    action_rows = [row for row in _as_list(context.get("action_items")) if isinstance(row, dict)]
+    decision_rows = [row for row in _as_list(context.get("decision_items")) if isinstance(row, dict)]
+    risk_rows = [row for row in _as_list(context.get("risk_items")) if isinstance(row, dict)]
+    action_list = [str(item).strip() for item in _as_list(context.get("actions")) if str(item).strip()]
+    decision_list = [str(item).strip() for item in _as_list(context.get("decisions")) if str(item).strip()]
+    risk_list = [str(item).strip() for item in _as_list(context.get("risks")) if str(item).strip()]
+    next_steps = [str(item).strip() for item in _as_list(context.get("next_steps")) if str(item).strip()]
+    topic_tracker = [row for row in _as_list(context.get("topic_tracker")) if isinstance(row, dict)]
+    ai_filters = [str(item).strip() for item in _as_list(context.get("ai_filters")) if str(item).strip()]
+
+    if sid in {"header", "meeting_info", "meeting-information", "info"}:
+        lines: List[str] = []
+        if format_type == "markdown":
+            lines.append(f"**Tên cuộc họp:** {meeting.title or context.get('title') or '-'}")
+            lines.append(f"**Loại cuộc họp:** {meeting.meeting_type or context.get('type') or '-'}")
+            lines.append(f"**Thời gian:** {context.get('time') or '-'}")
+            lines.append(f"**Địa điểm:** {meeting.location or '-'}")
+            return "\n".join(lines)
+        if format_type == "html":
+            return (
+                f"<p><strong>Tên cuộc họp:</strong> {meeting.title or context.get('title') or '-'}</p>"
+                f"<p><strong>Loại cuộc họp:</strong> {meeting.meeting_type or context.get('type') or '-'}</p>"
+                f"<p><strong>Thời gian:</strong> {context.get('time') or '-'}</p>"
+                f"<p><strong>Địa điểm:</strong> {meeting.location or '-'}</p>"
+            )
+        return (
+            f"Tên cuộc họp: {meeting.title or context.get('title') or '-'}\n"
+            f"Loại cuộc họp: {meeting.meeting_type or context.get('type') or '-'}\n"
+            f"Thời gian: {context.get('time') or '-'}\n"
+            f"Địa điểm: {meeting.location or '-'}"
+        )
+
+    if sid in {"participants", "participant", "attendees"}:
+        participants = getattr(meeting, "participants", []) or []
+        if not participants:
+            return "- Chưa có danh sách người tham gia." if format_type == "markdown" else "Chưa có danh sách người tham gia."
+        if format_type == "markdown":
+            return "\n".join(
+                [
+                    f"- {(p.display_name or p.email or 'Unknown')} ({p.role or 'attendee'})"
+                    for p in participants
+                ]
+            )
+        if format_type == "html":
+            items = "".join(
+                [f"<li>{(p.display_name or p.email or 'Unknown')} ({p.role or 'attendee'})</li>" for p in participants]
+            )
+            return f"<ul>{items}</ul>"
+        return "\n".join([f"• {(p.display_name or p.email or 'Unknown')} ({p.role or 'attendee'})" for p in participants])
+
+    if sid in {"summary", "executive_summary"}:
+        return summary or ("_Chưa có tóm tắt điều hành._" if format_type == "markdown" else "Chưa có tóm tắt điều hành.")
+
+    if sid in {"key_points", "highlights"}:
+        if not key_points:
+            return "- Chưa có điểm chính." if format_type == "markdown" else "Chưa có điểm chính."
+        if format_type == "markdown":
+            return "\n".join([f"- {item}" for item in key_points])
+        if format_type == "html":
+            return "<ul>" + "".join([f"<li>{item}</li>" for item in key_points]) + "</ul>"
+        return "\n".join([f"• {item}" for item in key_points])
+
+    if sid in {"action_items", "actions"}:
+        if action_rows and format_type == "markdown":
+            lines = [
+                "| Người phụ trách | Hạn chót | Mức ưu tiên | Trạng thái | Hành động |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+            for row in action_rows:
+                lines.append(
+                    "| "
+                    + " | ".join(
+                        [
+                            _md_cell(row.get("owner")),
+                            _md_cell(row.get("deadline")),
+                            _md_cell(row.get("priority")),
+                            _md_cell(row.get("status")),
+                            _md_cell(row.get("description")),
+                        ]
+                    )
+                    + " |"
+                )
+            return "\n".join(lines)
+        if not action_list:
+            action_list = [str(row.get("description") or "").strip() for row in action_rows if str(row.get("description") or "").strip()]
+        if not action_list:
+            return "- Chưa có hành động cần theo dõi." if format_type == "markdown" else "Chưa có hành động cần theo dõi."
+        if format_type == "markdown":
+            return "\n".join([f"{idx}. {item}" for idx, item in enumerate(action_list, start=1)])
+        if format_type == "html":
+            return "<ol>" + "".join([f"<li>{item}</li>" for item in action_list]) + "</ol>"
+        return "\n".join([f"{idx}. {item}" for idx, item in enumerate(action_list, start=1)])
+
+    if sid in {"decisions", "decision", "decisions_list"}:
+        if decision_rows and format_type == "markdown":
+            lines = [
+                "| Quyết định | Lý do | Trạng thái | Người xác nhận |",
+                "| --- | --- | --- | --- |",
+            ]
+            for row in decision_rows:
+                lines.append(
+                    "| "
+                    + " | ".join(
+                        [
+                            _md_cell(row.get("description")),
+                            _md_cell(row.get("rationale")),
+                            _md_cell(row.get("status")),
+                            _md_cell(row.get("confirmed_by")),
+                        ]
+                    )
+                    + " |"
+                )
+            return "\n".join(lines)
+        if not decision_list:
+            decision_list = [str(row.get("description") or "").strip() for row in decision_rows if str(row.get("description") or "").strip()]
+        if not decision_list:
+            return "- Chưa ghi nhận quyết định." if format_type == "markdown" else "Chưa ghi nhận quyết định."
+        if format_type == "markdown":
+            return "\n".join([f"{idx}. {item}" for idx, item in enumerate(decision_list, start=1)])
+        if format_type == "html":
+            return "<ol>" + "".join([f"<li>{item}</li>" for item in decision_list]) + "</ol>"
+        return "\n".join([f"{idx}. {item}" for idx, item in enumerate(decision_list, start=1)])
+
+    if sid in {"risks", "risks_list", "risk_register"}:
+        if risk_rows and format_type == "markdown":
+            lines = [
+                "| Rủi ro | Mức độ | Giảm thiểu | Người phụ trách | Trạng thái |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+            for row in risk_rows:
+                lines.append(
+                    "| "
+                    + " | ".join(
+                        [
+                            _md_cell(row.get("description")),
+                            _md_cell(row.get("severity")),
+                            _md_cell(row.get("mitigation")),
+                            _md_cell(row.get("owner")),
+                            _md_cell(row.get("status")),
+                        ]
+                    )
+                    + " |"
+                )
+            return "\n".join(lines)
+        if not risk_list:
+            risk_list = [str(row.get("description") or "").strip() for row in risk_rows if str(row.get("description") or "").strip()]
+        if not risk_list:
+            return "- Chưa ghi nhận rủi ro." if format_type == "markdown" else "Chưa ghi nhận rủi ro."
+        if format_type == "markdown":
+            return "\n".join([f"- {item}" for item in risk_list])
+        if format_type == "html":
+            return "<ul>" + "".join([f"<li>{item}</li>" for item in risk_list]) + "</ul>"
+        return "\n".join([f"• {item}" for item in risk_list])
+
+    if sid in {"next_steps", "follow_up"}:
+        if not next_steps:
+            return "- Chưa có bước tiếp theo." if format_type == "markdown" else "Chưa có bước tiếp theo."
+        if format_type == "markdown":
+            return "\n".join([f"{idx}. {item}" for idx, item in enumerate(next_steps, start=1)])
+        if format_type == "html":
+            return "<ol>" + "".join([f"<li>{item}</li>" for item in next_steps]) + "</ol>"
+        return "\n".join([f"{idx}. {item}" for idx, item in enumerate(next_steps, start=1)])
+
+    if sid in {"topic_tracker", "topics"} and topic_tracker and format_type == "markdown":
+        lines = [
+            "| Chủ đề | Bắt đầu | Kết thúc | Thời lượng (giây) |",
+            "| --- | --- | --- | --- |",
+        ]
+        for row in topic_tracker:
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        _md_cell(row.get("title")),
+                        _md_cell(row.get("start_time")),
+                        _md_cell(row.get("end_time")),
+                        _md_cell(row.get("duration_seconds")),
+                    ]
+                )
+                + " |"
+            )
+        return "\n".join(lines)
+
+    if sid in {"ai_filters", "filters"}:
+        if not ai_filters:
+            return ""
+        if format_type == "markdown":
+            return "\n".join([f"- {item}" for item in ai_filters])
+        if format_type == "html":
+            return "<ul>" + "".join([f"<li>{item}</li>" for item in ai_filters]) + "</ul>"
+        return "\n".join([f"• {item}" for item in ai_filters])
+
+    return ""
+
+
 def format_minutes_with_template(
     db: Session,
     template_id: str,
@@ -52,10 +284,6 @@ def format_minutes_with_template(
         section_fields = section.get('fields', [])
         section_required = section.get('required', False)
         
-        # Skip empty required sections
-        if section_required and not section_fields:
-            continue
-        
         # Add section header
         if section_title:
             if format_type == 'markdown':
@@ -67,6 +295,8 @@ def format_minutes_with_template(
                 lines.append("=" * len(section_title))
             lines.append("")
         
+        section_has_content = False
+
         # Process fields
         for field in section_fields:
             field_id = field.get('id')
@@ -89,7 +319,7 @@ def format_minutes_with_template(
                 continue
             
             # Format field
-            if value:
+            if _is_non_empty(value):
                 formatted_field = format_field(
                     field=field,
                     value=value,
@@ -98,6 +328,30 @@ def format_minutes_with_template(
                 if formatted_field:
                     lines.append(formatted_field)
                     lines.append("")
+                    section_has_content = True
+
+        # Fallback: if template has no fields or fields resolve to empty,
+        # auto-populate by section id from available AI context.
+        if not section_has_content:
+            fallback_block = _format_section_fallback(
+                section_id=section_id,
+                meeting=meeting,
+                context=context,
+                format_type=format_type,
+            )
+            if fallback_block:
+                lines.append(fallback_block)
+                lines.append("")
+                section_has_content = True
+
+        if section_required and not section_has_content:
+            if format_type == "markdown":
+                lines.append("_Chưa có dữ liệu cho mục này._")
+            elif format_type == "html":
+                lines.append("<p><em>Chưa có dữ liệu cho mục này.</em></p>")
+            else:
+                lines.append("Chưa có dữ liệu cho mục này.")
+            lines.append("")
     
     return "\n".join(lines)
 
@@ -141,13 +395,17 @@ def get_field_value(
         elif field_id == 'key_points':
             return context.get('key_points', [])
         elif field_id == 'decisions_list':
-            return context.get('decisions', [])
+            return context.get('decision_items') or context.get('decisions', [])
         elif field_id == 'action_items':
-            return context.get('actions', [])
+            return context.get('action_items') or context.get('actions', [])
         elif field_id == 'risks_list':
-            return context.get('risks', [])
+            return context.get('risk_items') or context.get('risks', [])
         elif field_id == 'agenda_items':
             return context.get('agenda', [])
+        elif field_id == 'next_steps':
+            return context.get('next_steps', [])
+        elif field_id == 'topic_tracker':
+            return context.get('topic_tracker', [])
     
     return None
 
@@ -253,4 +511,3 @@ def format_structured_item(
             if key in item and item[key]:
                 parts.append(f"{key}: {item[key]}")
         return f"  • {' | '.join(parts)}" if parts else "  • "
-

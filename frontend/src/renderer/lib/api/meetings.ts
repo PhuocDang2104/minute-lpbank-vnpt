@@ -102,6 +102,7 @@ export const meetingsApi = {
    */
   triggerInference: async (
     meetingId: string,
+    templateId?: string,
   ): Promise<{
     status: string;
     message: string;
@@ -119,7 +120,10 @@ export const meetingsApi = {
       visual_object_count?: number;
       minutes_id?: string;
       pdf_url?: string;
-    }>(`${ENDPOINT}/${meetingId}/trigger-inference`, {});
+    }>(
+      `${ENDPOINT}/${meetingId}/trigger-inference${templateId ? `?template_id=${encodeURIComponent(templateId)}` : ''}`,
+      {}
+    );
   },
 
   /**

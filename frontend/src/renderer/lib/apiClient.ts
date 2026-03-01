@@ -23,7 +23,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions extends RequestInit {
-  params?: Record<string, string | number | undefined>;
+  params?: Record<string, string | number | boolean | undefined>;
   skipAuth?: boolean; // Skip adding Authorization header
 }
 
@@ -188,7 +188,7 @@ async function request<T>(
 
 // HTTP methods
 export const api = {
-  get: <T>(endpoint: string, params?: Record<string, string | number | undefined>) =>
+  get: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>) =>
     request<T>(endpoint, { method: 'GET', params }),
 
   post: <T>(endpoint: string, data?: unknown, options?: { skipAuth?: boolean }) =>

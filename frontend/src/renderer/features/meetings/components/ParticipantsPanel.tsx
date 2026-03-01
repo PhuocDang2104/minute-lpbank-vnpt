@@ -12,6 +12,7 @@ import {
 import { usersApi } from '../../../lib/api/users';
 import { meetingsApi } from '../../../lib/api/meetings';
 import type { Participant } from '../../../shared/dto/meeting';
+import type { User as UserType } from '../../../shared/dto/user';
 import { getInitials } from '../../../shared/dto/user';
 import { Modal } from '../../../components/ui/Modal';
 import { useLocaleText } from '../../../i18n/useLocaleText';

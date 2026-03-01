@@ -36,8 +36,10 @@ import { meetingsApi } from '../../../../lib/api/meetings';
 import { minutesTemplateApi, type MinutesTemplate } from '../../../../lib/api/minutes_template';
 import { knowledgeApi, type KnowledgeDocument } from '../../../../lib/api/knowledge';
 import { UploadDocumentModal } from '../../../../components/UploadDocumentModal';
+import { MarkdownRenderer } from '../../../../components/MarkdownRenderer';
 import { useLocaleText } from '../../../../i18n/useLocaleText';
 import { API_URL } from '../../../../config/env';
+import { renderMarkdownToHtml } from '../../../../lib/markdown';
 
 interface PostMeetTabFirefliesProps {
   meeting: MeetingWithParticipants;
@@ -208,6 +210,71 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
+      let transcriptCount = transcripts.length;
+
+      // Ensure transcript exists before generation.
+      if (transcriptCount === 0) {
+        try {
+          const transcriptList = await transcriptsApi.list(meeting.id);
+          transcriptCount = transcriptList.chunks?.length || 0;
+        } catch (listErr) {
+          console.warn('Transcript list check failed:', listErr);
+        }
+      }
+
+      if (transcriptCount === 0) {
+        const hasRecording = Boolean(meetingRecordingUrl);
+
+        if (hasRecording) {
+          try {
+            const inferenceResult = await meetingsApi.triggerInference(meeting.id, selectedTemplateId || undefined);
+            transcriptCount = inferenceResult.transcript_count || 0;
+
+            if (transcriptCount === 0) {
+              try {
+                const transcriptList = await transcriptsApi.list(meeting.id);
+                transcriptCount = transcriptList.chunks?.length || 0;
+              } catch (reloadErr) {
+                console.warn('Transcript reload after inference failed:', reloadErr);
+              }
+            }
+
+            if (transcriptCount === 0) {
+              const continueWithoutTranscript = window.confirm(
+                lt(
+                  'Xử lý video đã hoàn tất nhưng chưa tạo được transcript. Bạn có muốn tiếp tục tạo biên bản không?',
+                  'Video processing finished but no transcript was created. Do you want to continue generating minutes?',
+                ),
+              );
+              if (!continueWithoutTranscript) {
+                return;
+              }
+            }
+          } catch (inferenceErr) {
+            console.error('Auto-transcript generation failed:', inferenceErr);
+            const continueWithoutTranscript = window.confirm(
+              lt(
+                'Không thể tự động tạo transcript từ video. Bạn có muốn tiếp tục tạo biên bản không?',
+                'Failed to auto-generate transcript from recording. Do you want to continue generating minutes?',
+              ),
+            );
+            if (!continueWithoutTranscript) {
+              return;
+            }
+          }
+        } else {
+          const continueWithoutTranscript = window.confirm(
+            lt(
+              'Chưa có transcript hoặc video cuộc họp. Biên bản tạo ra có thể thiếu chính xác. Bạn có muốn tiếp tục không?',
+              'No transcript or meeting recording is available. Generated minutes may be incomplete. Do you want to continue?',
+            ),
+          );
+          if (!continueWithoutTranscript) {
+            return;
+          }
+        }
+      }
+
       const generated = await minutesApi.generate({
         meeting_id: meeting.id,
         template_id: selectedTemplateId || undefined,
@@ -221,6 +288,11 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
         format: 'markdown',
       });
       setMinutes(generated);
+      try {
+        await refreshSessionView();
+      } catch (refreshErr) {
+        console.warn('Refresh after generate failed:', refreshErr);
+      }
     } catch (err) {
       console.error('Generate failed:', err);
       alert(lt('Không thể tạo biên bản. Vui lòng thử lại.', 'Failed to generate minutes. Please try again.'));
@@ -723,6 +795,9 @@ const CenterPanel = ({
       const label = labels[(value || '').toLowerCase()];
       return label ? lt(label[0], label[1]) : value || '';
     };
+    const normalizedSummary = normalizeSummaryContent(minutes.executive_summary || minutes.minutes_markdown || '');
+    const summaryMarkdown = normalizedSummary.summaryText || lt('Chưa có tóm tắt.', 'No summary available.');
+    const summaryHtml = renderMarkdownToHtml(summaryMarkdown);
 
     // Parse minutes_markdown for action_items, decisions, risks if available
     let actionItems: any[] = [];
@@ -737,6 +812,9 @@ const CenterPanel = ({
       risks = parsed.risks || [];
       keyPoints = parsed.key_points || [];
     } catch { /* ignore */ }
+    if (!keyPoints.length) {
+      keyPoints = normalizedSummary.keyPoints;
+    }
 
     const printContent = `<!DOCTYPE html>
 <html lang="${language}">
@@ -769,7 +847,14 @@ const CenterPanel = ({
     
     /* Summary */
     .summary-box { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); padding: 20px; border-radius: 10px; border-left: 4px solid #0ea5e9; }
-    .summary-text { white-space: pre-wrap; line-height: 1.8; }
+    .summary-markdown { line-height: 1.8; font-size: 14px; }
+    .summary-markdown > *:first-child { margin-top: 0; }
+    .summary-markdown > *:last-child { margin-bottom: 0; }
+    .summary-markdown h1, .summary-markdown h2, .summary-markdown h3, .summary-markdown h4 { color: #0f172a; margin: 18px 0 8px; line-height: 1.35; }
+    .summary-markdown p, .summary-markdown ul, .summary-markdown ol, .summary-markdown blockquote { margin: 0 0 10px; }
+    .summary-markdown ul, .summary-markdown ol { padding-left: 20px; }
+    .summary-markdown code { background: #e2e8f0; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .summary-markdown pre { background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px; overflow-x: auto; margin-bottom: 12px; }
     
     /* Key Points */
     .key-points { list-style: none; }
@@ -827,7 +912,7 @@ const CenterPanel = ({
         <span class="section-title">${lt('Tóm tắt điều hành', 'Executive summary')}</span>
       </div>
       <div class="summary-box">
-        <div class="summary-text">${minutes.executive_summary || lt('Chưa có tóm tắt.', 'No summary available.')}</div>
+        <div class="summary-markdown">${summaryHtml}</div>
       </div>
     </div>
     
@@ -1010,7 +1095,7 @@ const CenterPanel = ({
       // Trigger inference (transcription + diarization)
       setIsProcessingVideo(true);
       try {
-        const inferenceResult = await meetingsApi.triggerInference(meeting.id);
+        const inferenceResult = await meetingsApi.triggerInference(meeting.id, selectedTemplateId || undefined);
         console.log('Video inference result:', inferenceResult);
 
         // Wait a bit for processing to complete
@@ -1855,7 +1940,11 @@ const SummaryContent = ({
       ) : (
         <>
           <div className="fireflies-summary-content">
-            {formatSummaryWithBullets(normalizedSummary.summaryText)}
+            {normalizedSummary.summaryText.trim() ? (
+              <MarkdownRenderer content={normalizedSummary.summaryText} className="fireflies-summary-markdown" />
+            ) : (
+              <p className="fireflies-summary-empty">{lt('Chưa có tóm tắt.', 'No summary available.')}</p>
+            )}
           </div>
 
           {normalizedSummary.keyPoints.length > 0 && (
@@ -2246,39 +2335,6 @@ const extractKeywords = (text: string): string[] => {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([word]) => word);
-};
-
-const formatSummaryWithBullets = (text: string) => {
-  const lines = text.split('\n');
-
-  return lines.map((line, i) => {
-    if (line.trim().startsWith('-') || line.trim().startsWith('•')) {
-      return (
-        <div key={i} className="fireflies-bullet-point">
-          <span className="fireflies-bullet">•</span>
-          <span>{line.replace(/^[-•]\s*/, '')}</span>
-        </div>
-      );
-    }
-
-    if (line.trim().startsWith('#')) {
-      return (
-        <h3 key={i} className="fireflies-summary-heading">
-          {line.replace(/^#+\s*/, '')}
-        </h3>
-      );
-    }
-
-    if (!line.trim()) {
-      return <br key={i} />;
-    }
-
-    return (
-      <p key={i} className="fireflies-summary-paragraph">
-        {line}
-      </p>
-    );
-  });
 };
 
 const highlightText = (text: string, query: string) => {

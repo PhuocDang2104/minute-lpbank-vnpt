@@ -46,25 +46,32 @@ const CLIP_TYPE_LABEL: Record<string, string> = {
   risk: 'rủi ro',
 };
 
-export const PostMeetTab = ({ meeting }: PostMeetTabProps) => {
+export const PostMeetTab = ({ meeting, onRefresh }: PostMeetTabProps) => {
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  const handleMinutesGenerated = () => {
+    setRefreshTick((prev) => prev + 1);
+    onRefresh();
+  };
+
   return (
     <div className="postmeet-tab">
-      <SummarySection meeting={meeting} />
-      <StatsSection meetingId={meeting.id} />
+      <SummarySection meeting={meeting} onGenerated={handleMinutesGenerated} />
+      <StatsSection meetingId={meeting.id} refreshTick={refreshTick} />
       <div className="postmeet-grid">
-        <ActionItemsSection meetingId={meeting.id} />
-        <DecisionsSection meetingId={meeting.id} />
+        <ActionItemsSection meetingId={meeting.id} refreshTick={refreshTick} />
+        <DecisionsSection meetingId={meeting.id} refreshTick={refreshTick} />
       </div>
-      <RisksSection meetingId={meeting.id} />
+      <RisksSection meetingId={meeting.id} refreshTick={refreshTick} />
       <HighlightsSection meeting={meeting} />
-      <TasksSyncSection meeting={meeting} />
-      <DistributionSection meeting={meeting} />
+      <TasksSyncSection meeting={meeting} refreshTick={refreshTick} />
+      <DistributionSection meeting={meeting} refreshTick={refreshTick} />
     </div>
   );
 };
 
 // ------------------ Summary Section ------------------
-const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
+const SummarySection = ({ meeting, onGenerated }: { meeting: MeetingWithParticipants; onGenerated?: () => void }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [minutes, setMinutes] = useState<MeetingMinutes | null>(null);
@@ -118,19 +125,52 @@ const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
     setIsGenerating(true);
     setError(null);
     try {
-      // 1. Check for Transcript
+      // 1) Ensure transcript exists when possible
       try {
         const transcriptList = await transcriptsApi.list(meeting.id);
-        if (!transcriptList.chunks || transcriptList.chunks.length === 0) {
-          console.log('No transcripts found. Triggering inference...');
-          await meetingsApi.triggerInference(meeting.id, enableDiarization);
+        let transcriptCount = transcriptList.chunks?.length || 0;
+
+        if (transcriptCount === 0) {
+          const hasRecording = Boolean(
+            (typeof meeting.recording_url === 'string' && meeting.recording_url.trim()) ||
+            (typeof (meeting as { recordingUrl?: string | null }).recordingUrl === 'string' &&
+              ((meeting as { recordingUrl?: string | null }).recordingUrl || '').trim())
+          );
+
+          if (hasRecording && enableDiarization) {
+            const inferenceResult = await meetingsApi.triggerInference(meeting.id);
+            transcriptCount = inferenceResult.transcript_count || 0;
+
+            if (transcriptCount === 0) {
+              try {
+                const refreshedTranscripts = await transcriptsApi.list(meeting.id);
+                transcriptCount = refreshedTranscripts.chunks?.length || 0;
+              } catch (reloadErr) {
+                console.warn('Transcript reload failed:', reloadErr);
+              }
+            }
+          }
+
+          if (transcriptCount === 0) {
+            const continueWithoutTranscript = window.confirm(
+              'Không tìm thấy transcript khả dụng. Bạn có muốn tiếp tục tạo biên bản không?'
+            );
+            if (!continueWithoutTranscript) {
+              return;
+            }
+          }
         }
       } catch (infErr) {
         console.error('Auto-transcript generation failed:', infErr);
-        // We'll proceed but it might result in empty minutes
+        const continueWithoutTranscript = window.confirm(
+          'Không thể tự động tạo transcript. Bạn có muốn tiếp tục tạo biên bản không?'
+        );
+        if (!continueWithoutTranscript) {
+          return;
+        }
       }
 
-      // 2. Generate Minutes
+      // 2) Generate minutes
       const generated = await minutesApi.generate({
         meeting_id: meeting.id,
         include_transcript: true,
@@ -143,6 +183,7 @@ const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
         format: 'markdown',
       });
       setMinutes(generated);
+      onGenerated?.();
     } catch (err) {
       console.error('Failed to generate minutes via API:', err);
       setError('Không thể tạo biên bản từ AI. Thử lại sau khi hệ thống sẵn sàng.');
@@ -226,12 +267,19 @@ const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
       alert('Không thể mở cửa sổ in. Vui lòng cho phép popup.');
       return;
     }
-    const meetingDate = new Date(meeting.start_time).toLocaleDateString('vi-VN', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    const startAt = meeting.start_time ? new Date(meeting.start_time) : null;
+    const endAt = meeting.end_time ? new Date(meeting.end_time) : null;
+    const meetingDate = startAt
+      ? startAt.toLocaleDateString('vi-VN', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : 'Chưa có';
+    const meetingTimeRange = `${startAt ? startAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'} - ${
+      endAt ? endAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'
+    }`;
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -261,7 +309,7 @@ const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
         </div>
         <div class="meta">
           <div class="meta-item"><div class="meta-label">Ngày họp</div><div class="meta-value">${meetingDate}</div></div>
-          <div class="meta-item"><div class="meta-label">Thời gian</div><div class="meta-value">${new Date(meeting.start_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${new Date(meeting.end_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div></div>
+          <div class="meta-item"><div class="meta-label">Thời gian</div><div class="meta-value">${meetingTimeRange}</div></div>
           <div class="meta-item"><div class="meta-label">Địa điểm</div><div class="meta-value">${meeting.location || 'Online'}</div></div>
           <div class="meta-item"><div class="meta-label">Phiên bản</div><div class="meta-value">v${minutes.version} - ${minutes.status}</div></div>
         </div>
@@ -453,13 +501,13 @@ const SummarySection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
 };
 
 // ------------------ Stats Section ------------------
-const StatsSection = ({ meetingId }: { meetingId: string }) => {
+const StatsSection = ({ meetingId, refreshTick }: { meetingId: string; refreshTick?: number }) => {
   const [stats, setStats] = useState({ actions: 0, decisions: 0, risks: 0, duration: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadStats();
-  }, [meetingId]);
+  }, [meetingId, refreshTick]);
 
   const loadStats = async () => {
     setIsLoading(true);
@@ -521,14 +569,14 @@ const StatsSection = ({ meetingId }: { meetingId: string }) => {
 };
 
 // ------------------ Action Items ------------------
-const ActionItemsSection = ({ meetingId }: { meetingId: string }) => {
+const ActionItemsSection = ({ meetingId, refreshTick }: { meetingId: string; refreshTick?: number }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [actions, setActions] = useState<ActionItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadActions();
-  }, [meetingId]);
+  }, [meetingId, refreshTick]);
 
   const loadActions = async () => {
     setIsLoading(true);
@@ -609,14 +657,14 @@ const ActionItemsSection = ({ meetingId }: { meetingId: string }) => {
 };
 
 // ------------------ Decisions ------------------
-const DecisionsSection = ({ meetingId }: { meetingId: string }) => {
+const DecisionsSection = ({ meetingId, refreshTick }: { meetingId: string; refreshTick?: number }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadDecisions();
-  }, [meetingId]);
+  }, [meetingId, refreshTick]);
 
   const loadDecisions = async () => {
     setIsLoading(true);
@@ -680,14 +728,14 @@ const DecisionsSection = ({ meetingId }: { meetingId: string }) => {
 };
 
 // ------------------ Risks ------------------
-const RisksSection = ({ meetingId }: { meetingId: string }) => {
+const RisksSection = ({ meetingId, refreshTick }: { meetingId: string; refreshTick?: number }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [risks, setRisks] = useState<RiskItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadRisks();
-  }, [meetingId]);
+  }, [meetingId, refreshTick]);
 
   const loadRisks = async () => {
     setIsLoading(true);
@@ -853,7 +901,7 @@ const HighlightsSection = ({ meeting }: { meeting: MeetingWithParticipants }) =>
 };
 
 // ------------------ Tasks & Sync ------------------
-const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
+const TasksSyncSection = ({ meeting, refreshTick }: { meeting: MeetingWithParticipants; refreshTick?: number }) => {
   const [actions, setActions] = useState<ActionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
@@ -861,13 +909,13 @@ const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => 
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResults, setSyncResults] = useState<Record<string, string>>({});
   const [editingTask, setEditingTask] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ owner: string; deadline: string; priority: string }>({
-    owner: '', deadline: '', priority: ''
+  const [editForm, setEditForm] = useState<{ owner: string; deadline: string; priority: ActionItem['priority'] }>({
+    owner: '', deadline: '', priority: 'medium'
   });
 
   useEffect(() => {
     loadActions();
-  }, [meeting.id]);
+  }, [meeting.id, refreshTick]);
 
   const loadActions = async () => {
     setIsLoading(true);
@@ -876,10 +924,33 @@ const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => 
       setActions(result.items || []);
     } catch (err) {
       console.error('Failed to load actions:', err);
+      const nowIso = new Date().toISOString();
       setActions([
-        { id: '1', meeting_id: meeting.id, description: 'Hoàn thành code review module authentication', owner_name: 'Nguyễn Văn A', deadline: '2024-12-15', priority: 'high', status: 'pending' },
-        { id: '2', meeting_id: meeting.id, description: 'Chuẩn bị tài liệu UAT', owner_name: 'Trần Thị B', deadline: '2024-12-20', priority: 'medium', status: 'pending' },
-      ] as ActionItem[]);
+        {
+          id: 'mock-action-1',
+          meeting_id: meeting.id,
+          description: 'Hoàn thành code review module authentication',
+          owner_name: 'Nguyễn Văn A',
+          deadline: '2024-12-15',
+          due_date: '2024-12-15',
+          priority: 'high',
+          status: 'proposed',
+          created_at: nowIso,
+          updated_at: nowIso,
+        },
+        {
+          id: 'mock-action-2',
+          meeting_id: meeting.id,
+          description: 'Chuẩn bị tài liệu UAT',
+          owner_name: 'Trần Thị B',
+          deadline: '2024-12-20',
+          due_date: '2024-12-20',
+          priority: 'medium',
+          status: 'proposed',
+          created_at: nowIso,
+          updated_at: nowIso,
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -1013,7 +1084,7 @@ const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => 
                           <select
                             className="form-select form-select--sm"
                             value={editForm.priority}
-                            onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
+                            onChange={(e) => setEditForm({ ...editForm, priority: e.target.value as ActionItem['priority'] })}
                           >
                             <option value="low">Thấp</option>
                             <option value="medium">Trung bình</option>
@@ -1067,7 +1138,7 @@ const TasksSyncSection = ({ meeting }: { meeting: MeetingWithParticipants }) => 
 };
 
 // ------------------ Distribution ------------------
-const DistributionSection = ({ meeting }: { meeting: MeetingWithParticipants }) => {
+const DistributionSection = ({ meeting, refreshTick }: { meeting: MeetingWithParticipants; refreshTick?: number }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDistributing, setIsDistributing] = useState(false);
   const [distributionLogs, setDistributionLogs] = useState<any[]>([]);
@@ -1083,15 +1154,26 @@ const DistributionSection = ({ meeting }: { meeting: MeetingWithParticipants }) 
 
   useEffect(() => {
     loadData();
-  }, [meeting.id]);
+  }, [meeting.id, refreshTick]);
 
   useEffect(() => {
     if (minutes && meeting) {
-      const startDate = new Date(meeting.start_time);
-      setEmailSubject(`[Minute] Biên bản cuộc họp: ${meeting.title} - ${startDate.toLocaleDateString('vi-VN')}`);
+      const startDate = getMeetingStartDate();
+      const dateLabel = startDate ? startDate.toLocaleDateString('vi-VN') : 'N/A';
+      setEmailSubject(`[Minute] Biên bản cuộc họp: ${meeting.title} - ${dateLabel}`);
       setEmailBody(generateEmailBody());
     }
   }, [minutes, meeting]);
+
+  const getMeetingStartDate = () => {
+    if (meeting.start_time) {
+      return new Date(meeting.start_time);
+    }
+    if (meeting.session_date) {
+      return new Date(meeting.session_date);
+    }
+    return null;
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -1110,14 +1192,18 @@ const DistributionSection = ({ meeting }: { meeting: MeetingWithParticipants }) 
   };
 
   const generateEmailBody = () => {
-    const startDate = new Date(meeting.start_time);
+    const startDate = getMeetingStartDate();
+    const dateLabel = startDate ? startDate.toLocaleDateString('vi-VN') : 'N/A';
+    const timeLabel = startDate
+      ? startDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+      : '--:--';
     const summary = minutes?.executive_summary || 'Đang cập nhật...';
     const status = minutes?.status === 'approved' ? 'ĐÃ PHÊ DUYỆT' : 'Bản nháp';
     return `Kính gửi Quý đồng nghiệp,
 
 Biên bản cuộc họp "${meeting.title}" đã được hoàn thành. (${status})
 
-Thời gian: ${startDate.toLocaleDateString('vi-VN')} - ${startDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+Thời gian: ${dateLabel} - ${timeLabel}
 Địa điểm: ${meeting.location || 'Online'}
 
 TÓM TẮT:
