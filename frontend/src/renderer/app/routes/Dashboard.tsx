@@ -23,6 +23,7 @@ import { getStoredUser } from '../../lib/api/auth'
 import { usersApi } from '../../lib/api/users'
 import type { LlmProvider } from '../../shared/dto/user'
 import { CHAT_MODEL_OPTIONS as MODEL_OPTIONS } from '../../shared/llmModelOptions'
+import { MarkdownRenderer } from '../../components/MarkdownRenderer'
 
 type UserRole = 'admin' | 'PMO' | 'chair' | 'user'
 
@@ -33,7 +34,40 @@ interface VideoSuggestion {
   roles: UserRole[]
 }
 
+const ALL_ROLES: UserRole[] = ['admin', 'PMO', 'chair', 'user']
+
+const PRIORITY_VIDEO_URLS = [
+  'https://www.youtube.com/watch?v=GE3JOFwTWVM',
+  'https://www.youtube.com/watch?v=5Qqn4OSuK_M',
+  'https://www.youtube.com/watch?v=F4BY49pp2Rs',
+  'https://www.youtube.com/watch?v=avgc1rigwec',
+]
+
 const VIDEO_SUGGESTIONS: VideoSuggestion[] = [
+  {
+    title: 'Machine Learning Foundations',
+    description: 'Core ML concepts, learning flow, and practical orientation for daily work.',
+    url: 'https://www.youtube.com/watch?v=GE3JOFwTWVM',
+    roles: ALL_ROLES,
+  },
+  {
+    title: 'Machine Learning Workflow in Practice',
+    description: 'How to move from data to model decisions and evaluate outcomes clearly.',
+    url: 'https://www.youtube.com/watch?v=5Qqn4OSuK_M',
+    roles: ALL_ROLES,
+  },
+  {
+    title: 'Applied ML Case Walkthrough',
+    description: 'Real examples for turning ML ideas into repeatable business execution.',
+    url: 'https://www.youtube.com/watch?v=F4BY49pp2Rs',
+    roles: ALL_ROLES,
+  },
+  {
+    title: 'Learning Path for ML Teams',
+    description: 'A focused path to build stronger ML understanding across cross-functional teams.',
+    url: 'https://www.youtube.com/watch?v=avgc1rigwec',
+    roles: ALL_ROLES,
+  },
   {
     title: 'Project Management in 8 Minutes',
     description: 'How to run planning, execution, and reporting with high clarity.',
@@ -131,6 +165,47 @@ const getDisplayName = (fullName: string) => {
   return parts.length > 1 ? parts.slice(-2).join(' ') : parts[0]
 }
 
+const readRoleFromPersonalizationStorage = (userId: string): string => {
+  if (!userId || typeof window === 'undefined') return ''
+  try {
+    const raw = localStorage.getItem(`minute_settings_${userId}`)
+    if (!raw) return ''
+    const parsed = JSON.parse(raw) as {
+      personalization?: {
+        role?: string | null
+      }
+    }
+    return String(parsed.personalization?.role || '').trim()
+  } catch {
+    return ''
+  }
+}
+
+const getAccountRoleLabel = (role: UserRole, lt: (vi: string, en: string) => string): string => {
+  switch (role) {
+    case 'admin':
+      return 'Admin'
+    case 'PMO':
+      return 'PMO'
+    case 'chair':
+      return lt('Chủ trì', 'Chair')
+    default:
+      return lt('Thành viên', 'Member')
+  }
+}
+
+const inferSuggestionRole = (personalRoleText: string, fallbackRole: UserRole): UserRole => {
+  const normalized = personalRoleText.trim().toLowerCase()
+  if (!normalized) return fallbackRole
+
+  if (/(^|\b)(admin|administrator|quản trị|quan tri)(\b|$)/i.test(normalized)) return 'admin'
+  if (/(^|\b)(pmo|project manager|program manager|quản lý dự án|quan ly du an|pm)(\b|$)/i.test(normalized)) return 'PMO'
+  if (/(^|\b)(chair|lead|manager|director|head|owner|trưởng|truong|giám đốc|giam doc)(\b|$)/i.test(normalized)) return 'chair'
+  if (/(^|\b)(staff|member|analyst|engineer|developer|nhân viên|nhan vien|chuyên viên|chuyen vien)(\b|$)/i.test(normalized)) return 'user'
+
+  return fallbackRole
+}
+
 const Dashboard = () => {
   const { lt, dateLocale, language } = useLocaleText()
   const storedUser = getStoredUser()
@@ -142,6 +217,7 @@ const Dashboard = () => {
     ('display_name' in displayUser ? displayUser.display_name : undefined) ||
     ('displayName' in displayUser ? displayUser.displayName : undefined) ||
     'Minute User'
+  const [personalRole, setPersonalRole] = useState(() => readRoleFromPersonalizationStorage(activeUserId))
 
   const [askValue, setAskValue] = useState('')
   const [askResponse, setAskResponse] = useState<string | null>(null)
@@ -199,10 +275,38 @@ const Dashboard = () => {
   const todayKey = getDayKey(new Date())
   const selectedKey = getDayKey(selectedDate)
 
+  const roleDisplay = useMemo(() => {
+    const fromSettings = personalRole.trim()
+    if (fromSettings) return fromSettings
+    return getAccountRoleLabel(userRole, lt)
+  }, [lt, personalRole, userRole])
+
+  const roleForSuggestions = useMemo(() => inferSuggestionRole(roleDisplay, userRole), [roleDisplay, userRole])
+
   const videosForRole = useMemo(() => {
-    const scoped = VIDEO_SUGGESTIONS.filter(item => item.roles.includes(userRole))
-    return scoped.length > 0 ? scoped : VIDEO_SUGGESTIONS.slice(0, 5)
-  }, [userRole])
+    const scoped = VIDEO_SUGGESTIONS.filter(item => item.roles.includes(roleForSuggestions))
+    const pool = scoped.length > 0 ? scoped : VIDEO_SUGGESTIONS
+    const uniqueByUrl = new Map<string, VideoSuggestion>()
+    for (const item of pool) {
+      if (!uniqueByUrl.has(item.url)) {
+        uniqueByUrl.set(item.url, item)
+      }
+    }
+    return Array.from(uniqueByUrl.values()).sort((a, b) => {
+      const rankA = PRIORITY_VIDEO_URLS.indexOf(a.url)
+      const rankB = PRIORITY_VIDEO_URLS.indexOf(b.url)
+      const normalizedRankA = rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA
+      const normalizedRankB = rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB
+      return normalizedRankA - normalizedRankB
+    })
+  }, [roleForSuggestions])
+
+  const trainingRecommendationText = useMemo(() => {
+    return lt(
+      `Vì bạn là ${roleDisplay}, đây là những video recommend để học nhanh và áp dụng ngay.`,
+      `Because you are ${roleDisplay}, here are recommended videos to learn faster and apply immediately.`,
+    )
+  }, [lt, roleDisplay])
 
   const carouselRef = useRef<HTMLDivElement | null>(null)
   const askInputRef = useRef<HTMLInputElement | null>(null)
@@ -216,6 +320,33 @@ const Dashboard = () => {
   useEffect(() => {
     setAdvancedLoaded(false)
   }, [activeUserId])
+
+  useEffect(() => {
+    setPersonalRole(readRoleFromPersonalizationStorage(activeUserId))
+  }, [activeUserId])
+
+  useEffect(() => {
+    if (!activeUserId || personalRole.trim()) return
+    let isActive = true
+
+    const loadPersonalRole = async () => {
+      try {
+        const response = await usersApi.getLlmSettings(activeUserId)
+        if (!isActive) return
+        const nextRole = String(response.behavior?.role || '').trim()
+        if (nextRole) {
+          setPersonalRole(nextRole)
+        }
+      } catch {
+        // Ignore role hydration errors and keep local/account fallback.
+      }
+    }
+
+    void loadPersonalRole()
+    return () => {
+      isActive = false
+    }
+  }, [activeUserId, personalRole])
 
   useEffect(() => {
     if (!advancedOpen) return
@@ -435,6 +566,8 @@ const Dashboard = () => {
     }
   }
 
+  const hasAskResult = Boolean(askResponse || askError)
+
   return (
     <div className="home-hub">
       <header className="home-hub__header">
@@ -445,7 +578,7 @@ const Dashboard = () => {
       <section className="home-hub-ai">
         <h2 className="home-hub-ai__greeting">{greetingMessage}</h2>
 
-        <div className={`home-hub-ai__shell ${askLoading ? 'is-loading' : ''}`}>
+        <div className={`home-hub-ai__shell ${askLoading ? 'is-loading' : ''} ${hasAskResult ? 'has-response' : ''}`}>
           <input
             ref={askInputRef}
             className="home-hub-ai__input"
@@ -561,10 +694,14 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {(askResponse || askError) && (
+        {hasAskResult && (
           <div className={`home-hub-ai__response ${askError ? 'home-hub-ai__response--error' : ''}`}>
             <span className="home-hub-ai__response-label">Minute AI</span>
-            <p>{askError || askResponse}</p>
+            {askError ? (
+              <p>{askError}</p>
+            ) : (
+              <MarkdownRenderer content={askResponse || ''} className="home-hub-ai__response-markdown" />
+            )}
           </div>
         )}
       </section>
@@ -678,14 +815,9 @@ const Dashboard = () => {
           <div>
             <h2>
               <BookOpenCheck size={18} />
-              {lt('Role-aligned training picks', 'Role-aligned training picks')}
+              {lt('Gợi ý học theo vai trò', 'Role-aligned training picks')}
             </h2>
-            <p>
-              {lt(
-                'Commercial-grade learning playlists tailored to your role for stronger daily execution.',
-                'Commercial-grade learning playlists tailored to your role for stronger daily execution.',
-              )}
-            </p>
+            <p>{trainingRecommendationText}</p>
           </div>
           <div className="home-hub-videos__controls">
             <button type="button" className="home-hub-videos__ctrl" onClick={() => shiftCarousel('left')}>
@@ -720,7 +852,11 @@ const Dashboard = () => {
                 <div className="home-hub-video-card__body">
                   <h3>{video.title}</h3>
                   <p>{video.description}</p>
-                  <span>{lt('Mở trên YouTube', 'Open on YouTube')}</span>
+                  {PRIORITY_VIDEO_URLS.includes(video.url) && (
+                    <span className="home-hub-video-card__priority">{lt('Ưu tiên', 'Featured')}</span>
+                  )}
+                  <span className="home-hub-video-card__open">{lt('Mở trên YouTube', 'Open on YouTube')}</span>
+                  <span className="home-hub-video-card__url">{video.url}</span>
                 </div>
               </a>
             )

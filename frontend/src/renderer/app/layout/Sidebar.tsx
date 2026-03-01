@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Plus,
@@ -14,6 +14,7 @@ import { getStoredUser } from '../../lib/api/auth'
 import { Modal } from '../../components/ui/Modal'
 import { CreateMeetingForm } from '../../features/meetings/components/CreateMeetingForm'
 import { projectsApi } from '../../lib/api/projects'
+import { usersApi } from '../../lib/api/users'
 import { USE_API } from '../../config/env'
 import { useLocaleText } from '../../i18n/useLocaleText'
 
@@ -24,17 +25,42 @@ interface NavItem {
   isActive?: (pathname: string) => boolean
 }
 
+const readRoleFromPersonalizationStorage = (userId: string): string => {
+  if (!userId || typeof window === 'undefined') return ''
+  try {
+    const raw = localStorage.getItem(`minute_settings_${userId}`)
+    if (!raw) return ''
+    const parsed = JSON.parse(raw) as {
+      personalization?: {
+        role?: string | null
+      }
+    }
+    return String(parsed.personalization?.role || '').trim()
+  } catch {
+    return ''
+  }
+}
+
 const Sidebar = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const storedUser = getStoredUser()
   const displayUser = storedUser || currentUser
   const { lt } = useLocaleText()
+  const activeUserId = String(displayUser.id || '').trim()
   const userName =
     ('display_name' in displayUser ? displayUser.display_name : undefined) ||
     ('displayName' in displayUser ? displayUser.displayName : undefined) ||
     'Minute User'
-  const userRole = String(displayUser.role || lt('Thành viên', 'Member'))
+  const [personalRole, setPersonalRole] = useState(() => readRoleFromPersonalizationStorage(activeUserId))
+  const accountRoleLabel = useMemo(() => {
+    const normalized = String(displayUser.role || '').trim().toLowerCase()
+    if (normalized === 'admin') return 'Admin'
+    if (normalized === 'pmo') return 'PMO'
+    if (normalized === 'chair') return lt('Chủ trì', 'Chair')
+    return lt('Thành viên', 'Member')
+  }, [displayUser.role, lt])
+  const userRole = personalRole.trim() || accountRoleLabel
 
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false)
@@ -47,6 +73,32 @@ const Sidebar = () => {
     description: '',
     objective: '',
   })
+
+  useEffect(() => {
+    setPersonalRole(readRoleFromPersonalizationStorage(activeUserId))
+  }, [activeUserId, location.pathname])
+
+  useEffect(() => {
+    if (!activeUserId) return
+    let isActive = true
+
+    const loadRoleFromServer = async () => {
+      try {
+        const response = await usersApi.getLlmSettings(activeUserId)
+        if (!isActive) return
+        const role = String(response.behavior?.role || '').trim()
+        if (!role) return
+        setPersonalRole(role)
+      } catch {
+        // Keep local/account fallback when LLM behavior cannot be loaded.
+      }
+    }
+
+    void loadRoleFromServer()
+    return () => {
+      isActive = false
+    }
+  }, [activeUserId])
 
   const handleCreateSuccess = (meetingId?: string) => {
     setIsMeetingModalOpen(false)
