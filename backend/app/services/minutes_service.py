@@ -334,7 +334,24 @@ def _infer_session_type(meeting_type: Optional[str], request_session_type: Optio
     if request_session_type in {"meeting", "course"}:
         return request_session_type
     mt = (meeting_type or "").strip().lower()
-    if mt in {"study", "training", "education", "learning", "workshop", "course", "class"}:
+    if not mt:
+        return "meeting"
+
+    course_markers = (
+        "study",
+        "training",
+        "education",
+        "learning",
+        "workshop",
+        "course",
+        "class",
+        "training/study",
+        "dao tao",
+        "đào tạo",
+        "hoc",
+        "học",
+    )
+    if any(marker in mt for marker in course_markers):
         return "course"
     return "meeting"
 
@@ -490,6 +507,163 @@ def _build_ai_filters(
         filters.append(f"topic:tracked ({len(topic_rows)})")
 
     return filters
+
+
+def _is_placeholder_value(text_value: str) -> bool:
+    value = str(text_value or "").strip().lower()
+    if not value:
+        return True
+    markers = (
+        "khong ro",
+        "không rõ",
+        "khong co",
+        "không có",
+        "unknown",
+        "not specified",
+        "n/a",
+        "none",
+        "null",
+        "timestamp: khong ro",
+        "timestamp: không rõ",
+    )
+    return any(marker in value for marker in markers)
+
+
+def _normalize_key_points(raw_points: Any) -> List[str]:
+    normalized: List[str] = []
+
+    def _add_candidate(value: Any) -> None:
+        if isinstance(value, str):
+            candidate = value.strip()
+            if candidate and not _is_placeholder_value(candidate):
+                normalized.append(candidate)
+            return
+        if isinstance(value, dict):
+            for key in ("point", "text", "summary", "content", "description", "title"):
+                candidate = value.get(key)
+                if isinstance(candidate, str) and candidate.strip() and not _is_placeholder_value(candidate):
+                    normalized.append(candidate.strip())
+                    return
+            return
+
+    if isinstance(raw_points, str):
+        for part in re.split(r"[\n;]+", raw_points):
+            _add_candidate(part)
+    elif isinstance(raw_points, list):
+        for item in raw_points:
+            _add_candidate(item)
+    elif isinstance(raw_points, dict):
+        _add_candidate(raw_points)
+
+    deduped: List[str] = []
+    seen = set()
+    for item in normalized:
+        cleaned = re.sub(r"^[-*•\d.\)\s]+", "", item).strip()
+        cleaned = re.sub(r"\s+", " ", cleaned)
+        if not cleaned:
+            continue
+        key = cleaned.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(cleaned)
+    return deduped
+
+
+def _normalize_label_list(raw_values: Any, max_items: int = 10) -> List[str]:
+    values: List[str] = []
+    if isinstance(raw_values, str):
+        values = [v.strip() for v in re.split(r"[,\n;]+", raw_values) if v.strip()]
+    elif isinstance(raw_values, list):
+        for item in raw_values:
+            if isinstance(item, str) and item.strip():
+                values.append(item.strip())
+            elif isinstance(item, dict):
+                for key in ("keyword", "topic", "label", "name", "title", "text", "point"):
+                    candidate = item.get(key)
+                    if isinstance(candidate, str) and candidate.strip():
+                        values.append(candidate.strip())
+                        break
+
+    deduped: List[str] = []
+    seen = set()
+    for value in values:
+        cleaned = re.sub(r"^[-*•\d.\)\s]+", "", value).strip()
+        if len(cleaned) < 2 or _is_placeholder_value(cleaned):
+            continue
+        key = cleaned.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(cleaned)
+        if len(deduped) >= max_items:
+            break
+    return deduped
+
+
+def _derive_keywords(summary: str, key_points: List[str], max_items: int = 8) -> List[str]:
+    corpus = " ".join([str(summary or ""), *(key_points or [])]).lower()
+    if not corpus.strip():
+        return []
+
+    stopwords = {
+        "the", "and", "with", "from", "this", "that", "have", "been", "were", "into", "about",
+        "summary", "key", "point", "points", "meeting", "session", "evidence", "timestamp",
+        "của", "và", "là", "cho", "với", "những", "được", "trong", "một", "nhiều", "nội", "dung",
+        "không", "theo", "các", "đã", "đang", "về", "để", "cần", "từ", "sẽ", "việc", "quyết", "định",
+    }
+    freq: Dict[str, int] = {}
+    for token in re.findall(r"[0-9A-Za-zÀ-ỹà-ỹ]{3,}", corpus, flags=re.UNICODE):
+        cleaned = token.strip().lower()
+        if cleaned in stopwords:
+            continue
+        freq[cleaned] = freq.get(cleaned, 0) + 1
+
+    ranked = sorted(freq.items(), key=lambda item: item[1], reverse=True)
+    return [word for word, _count in ranked[:max_items]]
+
+
+def _derive_topics(
+    key_points: List[str],
+    topic_tracker: List[Dict[str, Any]],
+    keywords: List[str],
+    max_items: int = 8,
+) -> List[str]:
+    topics: List[str] = []
+
+    for row in topic_tracker or []:
+        title = str(row.get("title") or "").strip()
+        if title and not _is_placeholder_value(title):
+            topics.append(title)
+
+    for point in key_points or []:
+        cleaned = re.sub(r"^[-*•\d.\)\s]+", "", str(point)).strip()
+        if not cleaned:
+            continue
+        sentence = re.split(r"[.;!?]", cleaned)[0].strip()
+        if not sentence:
+            continue
+        words = sentence.split()
+        if len(words) <= 1:
+            continue
+        topics.append(" ".join(words[: min(len(words), 6)]))
+
+    topics.extend(keywords or [])
+
+    deduped: List[str] = []
+    seen = set()
+    for topic in topics:
+        cleaned = re.sub(r"\s+", " ", str(topic or "").strip())
+        if len(cleaned) < 2 or _is_placeholder_value(cleaned):
+            continue
+        key = cleaned.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(cleaned)
+        if len(deduped) >= max_items:
+            break
+    return deduped
 
 
 def _word_count(text_value: str) -> int:
@@ -1241,6 +1415,8 @@ async def generate_minutes_with_ai(
     study_pack: Optional[Dict[str, Any]] = None
     next_steps: List[str] = []
     structured_payload: Dict[str, Any] = {}
+    keywords: List[str] = []
+    topics: List[str] = []
 
     def _parse_json_fragment(raw_text: str, expect_array: bool = False):
         try:
@@ -1298,16 +1474,70 @@ async def generate_minutes_with_ai(
                         "owner": str(row.get("raised_by") or row.get("owner") or "").strip(),
                     }
                 )
-        return [r for r in normalized if r.get("description")]
+        def _is_valid_row(row: Dict[str, Any]) -> bool:
+            desc = str(row.get("description") or "").strip()
+            if not desc or _is_placeholder_value(desc):
+                return False
+            if row_type == "risk":
+                lowered = desc.lower()
+                if any(
+                    marker in lowered
+                    for marker in (
+                        "no risk",
+                        "không có rủi ro",
+                        "khong co rui ro",
+                        "no issue",
+                        "không có vấn đề",
+                        "khong co van de",
+                    )
+                ):
+                    return False
+            return True
+
+        return [r for r in normalized if _is_valid_row(r)]
 
     def _normalize_study_pack(raw_study: Any) -> Optional[Dict[str, Any]]:
         if isinstance(raw_study, str):
             raw_study = _parse_json_fragment(raw_study, expect_array=False)
         if not isinstance(raw_study, dict):
             return None
-        concepts = _safe_json_list(raw_study.get("concepts"))
-        quiz = _safe_json_list(raw_study.get("quiz"))
-        return {"concepts": concepts, "quiz": quiz}
+        concepts_raw = raw_study.get("concepts")
+        formulas_raw = (
+            raw_study.get("formulas")
+            or raw_study.get("important_formulas")
+            or raw_study.get("key_formulas")
+        )
+        quiz_raw = raw_study.get("quiz") or raw_study.get("quizzes") or raw_study.get("questions")
+
+        concepts = _safe_json_list(concepts_raw)
+        if not concepts and isinstance(concepts_raw, list):
+            concepts = [
+                {"concept": str(item).strip(), "explanation": "", "example": ""}
+                for item in concepts_raw
+                if str(item).strip()
+            ]
+
+        formulas = _safe_json_list(formulas_raw)
+        if not formulas and isinstance(formulas_raw, list):
+            formulas = [
+                {"name": str(item).strip(), "formula": str(item).strip(), "meaning": "", "usage": ""}
+                for item in formulas_raw
+                if str(item).strip()
+            ]
+
+        quiz = _safe_json_list(quiz_raw)
+        if not quiz and isinstance(quiz_raw, list):
+            quiz = [
+                {"question": str(item).strip(), "options": [], "answer": "", "explanation": ""}
+                for item in quiz_raw
+                if str(item).strip()
+            ]
+
+        return {
+            "concepts": concepts,
+            "formulas": formulas,
+            "quiz": quiz,
+        }
 
     if transcript_for_llm and len(transcript_for_llm) > MAX_DIRECT_TRANSCRIPT_CHARS:
         window_summaries = await _summarize_transcript_windows(assistant, transcript_for_llm)
@@ -1318,11 +1548,16 @@ async def generate_minutes_with_ai(
 
     try:
         if prompt_strategy == "structured_json" and transcript:
-            structured_payload = await assistant.generate_minutes_json(transcript)
+            structured_payload = await assistant.generate_minutes_json(
+                transcript,
+                session_type=session_type,
+            )
             summary_result = {
                 "summary": str(structured_payload.get("executive_summary") or "").strip(),
-                "key_points": structured_payload.get("key_points") or [],
+                "key_points": _normalize_key_points(structured_payload.get("key_points")),
             }
+            keywords = _normalize_label_list(structured_payload.get("keywords"), max_items=10)
+            topics = _normalize_label_list(structured_payload.get("topics"), max_items=10)
             if request.include_actions and not action_rows:
                 action_rows = _normalize_rows_from_llm(structured_payload.get("action_items"), "action")
             if request.include_decisions and not decision_rows:
@@ -1332,7 +1567,18 @@ async def generate_minutes_with_ai(
             if isinstance(structured_payload.get("next_steps"), list):
                 next_steps = [str(item).strip() for item in structured_payload.get("next_steps", []) if str(item).strip()]
             if session_type == "course":
-                study_pack = _normalize_study_pack(structured_payload.get("study_pack"))
+                raw_study_payload = structured_payload.get("study_pack")
+                if not isinstance(raw_study_payload, dict):
+                    raw_study_payload = {
+                        "concepts": structured_payload.get("concepts"),
+                        "formulas": structured_payload.get("formulas"),
+                        "quiz": (
+                            structured_payload.get("quiz")
+                            or structured_payload.get("quizzes")
+                            or structured_payload.get("questions")
+                        ),
+                    }
+                study_pack = _normalize_study_pack(raw_study_payload)
         else:
             summary_result = await assistant.generate_summary_with_context(context_payload)
     except Exception as exc:
@@ -1360,20 +1606,13 @@ async def generate_minutes_with_ai(
             "summary": summary_result.get("summary", ""),
             "key_points": summary_result.get("key_points", []),
         }
-        if not isinstance(summary_result["key_points"], list):
-            summary_result["key_points"] = [str(summary_result["key_points"])]
+    summary_result["key_points"] = _normalize_key_points(summary_result.get("key_points"))
 
     raw_summary_text = str(summary_result.get("summary", "") or "").strip()
     extracted_summary_text, extracted_key_points = _extract_embedded_summary_payload(raw_summary_text)
     summary_result["summary"] = extracted_summary_text or _decode_jsonish_text(raw_summary_text)
     if extracted_key_points and not summary_result.get("key_points"):
-        summary_result["key_points"] = extracted_key_points
-
-    summary_result["key_points"] = [
-        str(item).strip()
-        for item in (summary_result.get("key_points") or [])
-        if str(item).strip()
-    ]
+        summary_result["key_points"] = _normalize_key_points(extracted_key_points)
     if not summary_result["summary"]:
         prefer_vi = _prefer_vietnamese_output()
         if meeting_desc:
@@ -1448,7 +1687,7 @@ async def generate_minutes_with_ai(
                 fallback_points.append("Vui lòng bổ sung transcript để tăng độ sâu và độ chính xác của tóm tắt.")
             else:
                 fallback_points.append("Add transcript evidence to improve summary depth and accuracy.")
-        summary_result["key_points"] = fallback_points[:5]
+        summary_result["key_points"] = _normalize_key_points(fallback_points[:5])
 
     summary_result["summary"] = _expand_summary_if_needed(
         summary=str(summary_result.get("summary") or ""),
@@ -1462,6 +1701,20 @@ async def generate_minutes_with_ai(
         topic_tracker=topic_tracker,
         transcript_excerpt=llm_fallback_transcript[:1200] if llm_fallback_transcript else "",
     )
+
+    if not keywords:
+        keywords = _derive_keywords(
+            summary=str(summary_result.get("summary") or ""),
+            key_points=summary_result.get("key_points") or [],
+            max_items=8,
+        )
+    if not topics:
+        topics = _derive_topics(
+            key_points=summary_result.get("key_points") or [],
+            topic_tracker=topic_tracker,
+            keywords=keywords,
+            max_items=8,
+        )
 
     actions = [row.get("description", "") for row in action_rows if row.get("description")]
     decisions = [row.get("description", "") for row in decision_rows if row.get("description")]
@@ -1481,6 +1734,8 @@ async def generate_minutes_with_ai(
     if request.template_id:
         context_payload["summary"] = summary_result.get("summary", "")
         context_payload["key_points"] = summary_result.get("key_points", [])
+        context_payload["keywords"] = keywords
+        context_payload["topics"] = topics
         context_payload["session_type"] = session_type
         context_payload["action_items"] = action_rows
         context_payload["decision_items"] = decision_rows
@@ -1506,6 +1761,8 @@ async def generate_minutes_with_ai(
             end_time=end_time,
             summary=summary_result.get("summary", ""),
             key_points=summary_result.get("key_points", []),
+            keywords=keywords,
+            topics=topics,
             session_type=session_type,
             actions=actions,
             decisions=decisions,
@@ -1547,6 +1804,8 @@ def format_minutes(
     end_time,
     summary: str,
     key_points: List[str],
+    keywords: List[str],
+    topics: List[str],
     session_type: str,
     actions: List[str],
     decisions: List[str],
@@ -1590,6 +1849,8 @@ def format_minutes(
     ai_filters = ai_filters or []
     next_steps = next_steps or []
     key_points = [str(point).strip() for point in (key_points or []) if str(point).strip()]
+    keywords = [str(keyword).strip() for keyword in (keywords or []) if str(keyword).strip()]
+    topics = [str(topic).strip() for topic in (topics or []) if str(topic).strip()]
     summary_text = str(summary or "").strip()
     prefer_vi = _prefer_vietnamese_output()
 
@@ -1619,6 +1880,30 @@ def format_minutes(
             "- Chưa có điểm chính được trích xuất."
             if prefer_vi
             else "- No key points extracted yet."
+        )
+    lines.append("")
+
+    lines.append("## Từ khóa trọng tâm" if prefer_vi else "## Core keywords")
+    if keywords:
+        for keyword in keywords:
+            lines.append(f"- {keyword}")
+    else:
+        lines.append(
+            "- Chưa có từ khóa nổi bật."
+            if prefer_vi
+            else "- No notable keywords yet."
+        )
+    lines.append("")
+
+    lines.append("## Chủ đề chính" if prefer_vi else "## Primary topics")
+    if topics:
+        for topic in topics:
+            lines.append(f"- {topic}")
+    else:
+        lines.append(
+            "- Chưa có chủ đề nổi bật."
+            if prefer_vi
+            else "- No primary topics available."
         )
     lines.append("")
 
@@ -1750,6 +2035,7 @@ def format_minutes(
 
     if session_type == "course" and study_pack:
         concepts = [item for item in _safe_json_list(study_pack.get("concepts")) if item]
+        formulas = [item for item in _safe_json_list(study_pack.get("formulas")) if item]
         quiz = [item for item in _safe_json_list(study_pack.get("quiz")) if item]
         if include_knowledge_table:
             lines.append("## Bảng kiến thức trọng tâm")
@@ -1772,6 +2058,30 @@ def format_minutes(
                     "- Chưa có dữ liệu khái niệm."
                     if prefer_vi
                     else "- No concept data available."
+                )
+            lines.append("")
+
+            lines.append("## Công thức quan trọng" if prefer_vi else "## Important formulas")
+            if formulas:
+                lines.append("| Tên công thức | Biểu thức | Ý nghĩa |")
+                lines.append("| --- | --- | --- |")
+                for item in formulas:
+                    lines.append(
+                        "| "
+                        + " | ".join(
+                            [
+                                _md_cell(item.get("name") or item.get("title")),
+                                _md_cell(item.get("formula") or item.get("expression")),
+                                _md_cell(item.get("meaning") or item.get("usage") or item.get("description")),
+                            ]
+                        )
+                        + " |"
+                    )
+            else:
+                lines.append(
+                    "- Chưa có dữ liệu công thức."
+                    if prefer_vi
+                    else "- No formula data available."
                 )
             lines.append("")
         if include_quiz:

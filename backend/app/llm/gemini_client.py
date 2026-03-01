@@ -133,10 +133,26 @@ def _pick_first_string_value(obj: Dict[str, Any], keys: Tuple[str, ...]) -> str:
 
 
 def _pick_string_list_value(obj: Dict[str, Any], keys: Tuple[str, ...]) -> List[str]:
+    def _to_text(value: Any) -> str:
+        if isinstance(value, str):
+            return value.strip()
+        if isinstance(value, dict):
+            for field in ("point", "text", "summary", "content", "description", "title"):
+                candidate = value.get(field)
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate.strip()
+        return ""
+
     for key in keys:
         value = obj.get(key)
         if isinstance(value, list):
-            return [str(item).strip() for item in value if str(item).strip()]
+            parsed_items: List[str] = []
+            for item in value:
+                text = _to_text(item)
+                if text:
+                    parsed_items.append(text)
+            if parsed_items:
+                return parsed_items
         if isinstance(value, str) and value.strip():
             return [
                 line.strip()
@@ -1018,7 +1034,7 @@ Return STRICT JSON only (no extra prose):
             key_points = fallback_points[:8]
         return {"summary": summary, "key_points": key_points}
     
-    async def generate_minutes_json(self, transcript: str) -> Dict[str, Any]:
+    async def _generate_minutes_json_legacy(self, transcript: str) -> Dict[str, Any]:
         """Generate comprehensive minutes in strict JSON format with rich content"""
         language_name = _output_language_name()
         prefer_vi = _output_language_code() == "vi"
@@ -1123,6 +1139,220 @@ Required JSON schema:
             "study_pack": None,
         }
     
+    async def generate_minutes_json(self, transcript: str, session_type: str = "meeting") -> Dict[str, Any]:
+        """
+        Session-aware strict JSON generation.
+        The latest definition of this method intentionally overrides older legacy logic above.
+        """
+        language_name = _output_language_name()
+        prefer_vi = _output_language_code() == "vi"
+        session_type = (session_type or "meeting").strip().lower()
+        if session_type not in {"meeting", "course"}:
+            session_type = "meeting"
+        is_course = session_type == "course"
+
+        unknown_placeholder = "Không rõ" if prefer_vi else "Unknown"
+        language_guard = (
+            "Write all text values in natural Vietnamese. Do not output English sentences unless user explicitly asks."
+            if prefer_vi
+            else "Write all text values in natural English unless user explicitly asks another language."
+        )
+
+        if is_course:
+            mode_label = "training/study"
+            schema_block = f"""{{
+  "executive_summary": "3-6 well-structured paragraphs, target 220-420 words (minimum 120 words if transcript is sparse). Cover learning objective, key concepts, examples, misunderstandings, and practical application.",
+  "key_points": [
+    "8-15 concise and concrete study takeaways"
+  ],
+  "keywords": [
+    "6-12 key terms strictly extracted from transcript context"
+  ],
+  "topics": [
+    "4-10 normalized topic labels representing major learning threads"
+  ],
+  "study_pack": {{
+    "concepts": [
+      {{
+        "concept": "Important concept name",
+        "explanation": "Short practical explanation",
+        "example": "Example from transcript if available"
+      }}
+    ],
+    "formulas": [
+      {{
+        "name": "Formula/Principle name",
+        "formula": "Expression or canonical form",
+        "meaning": "What it means in plain language",
+        "usage": "When/how to apply it"
+      }}
+    ],
+    "quiz": [
+      {{
+        "question": "Question text",
+        "options": ["A", "B", "C", "D"],
+        "answer": "Correct option text",
+        "explanation": "Why this answer is correct"
+      }}
+    ]
+  }},
+  "next_steps": [
+    "Specific follow-up learning actions"
+  ],
+  "attendees_mentioned": [
+    "Names explicitly mentioned in transcript"
+  ]
+}}"""
+            guidance_block = (
+                "- This is a training/study session. Do NOT output meeting-only sections such as action_items/decisions/risks.\n"
+                "- Prioritize learning value: concept clarity, formulas/principles, and evaluation quiz quality.\n"
+                "- Keywords and topics must be useful and non-generic."
+            )
+        else:
+            mode_label = "meeting"
+            schema_block = f"""{{
+  "executive_summary": "3-6 well-structured paragraphs, target 220-420 words (minimum 120 words if transcript is sparse). Include purpose, key discussion flow, outcomes, unresolved points, risks, and implications.",
+  "key_points": [
+    "8-15 concrete points, each concise and evidence-grounded"
+  ],
+  "keywords": [
+    "6-12 key terms strictly extracted from transcript context"
+  ],
+  "topics": [
+    "4-10 normalized topic labels representing major meeting threads"
+  ],
+  "action_items": [
+    {{
+      "description": "Detailed action",
+      "owner": "Responsible person from transcript, else '{unknown_placeholder}'",
+      "deadline": "YYYY-MM-DD if explicit, otherwise null",
+      "priority": "high/medium/low",
+      "created_by": "Who requested or initiated it, else '{unknown_placeholder}'"
+    }}
+  ],
+  "decisions": [
+    {{
+      "description": "Clear decision statement",
+      "rationale": "Why this decision was made",
+      "decided_by": "Final decision maker if known, else '{unknown_placeholder}'",
+      "approved_by": "Approver(s) if mentioned, else '{unknown_placeholder}'"
+    }}
+  ],
+  "risks": [
+    {{
+      "description": "Risk or issue",
+      "severity": "critical/high/medium/low",
+      "mitigation": "Mitigation discussed, else empty string",
+      "raised_by": "Who raised it, else '{unknown_placeholder}'"
+    }}
+  ],
+  "next_steps": [
+    "Specific follow-up steps after the meeting"
+  ],
+  "attendees_mentioned": [
+    "Names explicitly mentioned in transcript"
+  ]
+}}"""
+            guidance_block = (
+                "- This is a meeting session. action_items/decisions/risks are required when evidence exists.\n"
+                "- If there is no evidence for a section, keep that section as an empty list instead of fabricating."
+            )
+
+        prompt = f"""You are MINUTE AI, generating professional structured output for {mode_label} sessions.
+Analyze the transcript below and produce a detailed, factual JSON.
+
+TRANSCRIPT:
+{transcript[:20000]}
+
+OUTPUT REQUIREMENTS (Strict JSON Mode):
+- Return exactly ONE JSON object only (no markdown code fence, no commentary).
+- Output language: {language_name}.
+- {language_guard}
+- Be specific, evidence-based, and avoid hallucinations.
+- If a field is unknown, use "{unknown_placeholder}" or null instead of omitting required structure.
+- Extract as much useful detail as possible from transcript content.
+- Do not repeat near-duplicate bullets; merge similar points.
+- If visual signals appear (e.g., [VISUAL], [SCREEN], slide references), reflect them in executive_summary and key_points.
+- Keywords/topics must be concrete, domain-relevant, and avoid stopwords.
+
+Required JSON schema:
+{schema_block}
+
+Session-specific guidance:
+{guidance_block}
+"""
+
+        response = await self.chat.chat(prompt)
+        payload = _parse_json_object_relaxed(response)
+        if payload:
+            summary, key_points = _extract_summary_and_points_from_payload(payload)
+            if summary and not str(payload.get("executive_summary") or "").strip():
+                payload["executive_summary"] = summary
+            if key_points and not isinstance(payload.get("key_points"), list):
+                payload["key_points"] = key_points
+            if key_points and isinstance(payload.get("key_points"), list) and not payload.get("key_points"):
+                payload["key_points"] = key_points
+
+            for key in ("keywords", "topics", "next_steps", "attendees_mentioned"):
+                value = payload.get(key)
+                if not isinstance(value, list):
+                    payload[key] = []
+
+            if is_course:
+                raw_study = payload.get("study_pack") if isinstance(payload.get("study_pack"), dict) else {}
+                if not isinstance(raw_study, dict):
+                    raw_study = {}
+                for alt_key, canonical in (
+                    ("concepts", "concepts"),
+                    ("formulas", "formulas"),
+                    ("important_formulas", "formulas"),
+                    ("key_formulas", "formulas"),
+                    ("quiz", "quiz"),
+                    ("quizzes", "quiz"),
+                    ("questions", "quiz"),
+                ):
+                    value = payload.get(alt_key)
+                    if isinstance(value, list) and canonical not in raw_study:
+                        raw_study[canonical] = value
+                payload["study_pack"] = {
+                    "concepts": raw_study.get("concepts") if isinstance(raw_study.get("concepts"), list) else [],
+                    "formulas": raw_study.get("formulas") if isinstance(raw_study.get("formulas"), list) else [],
+                    "quiz": raw_study.get("quiz") if isinstance(raw_study.get("quiz"), list) else [],
+                }
+                payload.pop("action_items", None)
+                payload.pop("decisions", None)
+                payload.pop("risks", None)
+            else:
+                for key in ("action_items", "decisions", "risks"):
+                    value = payload.get(key)
+                    if not isinstance(value, list):
+                        payload[key] = []
+                payload.setdefault("study_pack", None)
+            return payload
+
+        summary = _extract_summary_field_by_regex(response)
+        key_points = _extract_key_points_by_regex(response)
+        if not summary:
+            summary = _strip_code_fences(response).strip()[:1200]
+
+        logger.warning("[AI] Failed to parse strict minutes JSON; returning sanitized fallback payload.")
+        fallback_payload: Dict[str, Any] = {
+            "executive_summary": summary,
+            "key_points": key_points,
+            "keywords": [],
+            "topics": [],
+            "next_steps": [],
+            "attendees_mentioned": [],
+        }
+        if is_course:
+            fallback_payload["study_pack"] = {"concepts": [], "formulas": [], "quiz": []}
+        else:
+            fallback_payload["action_items"] = []
+            fallback_payload["decisions"] = []
+            fallback_payload["risks"] = []
+            fallback_payload["study_pack"] = None
+        return fallback_payload
+
     async def generate_summary(self, transcript: str) -> str:
         """Generate meeting summary"""
         language_name = _output_language_name()
