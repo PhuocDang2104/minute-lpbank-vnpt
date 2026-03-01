@@ -111,9 +111,9 @@ const inferSessionType = (meetingType?: string | null): 'meeting' | 'course' => 
     'course',
     'class',
     'training/study',
-    'Ä‘Ă o táº¡o',
+    'đào tạo',
     'dao tao',
-    'há»c',
+    'học',
     'hoc',
   ];
   return courseMarkers.some((marker) => normalized.includes(marker)) ? 'course' : 'meeting';
@@ -264,7 +264,7 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
             if (transcriptCount === 0) {
               const continueWithoutTranscript = window.confirm(
                 lt(
-                  'Xá»­ lĂ½ video Ä‘Ă£ hoĂ n táº¥t nhÆ°ng chÆ°a táº¡o Ä‘Æ°á»£c transcript. Báº¡n cĂ³ muá»‘n tiáº¿p tá»¥c táº¡o biĂªn báº£n khĂ´ng?',
+                  'Xử lý video đã hoàn tất nhưng chưa tạo được transcript. Bạn có muốn tiếp tục tạo biên bản không?',
                   'Video processing finished but no transcript was created. Do you want to continue generating minutes?',
                 ),
               );
@@ -276,7 +276,7 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
             console.error('Auto-transcript generation failed:', inferenceErr);
             const continueWithoutTranscript = window.confirm(
               lt(
-                'KhĂ´ng thá»ƒ tá»± Ä‘á»™ng táº¡o transcript tá»« video. Báº¡n cĂ³ muá»‘n tiáº¿p tá»¥c táº¡o biĂªn báº£n khĂ´ng?',
+                'Không thể tự động tạo transcript từ video. Bạn có muốn tiếp tục tạo biên bản không?',
                 'Failed to auto-generate transcript from recording. Do you want to continue generating minutes?',
               ),
             );
@@ -287,7 +287,7 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
         } else {
           const continueWithoutTranscript = window.confirm(
             lt(
-              'ChÆ°a cĂ³ transcript hoáº·c video cuá»™c há»p. BiĂªn báº£n táº¡o ra cĂ³ thá»ƒ thiáº¿u chĂ­nh xĂ¡c. Báº¡n cĂ³ muá»‘n tiáº¿p tá»¥c khĂ´ng?',
+              'Chưa có transcript hoặc video cuộc họp. Biên bản tạo ra có thể thiếu chính xác. Bạn có muốn tiếp tục không?',
               'No transcript or meeting recording is available. Generated minutes may be incomplete. Do you want to continue?',
             ),
           );
@@ -318,7 +318,7 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
       }
     } catch (err) {
       console.error('Generate failed:', err);
-      alert(lt('KhĂ´ng thá»ƒ táº¡o biĂªn báº£n. Vui lĂ²ng thá»­ láº¡i.', 'Failed to generate minutes. Please try again.'));
+      alert(lt('Không thể tạo biên bản. Vui lòng thử lại.', 'Failed to generate minutes. Please try again.'));
     } finally {
       setIsGenerating(false);
     }
@@ -346,13 +346,13 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
       await loadAllData();
     } catch (err) {
       console.error('Add transcript failed:', err);
-      alert(lt('KhĂ´ng thá»ƒ thĂªm transcript. Vui lĂ²ng thá»­ láº¡i.', 'Failed to add transcript. Please try again.'));
+      alert(lt('Không thể thêm transcript. Vui lòng thử lại.', 'Failed to add transcript. Please try again.'));
     }
   };
 
   // Hidden feature: Delete all transcripts for demo
   const handleDeleteAllTranscripts = async () => {
-    if (!confirm(lt('Báº¡n cĂ³ cháº¯c cháº¯n muá»‘n xĂ³a táº¥t cáº£ transcript? HĂ nh Ä‘á»™ng nĂ y khĂ´ng thá»ƒ hoĂ n tĂ¡c.', 'Are you sure you want to delete all transcripts? This action cannot be undone.'))) {
+    if (!confirm(lt('Bạn có chắc chắn muốn xóa tất cả transcript? Hành động này không thể hoàn tác.', 'Are you sure you want to delete all transcripts? This action cannot be undone.'))) {
       return;
     }
     try {
@@ -362,10 +362,10 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
       const api = (await import('../../../../lib/apiClient')).default;
       await api.delete(`/transcripts/${meeting.id}`);
       await loadAllData();
-      alert(lt('ÄĂ£ xĂ³a táº¥t cáº£ transcript.', 'All transcripts were deleted.'));
+      alert(lt('Đã xóa tất cả transcript.', 'All transcripts were deleted.'));
     } catch (err) {
       console.error('Delete transcripts failed:', err);
-      alert(lt('KhĂ´ng thá»ƒ xĂ³a transcript. Vui lĂ²ng thá»­ láº¡i.', 'Failed to delete transcripts. Please try again.'));
+      alert(lt('Không thể xóa transcript. Vui lòng thử lại.', 'Failed to delete transcripts. Please try again.'));
     }
   };
 
@@ -414,7 +414,7 @@ export const PostMeetTabFireflies = ({ meeting, onRefresh }: PostMeetTabFireflie
       <div className="fireflies-layout">
         <div className="fireflies-loading">
           <div className="spinner" style={{ width: 40, height: 40 }} />
-          <p>{lt('Äang táº£i dá»¯ liá»‡u cuá»™c há»p...', 'Loading meeting data...')}</p>
+          <p>{lt('Đang tải dữ liệu cuộc họp...', 'Loading meeting data...')}</p>
         </div>
       </div>
     );
@@ -510,19 +510,26 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
 
   const markdownKeywords = extractBulletItemsFromMarkdown(
     markdownSource,
-    ['tá»« khĂ³a trá»ng tĂ¢m', 'core keywords', 'keywords'],
+    ['từ khóa trọng tâm', 'core keywords', 'keywords'],
   );
-  const dynamicKeywords = (markdownKeywords.length
-    ? markdownKeywords
-    : extractKeywords([summarySeed, transcriptCorpus].join(' '))).slice(0, 10);
+  const dynamicKeywords = compactConceptList(
+    markdownKeywords.length
+      ? markdownKeywords
+      : extractConceptKeywords([summarySeed, transcriptCorpus].join(' '), 12),
+    10,
+  );
 
   const markdownTopics = extractBulletItemsFromMarkdown(
     markdownSource,
-    ['chá»§ Ä‘á» chĂ­nh', 'primary topics', 'topics'],
+    ['chủ đề chính', 'primary topics', 'topics'],
   );
-  const topicLabels = (markdownTopics.length
-    ? markdownTopics
-    : extractTopicsFromTranscript(transcriptCorpus, dynamicKeywords)).slice(0, 10);
+  const timelineTopics = extractTopicsByMinute(transcripts, dynamicKeywords, 10);
+  const topicLabels = compactTopicList(
+    markdownTopics.length
+      ? [...timelineTopics, ...markdownTopics]
+      : timelineTopics,
+    10,
+  );
   const dynamicTopics = topicLabels.map((label) => ({
     label,
     count: countTopicMentions(label, transcripts),
@@ -546,7 +553,7 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
   };
 
   const handleDeleteDocument = async (doc: KnowledgeDocument) => {
-    const ok = window.confirm(lt(`XĂ³a tĂ i liá»‡u "${doc.title}"?`, `Delete document "${doc.title}"?`));
+    const ok = window.confirm(lt(`Xóa tài liệu "${doc.title}"?`, `Delete document "${doc.title}"?`));
     if (!ok) return;
 
     setDeletingDocId(doc.id);
@@ -555,7 +562,7 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
       await loadDocuments();
     } catch (err) {
       console.error('Delete session document failed:', err);
-      alert(lt('XĂ³a tĂ i liá»‡u tháº¥t báº¡i. Vui lĂ²ng thá»­ láº¡i.', 'Failed to delete document. Please try again.'));
+      alert(lt('Xóa tài liệu thất bại. Vui lòng thử lại.', 'Failed to delete document. Please try again.'));
     } finally {
       setDeletingDocId(null);
     }
@@ -574,12 +581,12 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
 
   // Extract dates/times mentions (simple heuristic)
   const datesCount = transcripts.filter((t) =>
-    /\b\d{1,2}\/\d{1,2}|\b(thá»©|ngĂ y|thĂ¡ng|tuáº§n|quĂ½)\b/i.test(t.text)
+    /\b\d{1,2}\/\d{1,2}|\b(thu|ngay|thang|tuan|quy)\b/i.test(t.text)
   ).length;
 
   // Count metrics mentions (numbers + units)
   const metricsCount = transcripts.filter((t) =>
-    /\d+\s?(triá»‡u|nghĂ¬n|tá»·|%|ngÆ°á»i|Ä‘Æ¡n|vá»‹)/i.test(t.text)
+    /\d+\s?(trieu|nghin|ty|%|nguoi|don|vi)/i.test(t.text)
   ).length;
 
   return (
@@ -590,32 +597,32 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
             <Upload size={18} />
           </div>
           <div>
-            <div className="fireflies-upload-card__title">{lt('TĂ i liá»‡u phiĂªn', 'Session documents')}</div>
-            <div className="fireflies-upload-card__subtitle">{lt('Táº£i lĂªn tĂ i liá»‡u liĂªn quan Ä‘áº¿n phiĂªn nĂ y.', 'Upload documents related to this session.')}</div>
+            <div className="fireflies-upload-card__title">{lt('Tài liệu phiên', 'Session documents')}</div>
+            <div className="fireflies-upload-card__subtitle">{lt('Tải lên tài liệu liên quan đến phiên này.', 'Upload documents related to this session.')}</div>
           </div>
         </div>
         <button
           className="btn btn--secondary btn--sm"
           onClick={() => setShowUploadModal(true)}
           disabled={!safeMeetingId}
-          title={!safeMeetingId ? lt('ID phiĂªn khĂ´ng há»£p lá»‡', 'Invalid session ID') : undefined}
+          title={!safeMeetingId ? lt('ID phiên không hợp lệ', 'Invalid session ID') : undefined}
         >
-          {lt('Táº£i tĂ i liá»‡u', 'Upload doc')}
+          {lt('Tải tài liệu', 'Upload doc')}
         </button>
       </div>
 
       <div className="fireflies-filter-section" style={{ marginBottom: 12 }}>
         <div className="fireflies-filter-section__header">
-          <h4 style={{ margin: 0 }}>{lt('TĂ i liá»‡u phiĂªn', 'Session documents')} ({documents.length})</h4>
+          <h4 style={{ margin: 0 }}>{lt('Tài liệu phiên', 'Session documents')} ({documents.length})</h4>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
           {docsLoading ? (
             <div className="fireflies-empty">
-              <p>{lt('Äang táº£i tĂ i liá»‡u...', 'Loading documents...')}</p>
+              <p>{lt('Đang tải tài liệu...', 'Loading documents...')}</p>
             </div>
           ) : documents.length === 0 ? (
             <div className="fireflies-empty">
-              <p>{lt('ChÆ°a cĂ³ tĂ i liá»‡u trong phiĂªn', 'No documents in this session')}</p>
+              <p>{lt('Chưa có tài liệu trong phiên', 'No documents in this session')}</p>
             </div>
           ) : (
             documents.slice(0, 6).map((doc) => (
@@ -636,7 +643,7 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
                     {doc.title}
                   </div>
                   <div style={{ fontSize: 11, opacity: 0.7 }}>
-                    {(doc.file_type || 'file').toUpperCase()} â€¢ {doc.source || lt('ÄĂ£ táº£i lĂªn', 'Uploaded')}
+                    {(doc.file_type || 'file').toUpperCase()} - {doc.source || lt('Đã tải lên', 'Uploaded')}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -645,13 +652,13 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn--ghost btn--icon btn--sm"
-                    title={lt('Má»Ÿ tĂ i liá»‡u', 'Open document')}
+                    title={lt('Mở tài liệu', 'Open document')}
                   >
                     <Search size={12} />
                   </a>
                   <button
                     className="btn btn--ghost btn--icon btn--sm"
-                    title={lt('XĂ³a tĂ i liá»‡u', 'Delete document')}
+                    title={lt('Xóa tài liệu', 'Delete document')}
                     disabled={deletingDocId === doc.id}
                     onClick={() => handleDeleteDocument(doc)}
                   >
@@ -671,7 +678,7 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
         </div>
         <input
           className="fireflies-search__input"
-          placeholder={lt('TĂ¬m kiáº¿m thĂ´ng minh', 'Smart search')}
+          placeholder={lt('Tìm kiếm thông minh', 'Smart search')}
           value={filters.searchQuery}
           onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value })}
         />
@@ -679,19 +686,19 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
 
       {/* Keywords Section */}
       <FilterSection
-        title={lt('Tá»ª KHĂ“A', 'KEYWORDS')}
+        title={lt('TỪ KHÓA', 'KEYWORDS')}
         isExpanded={expandedSections.keywords}
         onToggle={() => toggleSection('keywords')}
       >
         {dynamicKeywords.length === 0 ? (
-          <div className="fireflies-empty">{lt('ChÆ°a cĂ³ tá»« khĂ³a', 'No keywords yet')}</div>
+          <div className="fireflies-empty">{lt('Chưa có từ khóa', 'No keywords yet')}</div>
         ) : (
           dynamicKeywords.map((keyword) => (
             <button
               key={keyword}
               className={`topic-chip ${filters.searchQuery.toLowerCase() === keyword.toLowerCase() ? 'active' : ''}`}
               onClick={() => setFilters({ ...filters, searchQuery: keyword })}
-              title={lt('Lá»c transcript theo tá»« khĂ³a nĂ y', 'Filter transcript by this keyword')}
+              title={lt('Lọc transcript theo từ khóa này', 'Filter transcript by this keyword')}
             >
               <Tag size={12} />
               <span className="topic-chip__label">{keyword}</span>
@@ -702,13 +709,13 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
 
       {/* AI Filters Section */}
       <FilterSection
-        title={lt('Bá»˜ Lá»ŒC AI', 'AI FILTERS')}
+        title={lt('BỘ LỌC AI', 'AI FILTERS')}
         isExpanded={expandedSections.filters}
         onToggle={() => toggleSection('filters')}
       >
         <FilterChip
           icon={<MessageCircle size={14} />}
-          label={lt('CĂ¢u há»i', 'Questions')}
+          label={lt('Câu hỏi', 'Questions')}
           count={questionsCount}
           color="#f59e0b"
           active={filters.questions}
@@ -716,7 +723,7 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
         />
         <FilterChip
           icon={<Calendar size={14} />}
-          label={lt('NgĂ y & má»‘c thá»i gian', 'Dates & timeline')}
+          label={lt('Ngày & mốc thời gian', 'Dates & timeline')}
           count={datesCount}
           color="#8b5cf6"
           active={filters.dates}
@@ -724,7 +731,7 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
         />
         <FilterChip
           icon={<TrendingUp size={14} />}
-          label={lt('Chá»‰ sá»‘', 'Metrics')}
+          label={lt('Chỉ số', 'Metrics')}
           count={metricsCount}
           color="#3b82f6"
           active={filters.metrics}
@@ -732,7 +739,7 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
         />
         <FilterChip
           icon={<CheckSquare size={14} />}
-          label={lt('CĂ´ng viá»‡c', 'Tasks')}
+          label={lt('Công việc', 'Tasks')}
           count={actionItems.length}
           color="#10b981"
           active={filters.tasks}
@@ -747,7 +754,7 @@ const LeftPanel = ({ meetingId, minutes, sessionType, filters, setFilters, actio
         onToggle={() => toggleSection('topics')}
       >
         {dynamicTopics.length === 0 ? (
-          <div className="fireflies-empty">{lt('ChÆ°a cĂ³ chá»§ Ä‘á»', 'No topics yet')}</div>
+          <div className="fireflies-empty">{lt('Chưa có chủ đề', 'No topics yet')}</div>
         ) : (
           dynamicTopics.map((topic) => (
             <TopicChip
@@ -867,30 +874,30 @@ const CenterPanel = ({
   const handleExportPDF = () => {
     if (!minutes) return;
 
-    const formatDate = (d: string | null | undefined) => d ? new Date(d).toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : lt('ChÆ°a cĂ³', 'N/A');
+    const formatDate = (d: string | null | undefined) => d ? new Date(d).toLocaleDateString(dateLocale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : lt('Chưa có', 'N/A');
     const formatTime = (d: string | null | undefined) => d ? new Date(d).toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' }) : '';
     const priorityLabel = (value: string | undefined) => {
       const labels: Record<string, [string, string]> = {
-        low: ['Tháº¥p', 'Low'],
-        medium: ['Trung bĂ¬nh', 'Medium'],
+        low: ['Thấp', 'Low'],
+        medium: ['Trung bình', 'Medium'],
         high: ['Cao', 'High'],
-        critical: ['Kháº©n cáº¥p', 'Critical'],
+        critical: ['Khẩn cấp', 'Critical'],
       };
       const label = labels[(value || '').toLowerCase()];
       return label ? lt(label[0], label[1]) : value || '';
     };
     const severityLabel = (value: string | undefined) => {
       const labels: Record<string, [string, string]> = {
-        low: ['Tháº¥p', 'Low'],
-        medium: ['Trung bĂ¬nh', 'Medium'],
+        low: ['Thấp', 'Low'],
+        medium: ['Trung bình', 'Medium'],
         high: ['Cao', 'High'],
-        critical: ['NghiĂªm trá»ng', 'Critical'],
+        critical: ['Nghiêm trọng', 'Critical'],
       };
       const label = labels[(value || '').toLowerCase()];
       return label ? lt(label[0], label[1]) : value || '';
     };
     const normalizedSummary = normalizeSummaryContent(minutes.executive_summary || minutes.minutes_markdown || '');
-    const summaryMarkdown = normalizedSummary.summaryText || lt('ChÆ°a cĂ³ tĂ³m táº¯t.', 'No summary available.');
+    const summaryMarkdown = normalizedSummary.summaryText || lt('Chưa có tóm tắt.', 'No summary available.');
     const summaryHtml = renderMarkdownToHtml(summaryMarkdown);
 
     // Parse minutes_markdown for action_items, decisions, risks if available
@@ -914,7 +921,7 @@ const CenterPanel = ({
 <html lang="${language}">
 <head>
   <meta charset="UTF-8">
-  <title>${lt('BiĂªn báº£n', 'Minutes')} - ${meeting.title}</title>
+  <title>${lt('Biên bản', 'Minutes')} - ${meeting.title}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1f2937; background: #fff; }
@@ -986,24 +993,24 @@ const CenterPanel = ({
     <div class="header">
       <div class="header-top">
         <div class="logo">Minute</div>
-        <div class="doc-type">${lt('BIĂN Báº¢N CUá»˜C Há»ŒP', 'MEETING MINUTES')}</div>
+        <div class="doc-type">${lt('BIÊN BẢN CUỘC HỌP', 'MEETING MINUTES')}</div>
       </div>
       <div class="meeting-title">${meeting.title}</div>
     </div>
     
     <!-- Meeting Info -->
     <table class="info-table">
-      <tr><td>${lt('NgĂ y há»p', 'Meeting date')}</td><td>${formatDate(meeting.start_time)}</td></tr>
-      <tr><td>${lt('Thá»i gian', 'Time')}</td><td>${formatTime(meeting.start_time)}${meeting.end_time ? ' - ' + formatTime(meeting.end_time) : ''}</td></tr>
-      ${meeting.meeting_type ? '<tr><td>' + lt('Loáº¡i cuá»™c há»p', 'Meeting type') + '</td><td>' + meeting.meeting_type + '</td></tr>' : ''}
-      ${meeting.participants?.length ? '<tr><td>' + lt('NgÆ°á»i tham gia', 'Participants') + '</td><td>' + meeting.participants.map(p => p.display_name || p.email).join(', ') + '</td></tr>' : ''}
+      <tr><td>${lt('Ngày họp', 'Meeting date')}</td><td>${formatDate(meeting.start_time)}</td></tr>
+      <tr><td>${lt('Thời gian', 'Time')}</td><td>${formatTime(meeting.start_time)}${meeting.end_time ? ' - ' + formatTime(meeting.end_time) : ''}</td></tr>
+      ${meeting.meeting_type ? '<tr><td>' + lt('Loại cuộc họp', 'Meeting type') + '</td><td>' + meeting.meeting_type + '</td></tr>' : ''}
+      ${meeting.participants?.length ? '<tr><td>' + lt('Người tham gia', 'Participants') + '</td><td>' + meeting.participants.map(p => p.display_name || p.email).join(', ') + '</td></tr>' : ''}
     </table>
     
     <!-- Executive Summary -->
     <div class="section">
       <div class="section-header">
         <span class="section-icon"></span>
-        <span class="section-title">${lt('TĂ³m táº¯t Ä‘iá»u hĂ nh', 'Executive summary')}</span>
+        <span class="section-title">${lt('Tóm tắt điều hành', 'Executive summary')}</span>
       </div>
       <div class="summary-box">
         <div class="summary-markdown">${summaryHtml}</div>
@@ -1015,7 +1022,7 @@ const CenterPanel = ({
     <div class="section">
       <div class="section-header">
         <span class="section-icon"></span>
-        <span class="section-title">${lt('Nhá»¯ng Ä‘iá»ƒm chĂ­nh', 'Key points')}</span>
+        <span class="section-title">${lt('Những điểm chính', 'Key points')}</span>
         <span class="section-count">${keyPoints.length}</span>
       </div>
       <ul class="key-points">
@@ -1028,17 +1035,17 @@ const CenterPanel = ({
     <div class="section">
       <div class="section-header">
         <span class="section-icon"></span>
-        <span class="section-title">${lt('CĂ´ng viá»‡c cáº§n thá»±c hiá»‡n', 'Action items')}</span>
+        <span class="section-title">${lt('Công việc cần thực hiện', 'Action items')}</span>
         <span class="section-count">${actionItems.length}</span>
       </div>
       ${actionItems.map((a: any) => `
         <div class="item-card action">
           <div class="item-desc">${a.description}</div>
           <div class="item-meta">
-            <span>đŸ‘¤ ${a.owner || lt('ChÆ°a phĂ¢n cĂ´ng', 'Unassigned')}</span>
+            <span>{a.owner || lt('Chưa phân công', 'Unassigned')}</span>
             ${a.deadline ? `<span>${a.deadline}</span>` : ''}
             ${a.priority ? `<span class="badge ${a.priority}">${priorityLabel(a.priority)}</span>` : ''}
-            ${a.created_by ? `<span>${lt('YĂªu cáº§u bá»Ÿi', 'Requested by')}: ${a.created_by}</span>` : ''}
+            ${a.created_by ? `<span>${lt('Yêu cầu bởi', 'Requested by')}: ${a.created_by}</span>` : ''}
           </div>
         </div>
       `).join('')}
@@ -1049,7 +1056,7 @@ const CenterPanel = ({
     <div class="section">
       <div class="section-header">
         <span class="section-icon"></span>
-        <span class="section-title">${lt('CĂ¡c quyáº¿t Ä‘á»‹nh', 'Decisions')}</span>
+        <span class="section-title">${lt('Các quyết định', 'Decisions')}</span>
         <span class="section-count">${decisions.length}</span>
       </div>
       ${decisions.map((d: any) => `
@@ -1057,7 +1064,7 @@ const CenterPanel = ({
           <div class="item-desc">${d.description}</div>
           <div class="item-meta">
             ${d.rationale ? `<span>${d.rationale}</span>` : ''}
-            ${d.decided_by || d.confirmed_by ? `<span>${lt('Quyáº¿t Ä‘á»‹nh bá»Ÿi', 'Decided by')}: ${d.decided_by || d.confirmed_by}</span>` : ''}
+            ${d.decided_by || d.confirmed_by ? `<span>${lt('Quyết định bởi', 'Decided by')}: ${d.decided_by || d.confirmed_by}</span>` : ''}
           </div>
         </div>
       `).join('')}
@@ -1068,7 +1075,7 @@ const CenterPanel = ({
     <div class="section">
       <div class="section-header">
         <span class="section-icon"></span>
-        <span class="section-title">${lt('Rá»§i ro & Váº¥n Ä‘á»', 'Risks & issues')}</span>
+        <span class="section-title">${lt('Rủi ro & Vấn đề', 'Risks & issues')}</span>
         <span class="section-count">${risks.length}</span>
       </div>
       ${risks.map((r: any) => `
@@ -1077,7 +1084,7 @@ const CenterPanel = ({
           <div class="item-meta">
             <span class="badge ${r.severity}">${severityLabel(r.severity || 'medium')}</span>
             ${r.mitigation ? `<span>${r.mitigation}</span>` : ''}
-            ${r.raised_by ? `<span>${lt('NĂªu bá»Ÿi', 'Raised by')}: ${r.raised_by}</span>` : ''}
+            ${r.raised_by ? `<span>${lt('Nêu bởi', 'Raised by')}: ${r.raised_by}</span>` : ''}
           </div>
         </div>
       `).join('')}
@@ -1085,7 +1092,7 @@ const CenterPanel = ({
     
     <!-- Footer -->
     <div class="footer">
-      <p>${lt('BiĂªn báº£n Ä‘Æ°á»£c táº¡o tá»± Ä‘á»™ng bá»Ÿi Minute AI', 'Minutes generated automatically by Minute AI')} â€¢ ${new Date().toLocaleDateString(dateLocale)}</p>
+      <p>${lt('Biên bản được tạo tự động bởi Minute AI', 'Minutes generated automatically by Minute AI')} - ${new Date().toLocaleDateString(dateLocale)}</p>
     </div>
   </div>
 </body>
@@ -1109,7 +1116,7 @@ const CenterPanel = ({
         allRecipients.push(...customEmail.split(',').map(e => e.trim()).filter(e => e));
       }
       if (allRecipients.length === 0) {
-        alert(lt('Vui lĂ²ng chá»n Ă­t nháº¥t má»™t ngÆ°á»i nháº­n.', 'Please select at least one recipient.'));
+        alert(lt('Vui lòng chọn ít nhất một người nhận.', 'Please select at least one recipient.'));
         setIsSendingEmail(false);
         return;
       }
@@ -1145,7 +1152,7 @@ const CenterPanel = ({
       setIsEditingSummary(false);
     } catch (err) {
       console.error('Save failed:', err);
-      alert(lt('LÆ°u tháº¥t báº¡i', 'Save failed'));
+      alert(lt('Lưu thất bại', 'Save failed'));
     }
   };
 
@@ -1156,7 +1163,7 @@ const CenterPanel = ({
     if (!normalized.keyPoints.length) {
       return body;
     }
-    const pointsTitle = lt('Äiá»ƒm chĂ­nh', 'Key points');
+    const pointsTitle = lt('Điểm chính', 'Key points');
     const points = normalized.keyPoints.map((point) => `- ${point}`).join('\n');
     return `${body}\n\n${pointsTitle}:\n${points}`.trim();
   };
@@ -1201,13 +1208,13 @@ const CenterPanel = ({
         const visualEventCount = inferenceResult.visual_event_count || 0;
         const visualObjectCount = inferenceResult.visual_object_count || 0;
         setVideoProofText(
-          `Transcript segments: ${transcriptCount} Â· Visual events: ${visualEventCount}${visualObjectCount ? ` Â· Objects: ${visualObjectCount}` : ''}`,
+          `Transcript segments: ${transcriptCount} - Visual events: ${visualEventCount}${visualObjectCount ? ` - Objects: ${visualObjectCount}` : ''}`,
         );
       } catch (inferenceErr: any) {
         console.error('Video inference failed:', inferenceErr);
         alert(
           lt(
-            `Video Ä‘Ă£ Ä‘Æ°á»£c táº£i lĂªn nhÆ°ng xá»­ lĂ½ gáº·p lá»—i: ${inferenceErr.message || 'KhĂ´ng thá»ƒ táº¡o transcript'}. Vui lĂ²ng kiá»ƒm tra logs backend.`,
+            `Video đã được tải lên nhưng xử lý gặp lỗi: ${inferenceErr.message || 'Không thể tạo transcript'}. Vui lòng kiểm tra logs backend.`,
             `Video uploaded, but processing failed: ${inferenceErr.message || 'Failed to create transcript'}. Please check backend logs.`,
           ),
         );
@@ -1216,7 +1223,7 @@ const CenterPanel = ({
       }
     } catch (err: any) {
       console.error('Upload video failed:', err);
-      alert(lt(`Lá»—i: ${err.message || 'KhĂ´ng thá»ƒ táº£i lĂªn video'}`, `Error: ${err.message || 'Failed to upload video'}`));
+      alert(lt(`Lỗi: ${err.message || 'Không thể tải lên video'}`, `Error: ${err.message || 'Failed to upload video'}`));
     } finally {
       setIsUploadingVideo(false);
     }
@@ -1242,7 +1249,7 @@ const CenterPanel = ({
       if (file.type.startsWith('video/')) {
         handleVideoUpload(file);
       } else {
-        alert(lt('Vui lĂ²ng chá»n file video', 'Please select a video file'));
+        alert(lt('Vui lòng chọn file video', 'Please select a video file'));
       }
     }
   };
@@ -1253,7 +1260,7 @@ const CenterPanel = ({
       if (file.type.startsWith('video/')) {
         handleVideoUpload(file);
       } else {
-        alert(lt('Vui lĂ²ng chá»n file video', 'Please select a video file'));
+        alert(lt('Vui lòng chọn file video', 'Please select a video file'));
       }
     }
   };
@@ -1261,7 +1268,7 @@ const CenterPanel = ({
   const handleVideoDelete = async () => {
     if (!effectiveRecordingUrl) return;
 
-    if (!confirm(lt('Báº¡n cĂ³ cháº¯c cháº¯n muá»‘n xĂ³a video nĂ y? HĂ nh Ä‘á»™ng nĂ y khĂ´ng thá»ƒ hoĂ n tĂ¡c.', 'Are you sure you want to delete this video? This action cannot be undone.'))) {
+    if (!confirm(lt('Bạn có chắc chắn muốn xóa video này? Hành động này không thể hoàn tác.', 'Are you sure you want to delete this video? This action cannot be undone.'))) {
       return;
     }
 
@@ -1273,10 +1280,10 @@ const CenterPanel = ({
       await onRefresh();
       setVideoProofText(null);
 
-      alert(lt('Video Ä‘Ă£ Ä‘Æ°á»£c xĂ³a thĂ nh cĂ´ng.', 'Video deleted successfully.'));
+      alert(lt('Video đã được xóa thành công.', 'Video deleted successfully.'));
     } catch (err: any) {
       console.error('Delete video failed:', err);
-      alert(lt(`Lá»—i: ${err.message || 'KhĂ´ng thá»ƒ xĂ³a video'}`, `Error: ${err.message || 'Failed to delete video'}`));
+      alert(lt(`Lỗi: ${err.message || 'Không thể xóa video'}`, `Error: ${err.message || 'Failed to delete video'}`));
     }
   };
 
@@ -1322,29 +1329,29 @@ const CenterPanel = ({
       <div className="fireflies-center-header">
         <div className="fireflies-center-title">
           <Sparkles size={20} style={{ color: '#8b5cf6' }} />
-          <span>{lt('Ná»™i dung AI táº¡o', 'AI generated content')}</span>
+          <span>{lt('Nội dung AI tạo', 'AI generated content')}</span>
         </div>
 
         <div className="fireflies-center-actions">
           {minutes && (
             <>
-              <button className="fireflies-icon-btn" onClick={startEdit} title={lt('Chá»‰nh sá»­a', 'Edit')}>
+              <button className="fireflies-icon-btn" onClick={startEdit} title={lt('Chỉnh sửa', 'Edit')}>
                 <Edit3 size={16} />
               </button>
               <button
                 className="fireflies-icon-btn"
                 onClick={() => {
                   navigator.clipboard.writeText(buildNormalizedSummaryText());
-                  alert(lt('ÄĂ£ sao chĂ©p!', 'Copied!'));
+                  alert(lt('Đã sao chép!', 'Copied!'));
                 }}
-                title={lt('Sao chĂ©p', 'Copy')}
+                title={lt('Sao chép', 'Copy')}
               >
                 <Copy size={16} />
               </button>
-              <button className="fireflies-icon-btn" onClick={handleExportPDF} title={lt('Xuáº¥t PDF / In', 'Export PDF / Print')}>
+              <button className="fireflies-icon-btn" onClick={handleExportPDF} title={lt('Xuất PDF / In', 'Export PDF / Print')}>
                 <Download size={16} />
               </button>
-              <button className="fireflies-icon-btn" onClick={openEmailModal} title={lt('Gá»­i Email', 'Send email')}>
+              <button className="fireflies-icon-btn" onClick={openEmailModal} title={lt('Gửi Email', 'Send email')}>
                 <Mail size={16} />
               </button>
             </>
@@ -1358,10 +1365,10 @@ const CenterPanel = ({
           >
             <Sparkles size={14} style={{ marginRight: 4 }} />
             {isGenerating
-              ? lt('Äang táº¡o...', 'Generating...')
+              ? lt('Đang tạo...', 'Generating...')
               : minutes
-                ? lt('Táº¡o láº¡i', 'Regenerate')
-                : lt('Táº¡o biĂªn báº£n', 'Generate minutes')}
+                ? lt('Tạo lại', 'Regenerate')
+                : lt('Tạo biên bản', 'Generate minutes')}
           </button>
         </div>
       </div>
@@ -1380,11 +1387,12 @@ const CenterPanel = ({
               setEditContent={setEditContent}
               onSave={handleSaveSummary}
               onCancel={() => setIsEditingSummary(false)}
-            />            {isStudySession ? (
+            />
+            {isStudySession ? (
               <div style={{ marginTop: 24, padding: '0 24px', marginBottom: 40 }}>
                 <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Sparkles size={18} color="#0ea5e9" />
-                  {lt('Study content', 'Study content')}
+                  {lt('Nội dung học tập', 'Study content')}
                 </h3>
                 <StudyPackContent minutes={minutes} />
               </div>
@@ -1413,15 +1421,15 @@ const CenterPanel = ({
           onClick={() => setShowEmailModal(false)}>
           <div style={{ background: 'var(--bg-primary)', borderRadius: '16px', padding: '24px', width: '680px', maxHeight: '85vh', overflow: 'auto', boxShadow: '0 25px 50px rgba(0,0,0,0.3)' }}
             onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 20px', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>đŸ“§ {lt('Gá»­i biĂªn báº£n qua Email', 'Send minutes by email')}</h3>
+            <h3 style={{ margin: '0 0 20px', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>📧 {lt('Gửi biên bản qua Email', 'Send minutes by email')}</h3>
 
             {sendSuccess && (
               <div style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '10px', background: 'var(--success-subtle)', color: 'var(--text-primary)', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '18px' }}>âœ…</span>
+                <span style={{ fontSize: '18px' }}>✅</span>
                 <div>
-                  <div style={{ fontWeight: 700 }}>{lt('ÄĂ£ gá»­i thĂ nh cĂ´ng', 'Sent successfully')}</div>
+                  <div style={{ fontWeight: 700 }}>{lt('Đã gửi thành công', 'Sent successfully')}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    {lt('ÄĂ£ gá»­i biĂªn báº£n Ä‘áº¿n', 'Minutes sent to')} {sentCount || lt('cĂ¡c', 'selected')} {lt('ngÆ°á»i nháº­n', 'recipients')}
+                    {lt('Đã gửi biên bản đến', 'Minutes sent to')} {sentCount || lt('các', 'selected')} {lt('người nhận', 'recipients')}
                   </div>
                 </div>
               </div>
@@ -1430,10 +1438,10 @@ const CenterPanel = ({
             {/* Participants Card */}
             <div style={{ marginBottom: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', background: 'linear-gradient(135deg, #6366f115, #8b5cf615)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '16px' }}>đŸ‘¥</span>
-                <span style={{ fontWeight: 600, fontSize: '14px' }}>{lt('ThĂ nh viĂªn cuá»™c há»p', 'Meeting participants')}</span>
+                <span style={{ fontSize: '16px' }}>👥</span>
+                <span style={{ fontWeight: 600, fontSize: '14px' }}>{lt('Thành viên cuộc họp', 'Meeting participants')}</span>
                 <span style={{ marginLeft: 'auto', background: '#6366f1', color: 'white', padding: '2px 10px', borderRadius: '12px', fontSize: '12px' }}>
-                  {selectedParticipants.length} {lt('Ä‘Ă£ chá»n', 'selected')}
+                  {selectedParticipants.length} {lt('đã chọn', 'selected')}
                 </span>
               </div>
               <div style={{ padding: '8px', maxHeight: '140px', overflowY: 'auto' }}>
@@ -1442,20 +1450,20 @@ const CenterPanel = ({
                     <input type="checkbox" checked={p.email ? selectedParticipants.includes(p.email) : false} onChange={() => p.email && toggleParticipant(p.email)} disabled={!p.email} style={{ width: '16px', height: '16px', accentColor: '#6366f1' }} />
                     <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 600, fontSize: '13px' }}>{(p.display_name || p.email || '?').charAt(0).toUpperCase()}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 500, fontSize: '13px' }}>{p.display_name || p.email || lt('KhĂ´ng rĂµ', 'Unknown')}</div>
+                      <div style={{ fontWeight: 500, fontSize: '13px' }}>{p.display_name || p.email || lt('Không rõ', 'Unknown')}</div>
                       {p.email && <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{p.email}</div>}
                     </div>
-                    {!p.email && <span style={{ color: '#ef4444', fontSize: '11px' }}>{lt('KhĂ´ng cĂ³ email', 'No email')}</span>}
+                    {!p.email && <span style={{ color: '#ef4444', fontSize: '11px' }}>{lt('Không có email', 'No email')}</span>}
                   </label>
-                )) : <p style={{ color: 'var(--text-muted)', margin: '12px', textAlign: 'center' }}>{lt('KhĂ´ng cĂ³ thĂ nh viĂªn nĂ o', 'No participants')}</p>}
+                )) : <p style={{ color: 'var(--text-muted)', margin: '12px', textAlign: 'center' }}>{lt('Không có thành viên nào', 'No participants')}</p>}
               </div>
             </div>
 
             {/* Custom Email Card */}
             <div style={{ marginBottom: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', background: 'linear-gradient(135deg, #f59e0b15, #ef444415)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '16px' }}>âœ‰ï¸</span>
-                <span style={{ fontWeight: 600, fontSize: '14px' }}>{lt('Email khĂ¡c (tĂ¹y chá»n)', 'Other emails (optional)')}</span>
+                <span style={{ fontSize: '16px' }}>✉️</span>
+                <span style={{ fontWeight: 600, fontSize: '14px' }}>{lt('Email khác (tùy chọn)', 'Other emails (optional)')}</span>
               </div>
               <div style={{ padding: '12px' }}>
                 <input type="text" value={customEmail} onChange={(e) => setCustomEmail(e.target.value)} placeholder="email1@example.com, email2@example.com"
@@ -1466,15 +1474,15 @@ const CenterPanel = ({
             {/* PDF Preview Card */}
             <div style={{ marginBottom: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', background: 'linear-gradient(135deg, #10b98115, #14b8a615)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '16px' }}>đŸ“„</span>
-                <span style={{ fontWeight: 600, fontSize: '14px' }}>{lt('BiĂªn báº£n sáº½ gá»­i', 'Minutes preview')}</span>
+                <span style={{ fontSize: '16px' }}>📄</span>
+                <span style={{ fontWeight: 600, fontSize: '14px' }}>{lt('Biên bản sẽ gửi', 'Minutes preview')}</span>
               </div>
               <div style={{ padding: '16px', maxHeight: '160px', overflowY: 'auto' }}>
                 <div style={{ background: 'white', borderRadius: '8px', padding: '16px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
                   <h4 style={{ margin: '0 0 8px', color: '#1a1a2e', fontSize: '15px' }}>{meeting.title}</h4>
                   <p style={{ fontSize: '11px', color: '#666', margin: '0 0 10px' }}>{meeting.start_time ? new Date(meeting.start_time).toLocaleDateString(dateLocale) : 'N/A'}</p>
                   <div style={{ fontSize: '12px', color: '#333', lineHeight: 1.5 }}>
-                    <strong>{lt('TĂ³m táº¯t', 'Summary')}:</strong> {(minutes?.executive_summary || lt('ChÆ°a cĂ³', 'N/A')).slice(0, 200)}{(minutes?.executive_summary?.length || 0) > 200 ? '...' : ''}
+                    <strong>{lt('Tóm tắt', 'Summary')}:</strong> {(minutes?.executive_summary || lt('Chưa có', 'N/A')).slice(0, 200)}{(minutes?.executive_summary?.length || 0) > 200 ? '...' : ''}
                   </div>
                 </div>
               </div>
@@ -1482,14 +1490,14 @@ const CenterPanel = ({
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button className="btn btn--ghost" onClick={() => setShowEmailModal(false)}>{lt('Há»§y', 'Cancel')}</button>
+              <button className="btn btn--ghost" onClick={() => setShowEmailModal(false)}>{lt('Hủy', 'Cancel')}</button>
               <button className="btn btn--primary" onClick={handleSendEmail} disabled={(selectedParticipants.length === 0 && !customEmail.trim()) || isSendingEmail}
                 style={{ minWidth: '140px' }}>
                 {isSendingEmail
-                  ? lt('Äang gá»­i...', 'Sending...')
+                  ? lt('Đang gửi...', 'Sending...')
                   : sendSuccess
-                    ? lt('ÄĂ£ gá»­i', 'Sent')
-                    : `${lt('Gá»­i Email', 'Send email')} (${selectedParticipants.length + (customEmail.trim() ? customEmail.split(',').filter(e => e.trim()).length : 0)})`}
+                    ? lt('Đã gửi', 'Sent')
+                    : `${lt('Gửi Email', 'Send email')} (${selectedParticipants.length + (customEmail.trim() ? customEmail.split(',').filter(e => e.trim()).length : 0)})`}
               </button>
             </div>
           </div>
@@ -1578,7 +1586,7 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
       onAddTranscripts(newTranscripts);
       setBulkInput('');
       setShowAddModal(false);
-      alert(lt(`ÄĂ£ thĂªm ${newTranscripts.length} transcript entries.`, `Added ${newTranscripts.length} transcript entries.`));
+      alert(lt(`Đã thêm ${newTranscripts.length} transcript entries.`, `Added ${newTranscripts.length} transcript entries.`));
     }
   };
 
@@ -1597,10 +1605,10 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
           className="fireflies-right-title"
           onClick={handleTitleClick}
           style={{ cursor: 'pointer' }}
-          title={lt('Shift+Click Ä‘á»ƒ thĂªm báº£n chĂ©p lá»i thá»§ cĂ´ng', 'Shift+Click to add transcript manually')}
+          title={lt('Shift+Click để thêm bản chép lời thủ công', 'Shift+Click to add transcript manually')}
         >
           <span></span>
-          {lt('Báº£n chĂ©p lá»i', 'Transcript')}
+          {lt('Bản chép lời', 'Transcript')}
         </h3>
 
         <div className="fireflies-search fireflies-search--sm">
@@ -1609,7 +1617,7 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
           </div>
           <input
             className="fireflies-search__input"
-            placeholder={lt('TĂ¬m trong báº£n chĂ©p lá»i', 'Search transcript')}
+            placeholder={lt('Tìm trong bản chép lời', 'Search transcript')}
             value={searchInTranscript}
             onChange={(e) => setSearchInTranscript(e.target.value)}
           />
@@ -1620,7 +1628,7 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
       <div className="fireflies-transcript-list">
         {filteredTranscripts.length === 0 ? (
           <div className="fireflies-empty">
-            <p>{lt('KhĂ´ng cĂ³ transcript nĂ o phĂ¹ há»£p vá»›i bá»™ lá»c', 'No transcripts match the current filters')}</p>
+            <p>{lt('Không có transcript nào phù hợp với bộ lọc', 'No transcripts match the current filters')}</p>
           </div>
         ) : (
           filteredTranscripts.map((chunk) => {
@@ -1683,15 +1691,17 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: '0 0 16px', fontSize: '18px' }}>đŸ­ {lt('Demo Mode - ThĂªm Transcript Thá»§ CĂ´ng', 'Demo Mode - Add Transcript Manually')}</h3>
+            <h3 style={{ margin: '0 0 16px', fontSize: '18px' }}>🎭 {lt('Demo Mode - Thêm Transcript Thủ Công', 'Demo Mode - Add Transcript Manually')}</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              {lt('Nháº­p transcript theo format', 'Enter transcript in the format')}: <code>{lt('TĂªn ngÆ°á»i: Ná»™i dung nĂ³i', 'Speaker Name: Spoken content')}</code> ({lt('má»—i dĂ²ng má»™t phĂ¡t ngĂ´n', 'one utterance per line')})
+              {lt('Nhập transcript theo format', 'Enter transcript in the format')}: <code>{lt('Tên người: Nội dung nói', 'Speaker Name: Spoken content')}</code> ({lt('mỗi dòng một phát ngôn', 'one utterance per line')})
             </p>
             <textarea
               value={bulkInput}
               onChange={(e) => setBulkInput(e.target.value)}
               placeholder={lt(
-                `QuĂ¢n: Ok, mĂ¬nh khai máº¡c phiĂªn há»p Há»™i Ä‘á»“ng quáº£n trá»‹ vá» dá»± Ă¡n ORION giai Ä‘oáº¡n 1 nhĂ©.\nÄáº¡t: Em chuyá»ƒn sang pháº§n ngĂ¢n sĂ¡ch Ä‘á»ƒ Há»™i Ä‘á»“ng quáº£n trá»‹ náº¯m bá»©c tranh tá»•ng quan nhĂ©.\nPhÆ°á»›c: CĂ³ 2 rá»§i ro má»©c Ä‘á»™ Ä‘á» cáº§n Ä‘iá»u kiá»‡n báº¯t buá»™c.`,
+                `Quan: Ok, minh khai mac phien hop Hoi dong quan tri ve du an ORION giai doan 1 nhe.
+Dat: Em chuyen sang phan ngan sach de Hoi dong quan tri nam buc tranh tong quan nhe.
+Phuoc: Co 2 rui ro muc do do can dieu kien bat buoc.`,
                 `Alex: Let's kick off the board meeting for ORION phase 1.\nJordan: I'll walk through the budget to give everyone the big picture.\nTaylor: We have 2 high-risk blockers that need mandatory mitigation.`,
               )}
               style={{
@@ -1717,21 +1727,21 @@ const RightPanel = ({ transcripts, filters, meetingId, onAddTranscripts, onDelet
                   }
                 }}
               >
-                đŸ—‘ {lt('XĂ³a táº¥t cáº£ transcript', 'Delete all transcripts')}
+                🗑 {lt('Xóa tất cả transcript', 'Delete all transcripts')}
               </button>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   className="btn btn--ghost"
                   onClick={() => setShowAddModal(false)}
                 >
-                  {lt('Há»§y', 'Cancel')}
+                  {lt('Hủy', 'Cancel')}
                 </button>
                 <button
                   className="btn btn--primary"
                   onClick={handleBulkAdd}
                   disabled={!bulkInput.trim()}
                 >
-                  {lt('ThĂªm báº£n chĂ©p lá»i', 'Add transcript')}
+                  {lt('Thêm bản chép lời', 'Add transcript')}
                 </button>
               </div>
             </div>
@@ -1782,12 +1792,12 @@ const VideoSection = ({
           <div className="fireflies-video-header">
           <div className="fireflies-video-title">
             <Video size={18} />
-              <span>{lt('Báº£n ghi video', 'Video recording')}</span>
+              <span>{lt('Bản ghi video', 'Video recording')}</span>
           </div>
             <button
               className="fireflies-video-delete-btn"
               onClick={onDelete}
-              title={lt('XĂ³a video', 'Delete video')}
+              title={lt('Xóa video', 'Delete video')}
               type="button"
             >
               <Trash2 size={16} />
@@ -1806,7 +1816,7 @@ const VideoSection = ({
             className="fireflies-video-element"
             style={{ width: '100%', maxHeight: '400px', borderRadius: 'var(--radius-md)' }}
           >
-            {lt('TrĂ¬nh duyá»‡t cá»§a báº¡n khĂ´ng há»— trá»£ phĂ¡t video.', 'Your browser does not support video playback.')}
+            {lt('Trình duyệt của bạn không hỗ trợ phát video.', 'Your browser does not support video playback.')}
           </video>
         </div>
       </div>
@@ -1820,7 +1830,7 @@ const VideoSection = ({
         <div className="fireflies-video-header">
           <div className="fireflies-video-title">
             <Video size={18} />
-            <span>{lt('Báº£n ghi video', 'Video recording')}</span>
+            <span>{lt('Bản ghi video', 'Video recording')}</span>
           </div>
         </div>
       )}
@@ -1843,14 +1853,14 @@ const VideoSection = ({
         {isUploading ? (
           <div className="fireflies-upload-status">
             <Loader size={32} className="spinner" />
-            <p className="fireflies-upload-text">{lt('Äang táº£i lĂªn video...', 'Uploading video...')}</p>
-            <p className="fireflies-upload-hint">{lt('Vui lĂ²ng Ä‘á»£i, khĂ´ng Ä‘Ă³ng trang', 'Please wait, do not close this page')}</p>
+            <p className="fireflies-upload-text">{lt('Đang tải lên video...', 'Uploading video...')}</p>
+            <p className="fireflies-upload-hint">{lt('Vui lòng đợi, không đóng trang', 'Please wait, do not close this page')}</p>
           </div>
         ) : isProcessing ? (
           <div className="fireflies-upload-status">
             <Loader size={32} className="spinner" />
-            <p className="fireflies-upload-text">{lt('Äang xá»­ lĂ½ video...', 'Processing video...')}</p>
-            <p className="fireflies-upload-hint">{lt('AI Ä‘ang táº¡o transcript vĂ  biĂªn báº£n há»p', 'AI is generating transcript and meeting minutes')}</p>
+            <p className="fireflies-upload-text">{lt('Đang xử lý video...', 'Processing video...')}</p>
+            <p className="fireflies-upload-hint">{lt('AI đang tạo transcript và biên bản họp', 'AI is generating transcript and meeting minutes')}</p>
           </div>
         ) : (
           <>
@@ -1858,17 +1868,17 @@ const VideoSection = ({
               <Upload size={48} strokeWidth={1.5} />
             </div>
             <div className="fireflies-upload-content">
-              <h3 className="fireflies-upload-title">{lt('Táº£i lĂªn video cuá»™c há»p', 'Upload meeting video')}</h3>
+              <h3 className="fireflies-upload-title">{lt('Tải lên video cuộc họp', 'Upload meeting video')}</h3>
               <p className="fireflies-upload-description">
-                {lt('KĂ©o tháº£ video vĂ o Ä‘Ă¢y hoáº·c click Ä‘á»ƒ chá»n file', 'Drag and drop video here or click to choose a file')}
+                {lt('Kéo thả video vào đây hoặc click để chọn file', 'Drag and drop video here or click to choose a file')}
               </p>
               <p className="fireflies-upload-formats">
-                {lt('Há»— trá»£: MP4, MOV, AVI, MKV, WebM', 'Supported: MP4, MOV, AVI, MKV, WebM')}
+                {lt('Hỗ trợ: MP4, MOV, AVI, MKV, WebM', 'Supported: MP4, MOV, AVI, MKV, WebM')}
               </p>
             </div>
             <label htmlFor="video-upload-input" className="fireflies-upload-button">
               <Upload size={16} style={{ marginRight: 6 }} />
-              {lt('Chá»n file video tá»« mĂ¡y', 'Choose video file from your device')}
+              {lt('Chọn file video từ máy', 'Choose video file from your device')}
             </label>
           </>
         )}
@@ -2017,15 +2027,15 @@ const SummaryContent = ({
   const normalizedSummary = normalizeSummaryContent(summary);
   const keywordSource = [normalizedSummary.summaryText, ...normalizedSummary.keyPoints].join(' ');
 
-  // Extract keywords from cleaned summary text
-  const keywords = extractKeywords(keywordSource);
+  // Extract concept-level keywords from summary content
+  const keywords = extractConceptKeywords(keywordSource, 8);
 
   return (
     <div className="fireflies-summary">
       {/* Keywords */}
       {keywords.length > 0 && (
         <div className="fireflies-keywords">
-          <span className="fireflies-keywords__title">{lt('Tá»« khĂ³a', 'Keywords')}:</span>
+          <span className="fireflies-keywords__title">{lt('Khái niệm trọng tâm', 'Core concepts')}:</span>
           {keywords.map((kw, i) => (
             <span key={i} className="fireflies-keyword">
               {kw}
@@ -2036,9 +2046,9 @@ const SummaryContent = ({
 
       {normalizedSummary.hasLanguageWarning && (
         <div className="fireflies-summary-notice">
-          <strong>{lt('LÆ°u Ă½ cháº¥t lÆ°á»£ng ná»™i dung', 'Content quality notice')}:</strong>{' '}
+          <strong>{lt('Lưu ý chất lượng nội dung', 'Content quality notice')}:</strong>{' '}
           {lt(
-            'Báº£n chĂ©p lá»i hiá»‡n chÆ°a Ä‘á»§ rĂµ hoáº·c sai ngĂ´n ngá»¯ nĂªn tĂ³m táº¯t cĂ³ thá»ƒ thiáº¿u chĂ­nh xĂ¡c. Báº¡n nĂªn kiá»ƒm tra láº¡i ASR vĂ  táº¡o láº¡i biĂªn báº£n.',
+            'Bản chép lời hiện chưa đủ rõ hoặc sai ngôn ngữ nên tóm tắt có thể thiếu chính xác. Bạn nên kiểm tra lại ASR và tạo lại biên bản.',
             'Transcript quality/language looks inconsistent, so this summary may be inaccurate. Please recheck ASR and regenerate.'
           )}
         </div>
@@ -2057,11 +2067,11 @@ const SummaryContent = ({
           <div className="fireflies-edit-actions">
             <button className="btn btn--sm btn--ghost" onClick={onCancel}>
               <X size={14} style={{ marginRight: 4 }} />
-              {lt('Há»§y', 'Cancel')}
+              {lt('Hủy', 'Cancel')}
             </button>
             <button className="btn btn--sm btn--primary" onClick={onSave}>
               <Check size={14} style={{ marginRight: 4 }} />
-              {lt('LÆ°u', 'Save')}
+              {lt('Lưu', 'Save')}
             </button>
           </div>
         </div>
@@ -2071,13 +2081,13 @@ const SummaryContent = ({
             {normalizedSummary.summaryText.trim() ? (
               <MarkdownRenderer content={normalizedSummary.summaryText} className="fireflies-summary-markdown" />
             ) : (
-              <p className="fireflies-summary-empty">{lt('ChÆ°a cĂ³ tĂ³m táº¯t.', 'No summary available.')}</p>
+              <p className="fireflies-summary-empty">{lt('Chưa có tóm tắt.', 'No summary available.')}</p>
             )}
           </div>
 
           {normalizedSummary.keyPoints.length > 0 && (
             <div className="fireflies-summary-points">
-              <h4 className="fireflies-summary-points__title">{lt('Äiá»ƒm chĂ­nh', 'Key points')}</h4>
+              <h4 className="fireflies-summary-points__title">{lt('Điểm chính', 'Key points')}</h4>
               <ul className="fireflies-summary-points__list">
                 {normalizedSummary.keyPoints.map((point, idx) => (
                   <li key={`${idx}-${point}`} className="fireflies-summary-points__item">
@@ -2113,15 +2123,15 @@ const StudyPackContent = ({ minutes }: { minutes: MeetingMinutes }) => {
 const ActionItemsContent = ({ items }: { items: ActionItem[] }) => {
   const { lt, dateLocale } = useLocaleText();
   const priorityLabel: Record<string, [string, string]> = {
-    low: ['Tháº¥p', 'Low'],
-    medium: ['Trung bĂ¬nh', 'Medium'],
+    low: ['Thấp', 'Low'],
+    medium: ['Trung bình', 'Medium'],
     high: ['Cao', 'High'],
-    critical: ['Kháº©n cáº¥p', 'Critical'],
+    critical: ['Khẩn cấp', 'Critical'],
   };
   return (
     <div className="fireflies-actions-list">
       {items.length === 0 ? (
-        <div className="fireflies-empty">{lt('KhĂ´ng cĂ³ viá»‡c cáº§n lĂ m', 'No action items')}</div>
+        <div className="fireflies-empty">{lt('Không có việc cần làm', 'No action items')}</div>
       ) : (
         items.map((item, i) => (
           <div key={item.id} className="fireflies-action-item">
@@ -2158,24 +2168,24 @@ const ActionItemsContent = ({ items }: { items: ActionItem[] }) => {
 const DecisionsContent = ({ items, risks }: { items: DecisionItem[]; risks: RiskItem[] }) => {
   const { lt } = useLocaleText();
   const severityLabel: Record<string, [string, string]> = {
-    low: ['Tháº¥p', 'Low'],
-    medium: ['Trung bĂ¬nh', 'Medium'],
+    low: ['Thấp', 'Low'],
+    medium: ['Trung bình', 'Medium'],
     high: ['Cao', 'High'],
-    critical: ['NghiĂªm trá»ng', 'Critical'],
+    critical: ['Nghiêm trọng', 'Critical'],
   };
   return (
     <div className="fireflies-decisions-list">
       {/* Decisions */}
       {items.length > 0 && (
         <div className="fireflies-decisions-group">
-          <h4 className="fireflies-group-title">đŸ’¡ {lt('Quyáº¿t Ä‘á»‹nh chĂ­nh', 'Key decisions')}</h4>
+          <h4 className="fireflies-group-title">💡 {lt('Quyết định chính', 'Key decisions')}</h4>
           {items.map((item, i) => (
             <div key={item.id} className="fireflies-decision-item">
               <div className="fireflies-decision-number">{i + 1}</div>
               <div className="fireflies-decision-content">
                 <div className="fireflies-decision-title">{item.title}</div>
-                {item.rationale && <div className="fireflies-decision-subtitle">{lt('LĂ½ do', 'Rationale')}: {item.rationale}</div>}
-                {item.impact && <div className="fireflies-decision-subtitle">{lt('TĂ¡c Ä‘á»™ng', 'Impact')}: {item.impact}</div>}
+                {item.rationale && <div className="fireflies-decision-subtitle">{lt('Lý do', 'Rationale')}: {item.rationale}</div>}
+                {item.impact && <div className="fireflies-decision-subtitle">{lt('Tác động', 'Impact')}: {item.impact}</div>}
               </div>
             </div>
           ))}
@@ -2185,7 +2195,7 @@ const DecisionsContent = ({ items, risks }: { items: DecisionItem[]; risks: Risk
       {/* Risks */}
       {risks.length > 0 && (
         <div className="fireflies-decisions-group" style={{ marginTop: 24 }}>
-          <h4 className="fireflies-group-title">â ï¸ {lt('Rá»§i ro Ä‘Ă£ nháº­n diá»‡n', 'Identified risks')}</h4>
+          <h4 className="fireflies-group-title">⚠️ {lt('Rủi ro đã nhận diện', 'Identified risks')}</h4>
           {risks.map((item) => (
             <div key={item.id} className="fireflies-risk-item">
               <div className={`fireflies-risk-badge fireflies-risk-badge--${item.severity}`}>
@@ -2195,7 +2205,7 @@ const DecisionsContent = ({ items, risks }: { items: DecisionItem[]; risks: Risk
               </div>
               <div className="fireflies-risk-content">
                 <div className="fireflies-risk-title">{item.title}</div>
-                {item.mitigation && <div className="fireflies-risk-subtitle">{lt('Giáº£m thiá»ƒu', 'Mitigation')}: {item.mitigation}</div>}
+                {item.mitigation && <div className="fireflies-risk-subtitle">{lt('Giảm thiểu', 'Mitigation')}: {item.mitigation}</div>}
               </div>
             </div>
           ))}
@@ -2203,7 +2213,7 @@ const DecisionsContent = ({ items, risks }: { items: DecisionItem[]; risks: Risk
       )}
 
       {items.length === 0 && risks.length === 0 && (
-        <div className="fireflies-empty">{lt('KhĂ´ng cĂ³ quyáº¿t Ä‘á»‹nh hoáº·c rá»§i ro', 'No decisions or risks')}</div>
+        <div className="fireflies-empty">{lt('Không có quyết định hoặc rủi ro', 'No decisions or risks')}</div>
       )}
     </div>
   );
@@ -2216,17 +2226,17 @@ const EmptyAIContent = ({ onGenerate, isGenerating }: { onGenerate: () => void; 
       <div className="fireflies-empty-ai__icon">
         <Sparkles size={64} strokeWidth={1} />
       </div>
-      <h3 className="fireflies-empty-ai__title">{lt('Táº¡o biĂªn báº£n cuá»™c há»p vá»›i AI', 'Generate meeting minutes with AI')}</h3>
+      <h3 className="fireflies-empty-ai__title">{lt('Tạo biên bản cuộc họp với AI', 'Generate meeting minutes with AI')}</h3>
       <p className="fireflies-empty-ai__description">
-        {lt('AI sáº½ phĂ¢n tĂ­ch báº£n chĂ©p lá»i vĂ  táº¡o:', 'AI will analyze the transcript and generate:')}
-        <br />â€¢ {lt('TĂ³m táº¯t Ä‘iá»u hĂ nh', 'Executive summary')}
-        <br />â€¢ {lt('Viá»‡c cáº§n lĂ m vĂ  ngÆ°á»i phá»¥ trĂ¡ch', 'Action items and owners')}
-        <br />â€¢ {lt('Quyáº¿t Ä‘á»‹nh chĂ­nh vĂ  tĂ¡c Ä‘á»™ng', 'Key decisions and impact')}
-        <br />â€¢ {lt('Rá»§i ro Ä‘Ă£ nháº­n diá»‡n', 'Identified risks')}
+        {lt('AI sẽ phân tích bản chép lời và tạo:', 'AI will analyze the transcript and generate:')}
+        <br />• {lt('Tóm tắt điều hành', 'Executive summary')}
+        <br />• {lt('Việc cần làm và người phụ trách', 'Action items and owners')}
+        <br />• {lt('Quyết định chính và tác động', 'Key decisions and impact')}
+        <br />• {lt('Rủi ro đã nhận diện', 'Identified risks')}
       </p>
       <button className="btn btn--primary btn--lg" onClick={onGenerate} disabled={isGenerating}>
         <Sparkles size={18} style={{ marginRight: 8 }} />
-        {isGenerating ? lt('Äang táº¡o biĂªn báº£n...', 'Generating minutes...') : lt('Táº¡o vá»›i AI', 'Generate with AI')}
+        {isGenerating ? lt('Đang tạo biên bản...', 'Generating minutes...') : lt('Tạo với AI', 'Generate with AI')}
       </button>
     </div>
   );
@@ -2284,7 +2294,7 @@ const extractJsonCandidate = (input: string): string => {
 
 const parseStructuredSummaryObject = (input: string): StructuredSummaryObject | null => {
   const cleaned = stripCodeFences(input);
-  const smartQuotesNormalized = cleaned.replace(/[â€œâ€]/g, '"').replace(/[â€˜â€™]/g, "'");
+  const smartQuotesNormalized = cleaned.replace(/[\u201c\u201d]/g, '"').replace(/[\u2018\u2019]/g, "'");
   const candidates = [smartQuotesNormalized, extractJsonCandidate(smartQuotesNormalized)];
 
   for (const candidate of candidates) {
@@ -2368,7 +2378,7 @@ const pickStringArrayValue = (obj: StructuredSummaryObject, keys: readonly strin
     if (typeof value === 'string' && value.trim()) {
       return value
         .split('\n')
-        .map((line) => line.replace(/^[-*â€¢\d.\s]+/, '').trim())
+        .map((line) => line.replace(/^[-*•\d.\s]+/, '').trim())
         .filter((line) => Boolean(line));
     }
   }
@@ -2407,7 +2417,7 @@ const extractKeyPointsByRegex = (input: string): string[] => {
 
   return match[1]
     .split(/[\n,;]+/)
-    .map((segment) => segment.replace(/^[-*â€¢\d.\s]+/, '').trim())
+    .map((segment) => segment.replace(/^[-*•\d.\s]+/, '').trim())
     .filter((segment) => Boolean(segment));
 };
 
@@ -2418,10 +2428,10 @@ const detectLanguageWarning = (input: string): boolean => {
     /challenging to determine/i,
     /insufficient (information|context)/i,
     /cannot determine/i,
-    /khĂ´ng Ä‘á»§ (thĂ´ng tin|ngá»¯ cáº£nh)/i,
-    /khĂ´ng thá»ƒ xĂ¡c Ä‘á»‹nh/i,
-    /báº£n chĂ©p lá»i.*(sai ngĂ´n ngá»¯|khĂ´ng rĂµ|thiáº¿u)/i,
-    /cáº§n thĂªm (thĂ´ng tin|ngá»¯ cáº£nh)/i,
+    /không đủ (thông tin|ngữ cảnh)/i,
+    /không thể xác định/i,
+    /bản chép lời.*(sai ngôn ngữ|không rõ|thiếu)/i,
+    /cần thêm (thông tin|ngữ cảnh)/i,
   ];
   return warningPatterns.some((pattern) => pattern.test(input));
 };
@@ -2470,32 +2480,100 @@ const normalizeSummaryContent = (input: string): NormalizedSummaryContent => {
   };
 };
 
-const extractKeywords = (text: string): string[] => {
-  const words = text
+const CONCEPT_STOPWORDS = new Set([
+  'the', 'is', 'at', 'which', 'on', 'and', 'or', 'but', 'in', 'with', 'to', 'for', 'this', 'that',
+  'have', 'has', 'been', 'were', 'from', 'into', 'about', 'without', 'would', 'could', 'should',
+  'summary', 'key', 'keys', 'point', 'points', 'key_points', 'keypoints', 'highlights', 'meeting', 'session',
+  'evidence', 'timestamp', 'unknown', 'null', 'none',
+  'cua', 'va', 'la', 'cho', 'voi', 'nhung', 'duoc', 'trong', 'mot', 'nhieu', 'noi', 'dung',
+  'khong', 'theo', 'cac', 'da', 'dang', 've', 'can',
+  'của', 'và', 'là', 'cho', 'với', 'những', 'được', 'trong', 'một', 'nhiều', 'nội', 'dung',
+  'không', 'theo', 'các', 'đã', 'đang', 'về', 'cần',
+]);
+
+const normalizeTerm = (value: string): string =>
+  (value || '')
     .toLowerCase()
     .replace(/[\[\]{}":,.;!?()]/g, ' ')
-    .split(/\s+/);
-  const commonWords = new Set([
-    'the', 'is', 'at', 'which', 'on', 'and', 'or', 'but', 'in', 'with', 'to', 'for', 'this', 'that',
-    'have', 'has', 'been', 'were', 'from', 'into', 'about', 'without', 'would', 'could', 'should',
-    'summary', 'key', 'keys', 'point', 'points', 'key_points', 'keypoints', 'highlights', 'meeting', 'session',
-    'evidence', 'timestamp', 'unknown', 'null', 'none',
-    'cua', 'va', 'la', 'cho', 'voi', 'nhung', 'duoc', 'trong', 'mot', 'nhieu', 'noi', 'dung',
-    'khong', 'khĂ´ng', 'theo', 'cac', 'cĂ¡c', 'da', 'Ä‘Ă£', 'dang', 'Ä‘ang', 've', 'vá»', 'can', 'cáº§n',
-  ]);
-  const wordFreq = new Map<string, number>();
+    .replace(/\s+/g, ' ')
+    .trim();
 
-  words.forEach((word) => {
-    const clean = word.replace(/[^\p{L}\p{N}_-]/gu, '');
-    if (clean.length > 2 && !commonWords.has(clean) && !/^\d+$/.test(clean)) {
-      wordFreq.set(clean, (wordFreq.get(clean) || 0) + 1);
-    }
+const toDisplayTerm = (value: string): string => {
+  const cleaned = value.replace(/^[-*•\d.\)\s]+/, '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return '';
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+};
+
+const compactConceptList = (items: string[], maxItems: number = 8): string[] => {
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+
+  for (const raw of items) {
+    const token = normalizeTerm(raw);
+    if (!token || seen.has(token)) continue;
+
+    const words = token.split(' ').filter(Boolean);
+    if (!words.length) continue;
+    if (words.every((word) => CONCEPT_STOPWORDS.has(word))) continue;
+    if (words.length === 1 && (words[0].length < 4 || CONCEPT_STOPWORDS.has(words[0]))) continue;
+
+    seen.add(token);
+    normalized.push(token);
+  }
+
+  // Drop single words if the same concept already appears in a multi-word phrase.
+  const phrasePool = normalized.filter((item) => item.split(' ').length > 1);
+  const compacted = normalized.filter((item) => {
+    const words = item.split(' ');
+    if (words.length > 1) return true;
+    return !phrasePool.some((phrase) => phrase.includes(item));
   });
 
-  return Array.from(wordFreq.entries())
+  return compacted.slice(0, maxItems).map(toDisplayTerm);
+};
+
+const compactTopicList = (items: string[], maxItems: number = 10): string[] => {
+  const compacted = compactConceptList(items, maxItems * 2).filter((item) => {
+    const words = normalizeTerm(item).split(' ').filter(Boolean);
+    return words.length >= 2 || item.length >= 10;
+  });
+  return compacted.slice(0, maxItems);
+};
+
+const extractConceptKeywords = (text: string, maxItems: number = 8): string[] => {
+  const tokens = normalizeTerm(text)
+    .split(/\s+/)
+    .filter((token) => token.length >= 2 && !CONCEPT_STOPWORDS.has(token) && !/^\d+$/.test(token));
+  if (!tokens.length) return [];
+
+  const phraseFreq = new Map<string, number>();
+  for (const n of [3, 2]) {
+    for (let i = 0; i <= tokens.length - n; i += 1) {
+      const gram = tokens.slice(i, i + n);
+      if (gram.some((token) => CONCEPT_STOPWORDS.has(token))) continue;
+      const phrase = gram.join(' ');
+      phraseFreq.set(phrase, (phraseFreq.get(phrase) || 0) + 1);
+    }
+  }
+
+  const unigramFreq = new Map<string, number>();
+  for (const token of tokens) {
+    unigramFreq.set(token, (unigramFreq.get(token) || 0) + 1);
+  }
+
+  const rankedPhrases = Array.from(phraseFreq.entries())
+    .sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      return b[0].split(' ').length - a[0].split(' ').length;
+    })
+    .map(([phrase]) => phrase);
+
+  const fallbackSingles = Array.from(unigramFreq.entries())
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([word]) => word);
+    .filter(([token, freq]) => token.length >= 5 || freq >= 3)
+    .map(([token]) => token);
+
+  return compactConceptList([...rankedPhrases, ...fallbackSingles], maxItems);
 };
 
 const extractBulletItemsFromMarkdown = (markdown: string, headings: string[]): string[] => {
@@ -2533,44 +2611,47 @@ const extractBulletItemsFromMarkdown = (markdown: string, headings: string[]): s
   return deduped;
 };
 
-const extractTopicsFromTranscript = (transcriptText: string, keywords: string[]): string[] => {
-  const fullText = (transcriptText || '').toLowerCase();
-  if (!fullText.trim()) return keywords.slice(0, 6);
+const extractTopicsByMinute = (
+  transcripts: TranscriptChunk[],
+  keywords: string[],
+  maxItems: number = 10,
+): string[] => {
+  if (!transcripts.length) return compactTopicList(keywords, maxItems);
 
-  const tokens = fullText
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .split(/\s+/)
-    .filter(Boolean);
-
-  const stopwords = new Set([
-    'the', 'and', 'for', 'with', 'this', 'that', 'from', 'have', 'been', 'are', 'was', 'were',
-    'cua', 'va', 'la', 'cho', 'voi', 'nhung', 'duoc', 'trong', 'mot', 'noi', 'dung', 'khong', 'khĂ´ng',
-  ]);
-  const phraseFreq = new Map<string, number>();
-  for (let i = 0; i < tokens.length - 1; i += 1) {
-    const first = tokens[i];
-    const second = tokens[i + 1];
-    if (stopwords.has(first) || stopwords.has(second)) continue;
-    if (first.length < 3 || second.length < 3) continue;
-    const phrase = `${first} ${second}`;
-    phraseFreq.set(phrase, (phraseFreq.get(phrase) || 0) + 1);
+  const minuteBuckets = new Map<number, string[]>();
+  for (const chunk of transcripts) {
+    const minute = Math.max(0, Math.floor((chunk.start_time || 0) / 60));
+    const bucket = minuteBuckets.get(minute) || [];
+    bucket.push(chunk.text || '');
+    minuteBuckets.set(minute, bucket);
   }
 
-  const rankedPhrases = Array.from(phraseFreq.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([phrase]) => phrase);
+  const sortedMinutes = Array.from(minuteBuckets.keys()).sort((a, b) => a - b);
+  const topics: string[] = [];
+  for (const minute of sortedMinutes) {
+    const minuteText = (minuteBuckets.get(minute) || []).join(' ').trim();
+    if (!minuteText) continue;
 
-  const merged = [...rankedPhrases, ...keywords];
-  const deduped: string[] = [];
-  const seen = new Set<string>();
-  for (const value of merged) {
-    const key = value.toLowerCase().trim();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    deduped.push(value);
+    const candidates = extractConceptKeywords(minuteText, 4);
+    let topic = candidates[0] || '';
+    if (!topic) {
+      const fallback = keywords.find((keyword) =>
+        normalizeTerm(minuteText).includes(normalizeTerm(keyword))
+      );
+      topic = fallback || '';
+    }
+    if (!topic) continue;
+
+    const normalizedTopic = normalizeTerm(topic);
+    if (!normalizedTopic) continue;
+    const prev = topics[topics.length - 1];
+    if (prev && normalizeTerm(prev) === normalizedTopic) continue;
+
+    topics.push(topic);
+    if (topics.length >= maxItems) break;
   }
-  return deduped;
+
+  return topics.length ? compactTopicList(topics, maxItems) : compactTopicList(keywords, maxItems);
 };
 
 const countTopicMentions = (topic: string, transcripts: TranscriptChunk[]): number => {
@@ -2585,6 +2666,8 @@ const countTopicMentions = (topic: string, transcripts: TranscriptChunk[]): numb
 const extractStudySectionsMarkdown = (markdown: string): string => {
   if (!markdown.trim()) return '';
   const sectionTitles = [
+    '## 5 Khái niệm quan trọng nhất',
+    '## Top 5 most important concepts',
     '## Bảng kiến thức trọng tâm',
     '## Important knowledge table',
     '## Công thức quan trọng',
@@ -2627,5 +2710,3 @@ const highlightText = (text: string, query: string) => {
 };
 
 export default PostMeetTabFireflies;
-
-

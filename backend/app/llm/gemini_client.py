@@ -1161,20 +1161,20 @@ Required JSON schema:
         if is_course:
             mode_label = "training/study"
             schema_block = f"""{{
-  "executive_summary": "3-6 well-structured paragraphs, target 220-420 words (minimum 120 words if transcript is sparse). Cover learning objective, key concepts, examples, misunderstandings, and practical application.",
+  "executive_summary": "Markdown-ready summary with short section headings and bullets where helpful. Target 220-420 words (minimum 120 words if transcript is sparse). Cover learning objective, key concepts, examples, misunderstandings, and practical application.",
   "key_points": [
     "8-15 concise and concrete study takeaways"
   ],
   "keywords": [
-    "6-12 key terms strictly extracted from transcript context"
+    "5-8 concept phrases (2-5 words each), strictly extracted from transcript context"
   ],
   "topics": [
-    "4-10 normalized topic labels representing major learning threads"
+    "4-8 condensed topic labels (each 2-8 words), roughly one major topic per ~1 minute segment"
   ],
   "study_pack": {{
     "concepts": [
       {{
-        "concept": "Important concept name",
+        "concept": "Important concept name (top-5 only)",
         "explanation": "Short practical explanation",
         "example": "Example from transcript if available"
       }}
@@ -1206,20 +1206,21 @@ Required JSON schema:
             guidance_block = (
                 "- This is a training/study session. Do NOT output meeting-only sections such as action_items/decisions/risks.\n"
                 "- Prioritize learning value: concept clarity, formulas/principles, and evaluation quiz quality.\n"
-                "- Keywords and topics must be useful and non-generic."
+                "- Keywords and topics must be useful, non-generic, and avoid single stopword-like tokens.\n"
+                "- study_pack.concepts must prioritize exactly 5 most important concepts with explanation."
             )
         else:
             mode_label = "meeting"
             schema_block = f"""{{
-  "executive_summary": "3-6 well-structured paragraphs, target 220-420 words (minimum 120 words if transcript is sparse). Include purpose, key discussion flow, outcomes, unresolved points, risks, and implications.",
+  "executive_summary": "Markdown-ready summary with short section headings and bullets where helpful. Target 220-420 words (minimum 120 words if transcript is sparse). Include purpose, key discussion flow, outcomes, unresolved points, risks, and implications.",
   "key_points": [
     "8-15 concrete points, each concise and evidence-grounded"
   ],
   "keywords": [
-    "6-12 key terms strictly extracted from transcript context"
+    "5-8 concept phrases (2-5 words each), strictly extracted from transcript context"
   ],
   "topics": [
-    "4-10 normalized topic labels representing major meeting threads"
+    "4-8 condensed topic labels (each 2-8 words), roughly one major topic per ~1 minute segment"
   ],
   "action_items": [
     {{
@@ -1273,7 +1274,7 @@ OUTPUT REQUIREMENTS (Strict JSON Mode):
 - Extract as much useful detail as possible from transcript content.
 - Do not repeat near-duplicate bullets; merge similar points.
 - If visual signals appear (e.g., [VISUAL], [SCREEN], slide references), reflect them in executive_summary and key_points.
-- Keywords/topics must be concrete, domain-relevant, and avoid stopwords.
+- Keywords/topics must be concrete, domain-relevant, phrase-based, and avoid stopwords.
 
 Required JSON schema:
 {schema_block}

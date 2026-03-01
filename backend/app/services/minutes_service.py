@@ -570,7 +570,12 @@ def _normalize_key_points(raw_points: Any) -> List[str]:
     return deduped
 
 
-def _normalize_label_list(raw_values: Any, max_items: int = 10) -> List[str]:
+def _normalize_label_list(
+    raw_values: Any,
+    max_items: int = 10,
+    min_words: int = 1,
+    prefer_phrases: bool = False,
+) -> List[str]:
     values: List[str] = []
     if isinstance(raw_values, str):
         values = [v.strip() for v in re.split(r"[,\n;]+", raw_values) if v.strip()]
@@ -589,7 +594,13 @@ def _normalize_label_list(raw_values: Any, max_items: int = 10) -> List[str]:
     seen = set()
     for value in values:
         cleaned = re.sub(r"^[-*•\d.\)\s]+", "", value).strip()
+        cleaned = re.sub(r"\s+", " ", cleaned)
+        words = [word for word in re.split(r"\s+", cleaned) if word]
         if len(cleaned) < 2 or _is_placeholder_value(cleaned):
+            continue
+        if len(words) < max(1, min_words):
+            continue
+        if prefer_phrases and len(words) == 1 and len(words[0]) < 6:
             continue
         key = cleaned.lower()
         if key in seen:
@@ -601,6 +612,13 @@ def _normalize_label_list(raw_values: Any, max_items: int = 10) -> List[str]:
     return deduped
 
 
+def _tokenize_concept_words(text_value: str) -> List[str]:
+    if not text_value:
+        return []
+    tokens = re.findall(r"[0-9A-Za-zÀ-ỹà-ỹ]{2,}", str(text_value).lower(), flags=re.UNICODE)
+    return [token for token in tokens if token]
+
+
 def _derive_keywords(summary: str, key_points: List[str], max_items: int = 8) -> List[str]:
     corpus = " ".join([str(summary or ""), *(key_points or [])]).lower()
     if not corpus.strip():
@@ -609,18 +627,50 @@ def _derive_keywords(summary: str, key_points: List[str], max_items: int = 8) ->
     stopwords = {
         "the", "and", "with", "from", "this", "that", "have", "been", "were", "into", "about",
         "summary", "key", "point", "points", "meeting", "session", "evidence", "timestamp",
+        "cua", "va", "la", "cho", "voi", "nhung", "duoc", "trong", "mot", "nhieu", "noi", "dung",
+        "khong", "theo", "cac", "da", "dang", "ve", "de", "can", "tu", "se", "viec", "quyet", "dinh",
         "của", "và", "là", "cho", "với", "những", "được", "trong", "một", "nhiều", "nội", "dung",
         "không", "theo", "các", "đã", "đang", "về", "để", "cần", "từ", "sẽ", "việc", "quyết", "định",
     }
-    freq: Dict[str, int] = {}
-    for token in re.findall(r"[0-9A-Za-zÀ-ỹà-ỹ]{3,}", corpus, flags=re.UNICODE):
-        cleaned = token.strip().lower()
-        if cleaned in stopwords:
-            continue
-        freq[cleaned] = freq.get(cleaned, 0) + 1
 
-    ranked = sorted(freq.items(), key=lambda item: item[1], reverse=True)
-    return [word for word, _count in ranked[:max_items]]
+    tokens = [token for token in _tokenize_concept_words(corpus) if token not in stopwords]
+    if not tokens:
+        return []
+
+    phrase_freq: Dict[str, int] = {}
+    for n in (3, 2):
+        for idx in range(0, max(0, len(tokens) - n + 1)):
+            gram = tokens[idx : idx + n]
+            if not gram or any(token in stopwords for token in gram):
+                continue
+            phrase = " ".join(gram).strip()
+            if phrase:
+                phrase_freq[phrase] = phrase_freq.get(phrase, 0) + 1
+
+    unigram_freq: Dict[str, int] = {}
+    for token in tokens:
+        if token in stopwords:
+            continue
+        unigram_freq[token] = unigram_freq.get(token, 0) + 1
+
+    ranked_phrases = sorted(
+        phrase_freq.items(),
+        key=lambda item: (item[1], len(item[0].split())),
+        reverse=True,
+    )
+    ranked_unigrams = sorted(unigram_freq.items(), key=lambda item: item[1], reverse=True)
+
+    candidates = [phrase for phrase, _freq in ranked_phrases]
+    for word, freq in ranked_unigrams:
+        if len(word) >= 5 or freq >= 3:
+            candidates.append(word)
+
+    return _normalize_label_list(
+        candidates,
+        max_items=max_items,
+        min_words=2,
+        prefer_phrases=True,
+    )
 
 
 def _derive_topics(
@@ -646,24 +696,115 @@ def _derive_topics(
         words = sentence.split()
         if len(words) <= 1:
             continue
-        topics.append(" ".join(words[: min(len(words), 6)]))
+        if len(words) > 8:
+            words = words[:8]
+        topics.append(" ".join(words))
 
     topics.extend(keywords or [])
 
-    deduped: List[str] = []
-    seen = set()
-    for topic in topics:
-        cleaned = re.sub(r"\s+", " ", str(topic or "").strip())
-        if len(cleaned) < 2 or _is_placeholder_value(cleaned):
-            continue
-        key = cleaned.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(cleaned)
-        if len(deduped) >= max_items:
-            break
-    return deduped
+    normalized = _normalize_label_list(
+        topics,
+        max_items=max_items,
+        min_words=2,
+        prefer_phrases=True,
+    )
+    if normalized:
+        return normalized
+    return _normalize_label_list(topics, max_items=max_items, min_words=1, prefer_phrases=False)
+
+
+def _derive_core_concepts(
+    summary: str,
+    key_points: List[str],
+    keywords: List[str],
+    max_items: int = 5,
+) -> List[Dict[str, str]]:
+    prefer_vi = _prefer_vietnamese_output()
+    concept_labels = _normalize_label_list(
+        list(keywords or []) + _derive_keywords(summary, key_points, max_items=max_items * 2),
+        max_items=max_items,
+        min_words=1,
+        prefer_phrases=False,
+    )
+    if not concept_labels:
+        return []
+
+    sentences = [
+        part.strip()
+        for part in re.split(r"(?<=[.!?])\s+", str(summary or ""))
+        if part.strip()
+    ]
+    concepts: List[Dict[str, str]] = []
+    for concept in concept_labels[:max_items]:
+        explanation = ""
+        lowered = concept.lower()
+        for sentence in sentences:
+            if lowered in sentence.lower():
+                explanation = sentence.strip()
+                break
+        if not explanation:
+            explanation = (
+                f"Khái niệm này gắn trực tiếp với nội dung học tập: {concept}."
+                if prefer_vi
+                else f"This concept is directly relevant to the study content: {concept}."
+            )
+        concepts.append(
+            {
+                "concept": concept,
+                "explanation": explanation[:280].strip(),
+                "example": "",
+            }
+        )
+    return concepts
+
+
+def _ensure_summary_markdown_layout(
+    summary: str,
+    key_points: List[str],
+    session_type: str,
+) -> str:
+    text_value = str(summary or "").strip()
+    if not text_value:
+        return text_value
+    if "## " in text_value or "### " in text_value:
+        return text_value
+
+    prefer_vi = _prefer_vietnamese_output()
+    paragraphs = [part.strip() for part in re.split(r"\n{2,}", text_value) if part.strip()]
+    if not paragraphs:
+        paragraphs = [text_value]
+
+    top_points = [str(point).strip() for point in (key_points or []) if str(point).strip()][:5]
+    lines: List[str] = []
+    if prefer_vi:
+        lines.append("### Tổng quan")
+        lines.append(paragraphs[0])
+        lines.append("")
+        lines.append("### Diễn biến chính")
+        lines.append(paragraphs[1] if len(paragraphs) > 1 else paragraphs[0])
+        lines.append("")
+        if top_points:
+            lines.append("### Điểm nhấn")
+            for point in top_points:
+                lines.append(f"- {point}")
+            lines.append("")
+        lines.append("### " + ("Kết luận học tập" if session_type == "course" else "Kết luận & hướng xử lý"))
+        lines.append(paragraphs[-1])
+    else:
+        lines.append("### Overview")
+        lines.append(paragraphs[0])
+        lines.append("")
+        lines.append("### Key flow")
+        lines.append(paragraphs[1] if len(paragraphs) > 1 else paragraphs[0])
+        lines.append("")
+        if top_points:
+            lines.append("### Highlights")
+            for point in top_points:
+                lines.append(f"- {point}")
+            lines.append("")
+        lines.append("### " + ("Learning conclusion" if session_type == "course" else "Conclusion & next direction"))
+        lines.append(paragraphs[-1])
+    return "\n".join(lines).strip()
 
 
 def _word_count(text_value: str) -> int:
@@ -1556,8 +1697,18 @@ async def generate_minutes_with_ai(
                 "summary": str(structured_payload.get("executive_summary") or "").strip(),
                 "key_points": _normalize_key_points(structured_payload.get("key_points")),
             }
-            keywords = _normalize_label_list(structured_payload.get("keywords"), max_items=10)
-            topics = _normalize_label_list(structured_payload.get("topics"), max_items=10)
+            keywords = _normalize_label_list(
+                structured_payload.get("keywords"),
+                max_items=10,
+                min_words=2,
+                prefer_phrases=True,
+            )
+            topics = _normalize_label_list(
+                structured_payload.get("topics"),
+                max_items=10,
+                min_words=2,
+                prefer_phrases=True,
+            )
             if request.include_actions and not action_rows:
                 action_rows = _normalize_rows_from_llm(structured_payload.get("action_items"), "action")
             if request.include_decisions and not decision_rows:
@@ -1715,6 +1866,40 @@ async def generate_minutes_with_ai(
             keywords=keywords,
             max_items=8,
         )
+
+    if session_type == "course":
+        if not isinstance(study_pack, dict):
+            study_pack = {}
+        concepts = [row for row in _safe_json_list(study_pack.get("concepts")) if row]
+        if len(concepts) < 5:
+            derived_concepts = _derive_core_concepts(
+                summary=str(summary_result.get("summary") or ""),
+                key_points=summary_result.get("key_points") or [],
+                keywords=keywords,
+                max_items=5,
+            )
+            if derived_concepts:
+                existing_keys = {
+                    str(item.get("concept") or item.get("name") or "").strip().lower()
+                    for item in concepts
+                    if isinstance(item, dict)
+                }
+                for item in derived_concepts:
+                    concept_name = str(item.get("concept") or "").strip().lower()
+                    if concept_name and concept_name in existing_keys:
+                        continue
+                    concepts.append(item)
+                    if concept_name:
+                        existing_keys.add(concept_name)
+                    if len(concepts) >= 5:
+                        break
+        study_pack["concepts"] = concepts[:5]
+
+    summary_result["summary"] = _ensure_summary_markdown_layout(
+        summary=str(summary_result.get("summary") or ""),
+        key_points=summary_result.get("key_points") or [],
+        session_type=session_type,
+    )
 
     actions = [row.get("description", "") for row in action_rows if row.get("description")]
     decisions = [row.get("description", "") for row in decision_rows if row.get("description")]
@@ -2037,6 +2222,26 @@ def format_minutes(
         concepts = [item for item in _safe_json_list(study_pack.get("concepts")) if item]
         formulas = [item for item in _safe_json_list(study_pack.get("formulas")) if item]
         quiz = [item for item in _safe_json_list(study_pack.get("quiz")) if item]
+
+        lines.append("## 5 Khái niệm quan trọng nhất" if prefer_vi else "## Top 5 most important concepts")
+        if concepts:
+            for idx, item in enumerate(concepts[:5], start=1):
+                concept_name = str(item.get("concept") or item.get("name") or item.get("title") or "").strip()
+                concept_explanation = str(item.get("explanation") or item.get("description") or "").strip()
+                if not concept_name:
+                    continue
+                if concept_explanation:
+                    lines.append(f"{idx}. **{concept_name}**: {concept_explanation}")
+                else:
+                    lines.append(f"{idx}. **{concept_name}**")
+        else:
+            lines.append(
+                "- Chưa có dữ liệu khái niệm cốt lõi."
+                if prefer_vi
+                else "- No core concept data available."
+            )
+        lines.append("")
+
         if include_knowledge_table:
             lines.append("## Bảng kiến thức trọng tâm")
             if concepts:
