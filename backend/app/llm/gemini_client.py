@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any, Tuple
 
+import httpx
 from groq import Groq
 from app.core.config import get_settings
 
@@ -299,7 +300,19 @@ def get_groq_client(api_key_override: Optional[str] = None):
     api_key = api_key_override or settings.groq_api_key
     if not api_key:
         return None
-    return Groq(api_key=api_key)
+    try:
+        return Groq(api_key=api_key)
+    except TypeError as exc:
+        # Compatibility fallback for runtime pairs where Groq forwards `proxies`
+        # to an httpx.Client version that no longer accepts it.
+        if "unexpected keyword argument 'proxies'" not in str(exc):
+            raise
+        logger.warning(
+            "[groq] Detected Groq/httpx constructor incompatibility (%s). "
+            "Retrying with explicit http_client.",
+            exc,
+        )
+        return Groq(api_key=api_key, http_client=httpx.Client())
 
 
 def _select_provider(
