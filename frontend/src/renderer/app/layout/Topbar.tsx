@@ -10,15 +10,16 @@ import {
   FolderOpen,
   Users,
   BookOpen,
+  Menu,
   X,
 } from 'lucide-react'
 import { useLocaleText } from '../../i18n/useLocaleText'
 import { useLanguage } from '../../contexts/LanguageContext'
-import { logout } from '../../lib/api/auth'
+import { getStoredUser, logout } from '../../lib/api/auth'
 import { meetingsApi } from '../../lib/api/meetings'
 import { projectsApi } from '../../lib/api/projects'
 import { USE_API } from '../../config/env'
-import { meetings as mockMeetings } from '../../store/mockData'
+import { meetings as mockMeetings, currentUser } from '../../store/mockData'
 import type { Meeting, MeetingPhase } from '../../shared/dto/meeting'
 import type { Project } from '../../shared/dto/project'
 
@@ -30,6 +31,11 @@ interface SearchSuggestion {
   title: string
   subtitle?: string
   route: string
+}
+
+interface TopbarProps {
+  onSidebarToggle: () => void
+  isMobileSidebarOpen: boolean
 }
 
 const RECENT_SEARCH_STORAGE_KEY = 'minute_topbar_recent_searches'
@@ -62,13 +68,19 @@ const isSearchSuggestion = (value: unknown): value is SearchSuggestion => {
   )
 }
 
-const Topbar = () => {
+const Topbar = ({ onSidebarToggle, isMobileSidebarOpen }: TopbarProps) => {
   const location = useLocation()
   const currentPath = location.pathname
   const navigate = useNavigate()
   const isDockView = /^\/app\/meetings\/[^/]+\/dock/.test(currentPath)
   const { lt, dateLocale } = useLocaleText()
   const { language, setLanguage } = useLanguage()
+  const storedUser = getStoredUser()
+  const displayUser = storedUser || currentUser
+  const userName =
+    ('display_name' in displayUser ? displayUser.display_name : undefined) ||
+    ('displayName' in displayUser ? displayUser.displayName : undefined) ||
+    'Minute User'
 
   const [searchTerm, setSearchTerm] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -392,6 +404,32 @@ const Topbar = () => {
         </>
       ) : (
         <>
+          <div className="topbar__mobile-row">
+            <button
+              type="button"
+              className="topbar__icon-btn topbar__menu-btn"
+              onClick={onSidebarToggle}
+              aria-label="Toggle navigation menu"
+              aria-expanded={isMobileSidebarOpen}
+              aria-controls="app-sidebar"
+            >
+              <Menu size={18} />
+            </button>
+            <div className="topbar__mobile-page">{findPageTitle(currentPath)}</div>
+            <button
+              type="button"
+              className="topbar__mobile-avatar"
+              onClick={onSidebarToggle}
+              aria-label="Toggle navigation menu"
+            >
+              <img
+                className="topbar__mobile-avatar-image"
+                src="/asset/gemini-ava.png"
+                alt={`${userName} avatar`}
+              />
+            </button>
+          </div>
+
           <div className="topbar__left">
             {(() => {
               const matched = routeBreadcrumbs.find(item => item.match.test(currentPath))
@@ -578,4 +616,3 @@ const Topbar = () => {
 }
 
 export default Topbar
-

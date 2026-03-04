@@ -17409,3 +17409,309 @@ a {
     align-items: stretch;
   }
 }
+
+/* ============================================
+   MOBILE NAV DRAWER + TEXT TRUNCATION
+   ============================================ */
+
+.app-shell__sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: rgba(15, 23, 42, 0.34);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+  z-index: 260;
+}
+
+.sidebar__header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sidebar__close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #ffffff;
+  color: #334155;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.sidebar__close-btn:hover {
+  background: #eef2f7;
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.22);
+}
+
+.sidebar__nav-item--mobile-only {
+  display: none;
+}
+
+.topbar__mobile-row {
+  display: none;
+}
+
+.topbar__menu-btn {
+  flex-shrink: 0;
+}
+
+.topbar__mobile-page {
+  min-width: 0;
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar__mobile-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.topbar__mobile-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.drive-table__cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drive-table__name-main > div {
+  min-width: 0;
+}
+
+.drive-file-meta--project span {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  body.app-shell--mobile-locked {
+    overflow: hidden;
+  }
+
+  .app-shell {
+    position: relative;
+  }
+
+  .app-shell__sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(84vw, 320px);
+    max-width: 320px;
+    height: 100vh;
+    transform: translateX(-110%);
+    transition: transform 0.24s ease;
+    z-index: 310;
+    box-shadow: 0 18px 38px rgba(15, 23, 42, 0.26);
+  }
+
+  .sidebar--mobile-open {
+    transform: translateX(0);
+  }
+
+  .app-shell__sidebar-backdrop {
+    display: block;
+  }
+
+  .app-shell--mobile-sidebar-open .app-shell__sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .topbar {
+    height: auto;
+    min-height: var(--topbar-height);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .topbar--dock {
+    min-height: var(--topbar-height);
+    height: var(--topbar-height);
+    padding: 0 12px;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .topbar--dock .topbar__dock-left {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .topbar--dock .topbar__dock-crumb {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar__mobile-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .topbar__left {
+    width: 100%;
+    gap: 0;
+  }
+
+  .topbar__breadcrumb {
+    display: none;
+  }
+
+  .topbar__search {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .topbar__search-input {
+    min-height: 40px;
+  }
+
+  .topbar__right {
+    display: none;
+    position: static;
+    height: auto;
+  }
+
+  .topbar-search__item-main,
+  .topbar-search__item-title,
+  .topbar-search__item-subtitle {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sidebar__close-btn {
+    display: inline-flex;
+  }
+
+  .sidebar__header {
+    padding: 12px 14px 10px;
+    text-align: left;
+  }
+
+  .sidebar__logo {
+    justify-content: flex-start;
+  }
+
+  .sidebar__logo-text,
+  .sidebar__nav-label,
+  .sidebar__user-info {
+    display: block;
+  }
+
+  .sidebar__nav {
+    padding: 0 10px 10px;
+  }
+
+  .sidebar__nav-link {
+    justify-content: flex-start;
+    padding: 8px 12px;
+  }
+
+  .sidebar__nav-item--create {
+    margin: 8px 0 14px;
+  }
+
+  .sidebar__nav-item--mobile-only {
+    display: block;
+  }
+
+  .sidebar__nav-link--create {
+    width: min(176px, calc(100% - 14px));
+    min-height: 48px;
+    padding: 8px 12px;
+  }
+
+  .sidebar__footer {
+    display: block;
+    padding: 12px 14px;
+  }
+
+  .sidebar__user {
+    padding: 8px 6px;
+    background: transparent;
+  }
+
+  .drive-page {
+    gap: 14px;
+  }
+
+  .drive-table {
+    overflow: hidden;
+  }
+
+  .drive-table__header,
+  .drive-table__row {
+    grid-template-columns: minmax(0, 1.65fr) minmax(0, 0.9fr) 32px;
+    padding: 10px 12px;
+  }
+
+  .drive-table__header div:nth-child(3),
+  .drive-table__row div:nth-child(3) {
+    display: none;
+  }
+
+  .drive-folder {
+    min-width: 0;
+  }
+
+  .drive-file-meta {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .home-hub-calendar__agenda-list strong,
+  .home-hub-calendar__agenda-list small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

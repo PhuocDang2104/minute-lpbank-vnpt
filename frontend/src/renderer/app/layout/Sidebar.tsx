@@ -8,9 +8,11 @@ import {
   Info,
   FolderPlus,
   Calendar,
+  LogOut,
+  X,
 } from 'lucide-react'
 import { currentUser } from '../../store/mockData'
-import { getStoredUser } from '../../lib/api/auth'
+import { getStoredUser, logout } from '../../lib/api/auth'
 import { Modal } from '../../components/ui/Modal'
 import { CreateMeetingForm } from '../../features/meetings/components/CreateMeetingForm'
 import { projectsApi } from '../../lib/api/projects'
@@ -23,6 +25,11 @@ interface NavItem {
   label: string
   icon: React.ReactNode
   isActive?: (pathname: string) => boolean
+}
+
+interface SidebarProps {
+  isMobileOpen: boolean
+  onRequestClose: () => void
 }
 
 const readRoleFromPersonalizationStorage = (userId: string): string => {
@@ -41,7 +48,7 @@ const readRoleFromPersonalizationStorage = (userId: string): string => {
   }
 }
 
-const Sidebar = () => {
+const Sidebar = ({ isMobileOpen, onRequestClose }: SidebarProps) => {
   const location = useLocation()
   const navigate = useNavigate()
   const storedUser = getStoredUser()
@@ -107,6 +114,13 @@ const Sidebar = () => {
     }
   }
 
+  const handleLogout = () => {
+    onRequestClose()
+    void logout()
+      .catch(() => null)
+      .finally(() => navigate('/'))
+  }
+
   const openNewProject = () => {
     setIsCreateMenuOpen(false)
     setProjectError(null)
@@ -163,18 +177,31 @@ const Sidebar = () => {
   ]
 
   return (
-    <aside className="sidebar app-shell__sidebar">
+    <aside
+      id="app-sidebar"
+      className={`sidebar app-shell__sidebar ${isMobileOpen ? 'sidebar--mobile-open' : ''}`}
+    >
       {/* Logo */}
       <div className="sidebar__header">
-        <div className="sidebar__logo">
-          <div className="sidebar__logo-icon" style={{ padding: 0, background: 'transparent' }}>
-            <img
-              src="/minute_icon.svg"
-              alt="Minute"
-              style={{ width: 34, height: 34, objectFit: 'contain' }}
-            />
+        <div className="sidebar__header-top">
+          <div className="sidebar__logo">
+            <div className="sidebar__logo-icon" style={{ padding: 0, background: 'transparent' }}>
+              <img
+                src="/minute_icon.svg"
+                alt="Minute"
+                style={{ width: 34, height: 34, objectFit: 'contain' }}
+              />
+            </div>
+            <span className="sidebar__logo-text">Minute</span>
           </div>
-          <span className="sidebar__logo-text">Minute</span>
+          <button
+            type="button"
+            className="sidebar__close-btn"
+            onClick={onRequestClose}
+            aria-label="Close navigation menu"
+          >
+            <X size={16} />
+          </button>
         </div>
       </div>
 
@@ -184,7 +211,10 @@ const Sidebar = () => {
           <ul className="sidebar__nav-list">
             <li className="sidebar__nav-item sidebar__nav-item--create">
               <button
-                onClick={() => setIsCreateMenuOpen(true)}
+                onClick={() => {
+                  onRequestClose()
+                  setIsCreateMenuOpen(true)
+                }}
                 className="sidebar__nav-link sidebar__nav-link--action sidebar__nav-link--create"
                 type="button"
               >
@@ -200,6 +230,7 @@ const Sidebar = () => {
               <li key={item.path} className="sidebar__nav-item">
                 <NavLink
                   to={item.path}
+                  onClick={onRequestClose}
                   className={({ isActive }) => {
                     const active = item.isActive
                       ? item.isActive(location.pathname)
@@ -223,6 +254,7 @@ const Sidebar = () => {
               <li key={item.path} className="sidebar__nav-item">
                 <NavLink
                   to={item.path}
+                  onClick={onRequestClose}
                   className={({ isActive }) =>
                     `sidebar__nav-link ${isActive ? 'active' : ''}`
                   }
@@ -232,6 +264,18 @@ const Sidebar = () => {
                 </NavLink>
               </li>
             ))}
+            <li className="sidebar__nav-item sidebar__nav-item--mobile-only">
+              <button
+                type="button"
+                className="sidebar__nav-link"
+                onClick={handleLogout}
+              >
+                <span className="sidebar__nav-icon">
+                  <LogOut size={18} />
+                </span>
+                <span className="sidebar__nav-label">{lt('Dang xuat', 'Logout')}</span>
+              </button>
+            </li>
           </ul>
         </div>
       </nav>
