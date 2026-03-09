@@ -76,16 +76,23 @@ class LightRAGRetriever:
             return base + bucket_bonus + topic_bonus + token_overlap
 
         candidates: List[RagDoc] = []
-        for doc in self.docs:
-            # Bucket filter / assignment
-            if meeting_id and doc.bucket == "meeting":
+        if meeting_id:
+            for doc in self.docs:
+                if doc.bucket != "meeting":
+                    continue
+                doc_meeting_id = str((doc.metadata or {}).get("meeting_id") or "").strip()
+                if doc_meeting_id and doc_meeting_id != str(meeting_id):
+                    continue
                 candidates.append(doc)
-            elif project_id and doc.project_id == project_id:
-                candidates.append(doc)
-            elif doc.bucket == "global":
-                candidates.append(doc)
-            else:
-                candidates.append(doc)
+        elif project_id:
+            for doc in self.docs:
+                if doc.project_id == project_id:
+                    candidates.append(doc)
+        else:
+            candidates = [doc for doc in self.docs if doc.bucket == "global"]
+
+        if not candidates:
+            return []
 
         ranked = sorted(
             candidates,

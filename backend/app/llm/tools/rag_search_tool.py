@@ -32,10 +32,16 @@ def _query_bucket(
     elif bucket == "project":
         if not project_id:
             return []
-        scope_clause = (
-            "COALESCE(kd.project_id, kc.scope_project)::text = :project_id "
-            "AND COALESCE(kd.meeting_id, kc.scope_meeting) IS NULL"
-        )
+        scope_clause = """
+            (
+                COALESCE(kd.project_id, kc.scope_project)::text = :project_id
+                OR COALESCE(kd.meeting_id, kc.scope_meeting) IN (
+                    SELECT m.id
+                    FROM meeting m
+                    WHERE m.project_id::text = :project_id
+                )
+            )
+        """
         params = {"project_id": project_id, "limit": limit}
     else:
         scope_clause = "COALESCE(kd.meeting_id, kc.scope_meeting) IS NULL AND COALESCE(kd.project_id, kc.scope_project) IS NULL"
@@ -115,8 +121,14 @@ def rag_retrieve(
     try:
         docs: List[Dict[str, Any]] = []
         seen: set[tuple[str, Any]] = set()
+        if meeting_id:
+            buckets = ("meeting",)
+        elif project_id:
+            buckets = ("project",)
+        else:
+            buckets = ("global",)
 
-        for bucket in ("meeting", "project", "global"):
+        for bucket in buckets:
             bucket_docs = _query_bucket(
                 db,
                 question=question,
