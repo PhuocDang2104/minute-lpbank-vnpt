@@ -122,13 +122,11 @@ async def query_rag(
         )
 
     meeting_context = None
-    project_id = None
     if request.meeting_id and request.include_meeting_context:
         try:
-            meeting_context, project_id = _get_meeting_context(db, request.meeting_id)
+            meeting_context, _ = _get_meeting_context(db, request.meeting_id)
         except Exception:
             meeting_context = None
-            project_id = None
 
     knowledge_request = KnowledgeQueryRequest(
         query=request.query,
@@ -136,7 +134,8 @@ async def query_rag(
         include_meetings=True,
         limit=5,
         meeting_id=request.meeting_id,
-        project_id=project_id,
+        # Meeting chatbot must be strictly scoped to meeting documents only.
+        project_id=None,
     )
 
     rag_result = await knowledge_service.query_knowledge_ai(

@@ -993,10 +993,21 @@ def _build_vector_filters(request: KnowledgeSearchRequest):
         filters.append("kd.tags && :tags")
         params["tags"] = request.tags
     if getattr(request, "meeting_id", None):
-        filters.append("COALESCE(kd.meeting_id, kc.scope_meeting) = :meeting_id")
+        filters.append("COALESCE(kd.meeting_id, kc.scope_meeting)::text = :meeting_id")
         params["meeting_id"] = str(request.meeting_id)
     if getattr(request, "project_id", None):
-        filters.append("COALESCE(kd.project_id, kc.scope_project) = :project_id")
+        filters.append(
+            """
+            (
+                COALESCE(kd.project_id, kc.scope_project)::text = :project_id
+                OR COALESCE(kd.meeting_id, kc.scope_meeting) IN (
+                    SELECT m.id
+                    FROM meeting m
+                    WHERE m.project_id::text = :project_id
+                )
+            )
+            """
+        )
         params["project_id"] = str(request.project_id)
     return " AND ".join(filters), params
 
@@ -1273,10 +1284,21 @@ async def search_documents(
             conditions.append("category = :category")
             params["category"] = request.category
         if request.meeting_id:
-            conditions.append("meeting_id = :meeting_id")
+            conditions.append("meeting_id::text = :meeting_id")
             params["meeting_id"] = str(request.meeting_id)
         if request.project_id:
-            conditions.append("project_id = :project_id")
+            conditions.append(
+                """
+                (
+                    project_id::text = :project_id
+                    OR meeting_id IN (
+                        SELECT m.id
+                        FROM meeting m
+                        WHERE m.project_id::text = :project_id
+                    )
+                )
+                """
+            )
             params["project_id"] = str(request.project_id)
 
         where_clause = " AND ".join(conditions)
@@ -1342,6 +1364,10 @@ async def query_knowledge_ai(
     citations: List[str] = []
     best_score = None
     meeting_id_str = str(request.meeting_id) if request.meeting_id else None
+    # Scope rule:
+    # - Meeting chatbot: only meeting docs.
+    # - Project chatbot: project docs (including docs from meetings under the project).
+    effective_project_id = None if request.meeting_id else request.project_id
     prefer_vi = _prefer_vietnamese_output()
     output_language = _output_language_name()
 
@@ -1359,7 +1385,7 @@ async def query_knowledge_ai(
                     category=None,
                     tags=None,
                     meeting_id=request.meeting_id,
-                    project_id=request.project_id,
+                    project_id=effective_project_id,
                 )
             )
             params.update({"query_vec": vec_literal, "top_k": top_k_chunks})
@@ -1431,7 +1457,7 @@ async def query_knowledge_ai(
                     category=None,
                     tags=None,
                     meeting_id=request.meeting_id,
-                    project_id=request.project_id,
+                    project_id=effective_project_id,
                 ),
             )
             if fallback_docs.documents:

@@ -239,7 +239,6 @@ async def send_message(
     
     # Get meeting context if requested
     context = None
-    project_id = None
     if request.include_context and request.meeting_id:
         try:
             query = text("""
@@ -252,7 +251,6 @@ async def send_message(
             row = result.fetchone()
             if row:
                 context = f"Cuộc họp: {row[0]}\nLoại: {row[1]}\nMô tả: {row[2]}\nDự án: {row[3]}"
-                project_id = row[4]
         except Exception:
             pass
     
@@ -272,7 +270,8 @@ async def send_message(
                     include_meetings=True,
                     limit=5,
                     meeting_id=request.meeting_id,
-                    project_id=project_id,
+                    # Meeting chatbot must be strictly scoped to meeting documents only.
+                    project_id=None,
                 ),
                 llm_config=llm_config,
             )
